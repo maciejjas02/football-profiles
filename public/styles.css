@@ -1,0 +1,279 @@
+/* ========================
+   Football Profiles - clean version
+   ======================== */
+
+/* RESET */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+/* BODY */
+body {
+  background-color: #f5f7fb;
+  color: #222;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* HEADER */
+.topbar {
+  background-color: #ffffff;
+  border-bottom: 1px solid #dcdcdc;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+}
+
+.brand-mini {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+}
+
+.authbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.authbar span {
+  color: #666;
+}
+
+/* BUTTONS */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 6px;
+  font-weight: 600;
+  border: 1px solid #ccc;
+  background-color: #fff;
+  color: #333;
+  text-decoration: none;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn:hover {
+  background-color: #f1f1f1;
+}
+
+.btn-primary {
+  background-color: #0b5fff;
+  color: #fff;
+  border: 1px solid #0b5fff;
+}
+
+.btn-primary:hover {
+  background-color: #0047cc;
+}
+
+.btn-google {
+  background-color: #fff;
+  border: 1px solid #ccc;
+}
+
+.btn-github {
+  background-color: #2f363d;
+  color: #fff;
+  border: none;
+}
+
+/* MAIN LAYOUT */
+.container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  gap: 60px;
+}
+
+.hero {
+  max-width: 480px;
+}
+
+.hero h1 {
+  font-size: 40px;
+  font-weight: 800;
+  color: #0b5fff;
+  margin-bottom: 10px;
+}
+
+.hero p {
+  color: #555;
+  margin-bottom: 20px;
+  line-height: 1.4;
+}
+
+.bullets {
+  list-style: disc;
+  padding-left: 22px;
+  color: #333;
+}
+
+.card {
+  width: 360px;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 24px 28px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+}
+
+.card h2 {
+  margin-bottom: 8px;
+}
+
+.card .hint {
+  font-size: 14px;
+  color: #777;
+  margin-bottom: 16px;
+}
+
+/* FORM */
+label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  margin-top: 10px;
+  margin-bottom: 4px;
+}
+
+input[type="text"],
+input[type="password"] {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 15px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+input:focus {
+  outline: none;
+  border-color: #0b5fff;
+  box-shadow: 0 0 0 3px rgba(11, 95, 255, 0.15);
+}
+
+.password {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.password input {
+  flex: 1;
+}
+
+.error {
+  color: #d33;
+  margin-top: 8px;
+  min-height: 18px;
+  font-size: 14px;
+}
+
+/* CHECKBOX + ROW */
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #444;
+}
+
+.link {
+  color: #0b5fff;
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+/* DIVIDER */
+.divider {
+  text-align: center;
+  margin: 16px 0;
+  position: relative;
+  color: #888;
+  font-size: 14px;
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 40%;
+  height: 1px;
+  background-color: #ddd;
+}
+
+.divider::before {
+  left: 0;
+}
+.divider::after {
+  right: 0;
+}
+
+/* FOOTER SMALL TEXT */
+.foot {
+  margin-top: 14px;
+  text-align: center;
+  font-size: 13px;
+  color: #777;
+}
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+  .container {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .hero {
+    text-align: center;
+  }
+
+  .bullets {
+    text-align: left;
+    display: inline-block;
+  }
+}
+.tabs{display:flex; gap:8px; margin-bottom:10px;}
+.tab{border:1px solid #ccc; background:#f7f7f7; padding:8px 12px; border-radius:6px; cursor:pointer; font-weight:600;}
+.tab.active{background:#fff; border-color:#0b5fff; color:#0b5fff;}
+.muted{color:#777;}
+.oauth img{display:inline-block; vertical-align:middle;}
+.oauth .btn{gap:8px;}
+.hero .logo{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin-bottom:10px;
+}
+
+.logo-png{
+  width:256px;          /* dopasuj do swojego pliku */
+  height:256px;
+  object-fit:contain;  /* nie rozciąga */
+  image-rendering:auto;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,.15));
+}
