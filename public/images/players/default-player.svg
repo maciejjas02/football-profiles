@@ -1,0 +1,7 @@
+<!-- SVG placeholder for default player image -->
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+  <rect width="200" height="200" fill="#6366f1"/>
+  <circle cx="100" cy="80" r="30" fill="white" opacity="0.8"/>
+  <circle cx="100" cy="160" r="50" fill="white" opacity="0.8"/>
+  <text x="100" y="190" text-anchor="middle" fill="white" font-family="Arial" font-size="14" font-weight="bold">⚽ PLAYER</text>
+</svg>

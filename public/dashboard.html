@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Football Profiles — Dashboard</title>
+  <link rel="icon" href="data:," />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <!-- Pasek górny -->
+  <header class="topbar">
+    <div class="brand-mini">
+      <span class="ball">⚽</span>
+      <strong>Football Profiles</strong>
+    </div>
+    <div id="authBar" class="authbar">
+      <span id="who">Ładowanie...</span>
+      <button id="logoutBtn" class="btn btn-ghost">Wyloguj</button>
+    </div>
+  </header>
+
+  <!-- Baner systemowy -->
+  <div id="banner" class="banner" role="status" aria-live="polite" hidden></div>
+
+  <!-- Tło -->
+  <div class="bg">
+    <div class="blob b1"></div>
+    <div class="blob b2"></div>
+    <div class="grid"></div>
+  </div>
+
+  <main class="container">
+    <!-- Sekcja powitalna -->
+    <section class="hero">
+      <div class="logo">
+        <img src="/images/logo.png" alt="Football logo" class="logo-png" width="80" height="80" />
+      </div>
+      <h1>Witaj w <span>Football Profiles</span></h1>
+      <p>Odkryj najlepszych piłkarzy i zdobądź ich koszulki!</p>
+    </section>
+
+    <!-- Główna zawartość -->
+    <div class="dashboard-content">
+      
+      <!-- Główne panele nawigacyjne -->
+      <div class="main-panels">
+        <div class="panel-card" data-action="leagues">
+          <div class="panel-icon">🏆</div>
+          <h3>Najlepsze Ligi</h3>
+          <p>Top 5 lig piłkarskich świata</p>
+          <div class="panel-stats">
+            <span>Premier League • La Liga • Bundesliga • Serie A • Ligue 1</span>
+          </div>
+        </div>
+
+        <div class="panel-card" data-action="top-players">
+          <div class="panel-icon">⭐</div>
+          <h3>Gwiazdy Futbolu</h3>
+          <p>Najlepsi piłkarze wszech czasów</p>
+          <div class="panel-stats">
+            <span>Messi • Ronaldo • Mbappé • Haaland • Lewandowski • Dembélé</span>
+          </div>
+        </div>
+
+        <div class="panel-card" data-action="new-talents">
+          <div class="panel-icon">🚀</div>
+          <h3>Młode Talenty</h3>
+          <p>Przyszłe gwiazdy piłki nożnej</p>
+          <div class="panel-stats">
+            <span>Nowe odkrycia • Młodzi zawodnicy</span>
+          </div>
+        </div>
+
+        <div class="panel-card" data-action="goalkeepers">
+          <div class="panel-icon">🥅</div>
+          <h3>Bramkarze</h3>
+          <p>Najlepsi strażnicy bramek</p>
+          <div class="panel-stats">
+            <span>Legendy między słupkami</span>
+          </div>
+        </div>
+
+        <div class="panel-card" data-action="legends">
+          <div class="panel-icon">👑</div>
+          <h3>Legendy</h3>
+          <p>Ikony piłki nożnej</p>
+          <div class="panel-stats">
+            <span>Pelé • Maradona • Cruyff • Beckham</span>
+          </div>
+        </div>
+
+        <div class="panel-card" data-action="my-collection">
+          <div class="panel-icon">💎</div>
+          <h3>Moja Kolekcja</h3>
+          <p>Twoje zakupione koszulki</p>
+          <div class="panel-stats">
+            <span id="collection-count">0 koszulek</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sekcja lig (ukryta na początku) -->
+      <div id="leagues-section" class="players-section hidden">
+        <div class="section-header">
+          <button id="leagues-back-btn" class="btn btn-secondary">← Powrót</button>
+          <h2>Najlepsze Ligi Świata</h2>
+        </div>
+        <div class="leagues-grid">
+          <div class="league-card" data-league="premier-league">
+            <div class="league-logo">
+              <img src="https://logos-world.net/wp-content/uploads/2020/06/Premier-League-Logo.png" alt="Premier League" />
+            </div>
+            <div class="league-info">
+              <h3>Premier League</h3>
+              <p>Anglia</p>
+              <div class="league-stats">
+                <span>20 drużyn • Najlepsza liga świata</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="league-card" data-league="la-liga">
+            <div class="league-logo">
+              <img src="https://logos-world.net/wp-content/uploads/2020/06/La-Liga-Logo.png" alt="La Liga" />
+            </div>
+            <div class="league-info">
+              <h3>La Liga</h3>
+              <p>Hiszpania</p>
+              <div class="league-stats">
+                <span>20 drużyn • Real Madrid, Barcelona</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="league-card" data-league="bundesliga">
+            <div class="league-logo">
+              <img src="https://logos-world.net/wp-content/uploads/2020/06/Bundesliga-Logo.png" alt="Bundesliga" />
+            </div>
+            <div class="league-info">
+              <h3>Bundesliga</h3>
+              <p>Niemcy</p>
+              <div class="league-stats">
+                <span>18 drużyn • Bayern Munich, Dortmund</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="league-card" data-league="serie-a">
+            <div class="league-logo">
+              <img src="https://logos-world.net/wp-content/uploads/2020/06/Serie-A-Logo.png" alt="Serie A" />
+            </div>
+            <div class="league-info">
+              <h3>Serie A</h3>
+              <p>Włochy</p>
+              <div class="league-stats">
+                <span>20 drużyn • Juventus, AC Milan, Inter</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="league-card" data-league="ligue-1">
+            <div class="league-logo">
+              <img src="https://logos-world.net/wp-content/uploads/2020/06/Ligue-1-Logo.png" alt="Ligue 1" />
+            </div>
+            <div class="league-info">
+              <h3>Ligue 1</h3>
+              <p>Francja</p>
+              <div class="league-stats">
+                <span>20 drużyn • PSG, Monaco, Marseille</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sekcja zawodników (ukryta na początku) -->
+      <div id="players-section" class="players-section hidden">
+        <div class="section-header">
+          <button id="back-btn" class="btn btn-secondary">← Powrót</button>
+          <h2 id="section-title">Zawodnicy</h2>
+        </div>
+        <div id="players-grid" class="players-grid">
+          <!-- Zawodnicy będą ładowani dynamicznie -->
+        </div>
+      </div>
+
+      <!-- Sekcja informacji o użytkowniku (kompaktowa) -->
+      <div class="user-info-compact">
+        <div class="user-card">
+          <div class="user-avatar">👤</div>
+          <div class="user-details">
+            <div id="user-name">Ładowanie...</div>
+            <div id="user-stats" class="user-stats">
+              <span id="user-purchases">0 zakupów</span>
+              <span id="user-role">Użytkownik</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script src="/dashboard.js" type="module"></script>
+</body>
+</html>

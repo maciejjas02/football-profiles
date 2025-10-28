@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Football Profiles — Profil Piłkarza</title>
+  <link rel="icon" href="data:," />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <!-- Pasek górny -->
+  <header class="topbar">
+    <div class="brand-mini">
+      <span class="ball">⚽</span>
+      <strong>Football Profiles</strong>
+    </div>
+    <div id="authBar" class="authbar">
+      <span id="who">Ładowanie...</span>
+      <button id="logoutBtn" class="btn btn-ghost">Wyloguj</button>
+    </div>
+  </header>
+
+  <!-- Baner systemowy -->
+  <div id="banner" class="banner" role="status" aria-live="polite" hidden></div>
+
+  <!-- Tło -->
+  <div class="bg">
+    <div class="blob b1"></div>
+    <div class="blob b2"></div>
+    <div class="grid"></div>
+  </div>
+
+  <main class="container">
+    <!-- Loading state -->
+    <div id="loading" class="loading-state">
+      <div class="spinner"></div>
+      <p>Ładowanie profilu piłkarza...</p>
+    </div>
+
+    <!-- Error state -->
+    <div id="error-state" class="error-state hidden">
+      <div class="error-icon">⚠️</div>
+      <h2>Nie znaleziono piłkarza</h2>
+      <p>Piłkarz o podanym ID nie istnieje lub wystąpił błąd podczas ładowania.</p>
+      <button id="error-dashboard-btn" class="btn btn-primary">← Dashboard</button>
+    </div>
+
+    <!-- Player profile content -->
+    <div id="player-content" class="player-profile hidden">
+      <!-- Navigation -->
+      <div class="profile-nav">
+        <button id="dashboard-btn" class="btn btn-secondary">← Dashboard</button>
+        <div class="profile-breadcrumbs">
+          <span>Dashboard</span> › <span id="player-breadcrumb">Piłkarz</span>
+        </div>
+      </div>
+
+      <!-- Player header -->
+      <div class="profile-header">
+        <div class="player-main-info">
+          <div class="player-photo">
+            <img id="player-image" src="" alt="" />
+            <div class="player-flags">
+              <img id="national-flag" src="" alt="" class="flag-icon" />
+              <img id="team-logo" src="" alt="" class="team-logo" />
+            </div>
+          </div>
+          <div class="player-details">
+            <h1 id="player-name"></h1>
+            <div class="player-basic-info">
+              <span id="player-position" class="position-badge"></span>
+              <span id="player-team" class="team-name"></span>
+            </div>
+            <div class="player-meta">
+              <div class="meta-item">
+                <span class="meta-label">Wiek:</span>
+                <span id="player-age"></span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">Wzrost:</span>
+                <span id="player-height"></span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">Waga:</span>
+                <span id="player-weight"></span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">Wartość:</span>
+                <span id="player-value"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Purchase section -->
+        <div class="purchase-section">
+          <div class="jersey-preview">
+            <div class="jersey-card">
+              <div class="jersey-image">
+                <img id="jersey-image" src="https://via.placeholder.com/400x400/0066cc/ffffff?text=TEST" alt="Koszulka" style="display: block !important; width: 100% !important; height: 100% !important;" />
+              </div>
+              <div class="jersey-info">
+                <h3>Oficjalna koszulka</h3>
+                <p id="jersey-team"></p>
+                <div class="jersey-price">
+                  <span id="jersey-price-amount"></span>
+                  <small>+ darmowa dostawa</small>
+                </div>
+              </div>
+            </div>
+            <button id="buy-jersey-btn" class="btn btn-primary btn-large">
+              🛒 Kup koszulkę
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Player content sections -->
+      <div class="profile-content">
+        <!-- Stats section -->
+        <div class="stats-section">
+          <h2>📊 Statystyki</h2>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-number" id="stat-goals"></div>
+              <div class="stat-label">Gole</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number" id="stat-assists"></div>
+              <div class="stat-label">Asysty</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number" id="stat-matches"></div>
+              <div class="stat-label">Mecze</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number" id="stat-trophies"></div>
+              <div class="stat-label">Trofea</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Achievements section -->
+        <div class="achievements-section">
+          <h2>🏆 Osiągnięcia</h2>
+          <div id="achievements-list" class="achievements-list">
+            <!-- Dynamically loaded achievements -->
+          </div>
+        </div>
+
+        <!-- Biography section -->
+        <div class="biography-section">
+          <h2>📖 Biografia</h2>
+          <div class="biography-content">
+            <p id="player-biography"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="/player.js" type="module"></script>
+</body>
+</html>

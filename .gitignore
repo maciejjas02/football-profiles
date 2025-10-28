@@ -9,8 +9,12 @@ coverage
 # Env
 .env
 .env.*
+
+# Database files
 *.sqlite
 *.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
 
 # OS
 .DS_Store
