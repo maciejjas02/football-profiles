@@ -81,39 +81,47 @@ SQLite będzie automatycznie skonfigurowane. Baza danych zostanie utworzona w pl
 
 ### 4. Konfiguracja środowiska
 
-Skopiuj \`.env.example\` do \`.env\` i dostosuj wartości:
+**⚠️ WAŻNE: Ten krok jest WYMAGANY!**
 
-\`\`\`bash
+Skopiuj `.env.example` do `.env` i dostosuj wartości:
+
+```bash
+# Windows (PowerShell)
+Copy-Item .env.example .env
+
+# Linux/Mac
 cp .env.example .env
-\`\`\`
+```
 
-Przykładowy \`.env\`:
-\`\`\`
-# Database Configuration
-USE_POSTGRESQL=false
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=football_profiles
-DB_USER=postgres
-DB_PASSWORD=password
+**Wygeneruj bezpieczne sekrety** (min. 32 znaki) - NIE używaj domyślnych wartości!
 
-# Secrets
-JWT_SECRET=your_jwt_secret_key
-SESSION_SECRET=your_session_secret_key
+```bash
+# PowerShell
+-join ((48..57) + (65..90) + (97..122) | Get-Random -Count 32 | % {[char]$_})
 
-# Environment
+# Linux/Mac/Git Bash
+openssl rand -base64 32
+```
+
+Wypełnij plik `.env` (szczegóły w [SECURITY.md](SECURITY.md)):
+```
+SESSION_SECRET=wygenerowany_losowy_sekret_32_znaki
+JWT_SECRET=inny_wygenerowany_losowy_sekret_32_znaki
 NODE_ENV=development
-\`\`\`
+```
 
 ### 5. Uruchomienie aplikacji
 
-\`\`\`bash
-# Tryb deweloperski
+```bash
+# Tryb deweloperski (SQLite)
 npm run dev
 
+# Tryb deweloperski (PostgreSQL)
+npm run dev:postgres
+
 # Tryb produkcyjny
-npm start
-\`\`\`
+NODE_ENV=production npm start
+```
 
 Aplikacja będzie dostępna pod adresem http://localhost:5173
 

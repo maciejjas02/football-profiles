@@ -1,6 +1,47 @@
 // 🚀 NOWY DASHBOARD.JS - HARD RESET! 🚀
 
-console.log('🎉 Nowy Dashboard załadowany!');
+// ===== SLIDER =====
+let currentSlide = 0;
+const slides = document.querySelectorAll('.slide');
+const dots = document.querySelectorAll('.dot');
+const sliderTrack = document.querySelector('.slider-track');
+const arrowLeft = document.querySelector('.slider-arrow-left');
+const arrowRight = document.querySelector('.slider-arrow-right');
+
+function goToSlide(index) {
+  if (index < 0) index = slides.length - 1;
+  if (index >= slides.length) index = 0;
+  
+  currentSlide = index;
+  sliderTrack.style.transform = `translateX(-${currentSlide * 100}%)`;
+  
+  // Aktualizuj kropki
+  dots.forEach((dot, i) => {
+    dot.classList.toggle('active', i === currentSlide);
+  });
+}
+
+function nextSlide() {
+  goToSlide(currentSlide + 1);
+}
+
+function prevSlide() {
+  goToSlide(currentSlide - 1);
+}
+
+// Event listenery dla strzałek
+arrowLeft.addEventListener('click', prevSlide);
+arrowRight.addEventListener('click', nextSlide);
+
+// Event listenery dla kropek
+dots.forEach((dot, index) => {
+  dot.addEventListener('click', () => goToSlide(index));
+});
+
+// Auto-play co 5 sekund
+setInterval(nextSlide, 5000);
+
+// ===== RESZTA KODU =====
 
 // Podstawowe elementy DOM
 const playersSection = document.getElementById('players-section');
@@ -11,7 +52,6 @@ const logoutBtn = document.getElementById('logoutBtn');
 
 // Funkcja do wyświetlania zawodników z API
 async function showPlayers(category, title) {
-  console.log('🌟 Pobieranie zawodników z API:', category, title);
   
   try {
     // Pobierz zawodników z bazy danych
@@ -21,7 +61,6 @@ async function showPlayers(category, title) {
     }
     
     const players = await response.json();
-    console.log('✅ Otrzymano zawodników z API:', players.length);
     
     // Ustaw tytuł
     sectionTitle.textContent = title;
@@ -45,23 +84,47 @@ async function showPlayers(category, title) {
     
     // Dodaj zawodników z prawdziwymi zdjęciami z bazy danych
     players.forEach(player => {
+      console.log(`${player.name} - deceased:`, player.deceased); // DEBUG
+      
       const playerCard = document.createElement('div');
       playerCard.className = 'player-card';
       
       // Używamy imageUrl z bazy danych lub fallback
-      const playerImg = player.imageUrl || `https://via.placeholder.com/80x80/333/fff?text=${player.name.split(' ').map(n => n[0]).join('')}`;
+      const playerImg = player.imageUrl || `https://via.placeholder.com/400x400/333/fff?text=${player.name.split(' ').map(n => n[0]).join('')}`;
+      
+      // Ustaw zdjęcie jako tło
+      playerCard.style.backgroundImage = `url('${playerImg}')`;
+      playerCard.style.backgroundSize = 'cover';
+      playerCard.style.backgroundPosition = 'center center';
+      playerCard.style.backgroundRepeat = 'no-repeat';
+      
+      // Dodaj wstążkę żałobną dla nieżyjących legend
+      const ribbonHTML = player.deceased ? `
+        <div class="memorial-ribbon">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/0/0a/Black_Ribbon.svg" alt="In Memoriam">
+        </div>
+      ` : '';
+      
+      console.log(`Ribbon HTML for ${player.name}:`, ribbonHTML ? 'YES' : 'NO'); // DEBUG
       
       playerCard.innerHTML = `
-        <div class="player-avatar">
-          <img src="${playerImg}" alt="${player.name}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover;" onerror="this.src='https://via.placeholder.com/80x80/333/fff?text=${player.name.split(' ').map(n => n[0]).join('')}'">
-        </div>
+        ${ribbonHTML}
         <div class="player-info">
           <h3>${player.name}</h3>
           <p class="team">${player.team}</p>
           <p class="position">${player.position}</p>
-          <button class="btn btn-primary">Zobacz Profil</button>
+          <button class="btn btn-primary" data-player-id="${player.id}">Zobacz Profil</button>
         </div>
       `;
+      
+      // Event listener dla przycisku "Zobacz Profil"
+      const profileBtn = playerCard.querySelector('.btn-primary');
+      profileBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const playerId = e.target.dataset.playerId;
+        console.log('🎯 Przekierowanie do profilu:', playerId);
+        window.location.href = `/player.html?id=${playerId}`;
+      });
       
       playersGrid.appendChild(playerCard);
     });
@@ -71,14 +134,10 @@ async function showPlayers(category, title) {
     playersSection.classList.remove('hidden');
     playersSection.style.display = 'block';
     
-    console.log('✅ Wyświetlono', players.length, 'zawodników z bazy danych');
-    
   } catch (error) {
-    console.error('❌ Błąd pobierania zawodników:', error);
     
     // Pokazuj fallback tylko dla gwiazd; dla innych kategorii pokaż komunikat
     if (category === 'top-players') {
-      console.log('🔄 Używam danych fallback dla Gwiazd Futbolu...');
       const fallbackPlayers = [
         { id: 'lionel-messi', name: 'Lionel Messi', team: 'Inter Miami CF', position: 'Napastnik' },
         { id: 'cristiano-ronaldo', name: 'Cristiano Ronaldo', team: 'Al Nassr FC', position: 'Napastnik' },
@@ -110,10 +169,12 @@ function showPlayersFromData(players, title) {
     // Fallback do Kevin De Bruyne jeśli nie ma API
     const playerImg = 'https://upload.wikimedia.org/wikipedia/commons/b/bf/De_Bruyne_%28cropped%29.jpg';
     
+    playerCard.style.backgroundImage = `url('${playerImg}')`;
+    playerCard.style.backgroundSize = 'cover';
+    playerCard.style.backgroundPosition = 'center center';
+    playerCard.style.backgroundRepeat = 'no-repeat';
+    
     playerCard.innerHTML = `
-      <div class="player-avatar">
-        <img src="${playerImg}" alt="${player.name}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover;">
-      </div>
       <div class="player-info">
         <h3>${player.name}</h3>
         <p class="team">${player.team}</p>
@@ -159,7 +220,7 @@ document.addEventListener('click', (e) => {
       showPlayers('legends', '👑 Legendy');
     } else if (action === 'leagues') {
       console.log('🏆 NAJLEPSZE LIGI!');
-      alert('Sekcja lig w budowie! 🏆');
+      showLeagues();
     } else if (action === 'my-collection') {
       console.log('💎 MOJA KOLEKCJA!');
       showPlayers([], '💎 Moja Kolekcja (Pusta)');
@@ -169,6 +230,25 @@ document.addEventListener('click', (e) => {
     }
   }
 });
+
+// Funkcja do pokazywania lig
+function showLeagues() {
+  const leaguesSection = document.getElementById('leagues-section');
+  document.querySelector('.main-panels').style.display = 'none';
+  leaguesSection.classList.remove('hidden');
+  leaguesSection.style.display = 'block';
+}
+
+// Event listener dla przycisku powrotu z lig
+const leaguesBackBtn = document.getElementById('leagues-back-btn');
+if (leaguesBackBtn) {
+  leaguesBackBtn.addEventListener('click', () => {
+    const leaguesSection = document.getElementById('leagues-section');
+    leaguesSection.classList.add('hidden');
+    leaguesSection.style.display = 'none';
+    document.querySelector('.main-panels').style.display = 'grid';
+  });
+}
 
 // Event listener dla przycisku powrotu
 if (backBtn) {
@@ -189,8 +269,23 @@ if (logoutBtn) {
     const res = await fetch('/api/auth/me', { credentials: 'include' });
     if (!res.ok) throw new Error('not auth');
     const data = await res.json();
-    console.log('👤 Zalogowany jako:', data.user?.name || 'Admin');
-    document.getElementById('who').textContent = data.user?.name || 'Admin';
+    const currentUser = data.user;
+    console.log('👤 Zalogowany jako:', currentUser?.name || 'Admin');
+    document.getElementById('who').textContent = currentUser?.name || 'Admin';
+    
+    // Pokaż linki na podstawie roli
+    if (currentUser.role === 'moderator' || currentUser.role === 'admin') {
+      document.getElementById('moderatorLink').style.display = 'block';
+    }
+    if (currentUser.role === 'admin') {
+      document.getElementById('adminLink').style.display = 'block';
+    }
+    
+    // Obsługa wylogowania
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+      window.location.href = '/';
+    });
   } catch (err) {
     console.log('❌ Nie zalogowany, przekierowanie...');
     window.location.href = '/';

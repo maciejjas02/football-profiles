@@ -23,11 +23,21 @@ const regPw = document.getElementById('reg_password');
 const regPw2 = document.getElementById('reg_password2');
 const regError = document.getElementById('reg_error');
 
+// --- TOGGLE PASSWORD BUTTONS ---
+const toggleRegPw = document.getElementById('toggleRegPw');
+const toggleRegPw2 = document.getElementById('toggleRegPw2');
+
 // --- TABS ---
 const tabLogin = document.getElementById('tabLogin');
 const tabRegister = document.getElementById('tabRegister');
 const viewLogin = document.getElementById('viewLogin');
 const viewRegister = document.getElementById('viewRegister');
+
+// --- PASSWORD STRENGTH ---
+const passwordStrengthBar = document.getElementById('password-strength-bar');
+const reqLength = document.getElementById('req-length');
+const reqUppercase = document.getElementById('req-uppercase');
+const reqNumber = document.getElementById('req-number');
 
 function activateTab(which) {
   const isLogin = which === 'login';
@@ -38,6 +48,104 @@ function activateTab(which) {
 }
 tabLogin?.addEventListener('click', () => activateTab('login'));
 tabRegister?.addEventListener('click', () => activateTab('register'));
+
+// --- PASSWORD STRENGTH CHECKER ---
+function checkPasswordStrength(password) {
+  const hasLength = password.length >= 6;
+  const hasUppercase = /[A-Z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  
+  // Update requirements
+  if (reqLength) reqLength.classList.toggle('met', hasLength);
+  if (reqUppercase) reqUppercase.classList.toggle('met', hasUppercase);
+  if (reqNumber) reqNumber.classList.toggle('met', hasNumber);
+  
+  // Calculate strength
+  let strength = 0;
+  if (hasLength) strength++;
+  if (hasUppercase) strength++;
+  if (hasNumber) strength++;
+  if (password.length >= 10) strength++;
+  if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) strength++;
+  
+  // Update strength bar
+  if (passwordStrengthBar) {
+    passwordStrengthBar.className = 'password-strength-bar';
+    if (strength <= 2) {
+      passwordStrengthBar.classList.add('weak');
+    } else if (strength <= 3) {
+      passwordStrengthBar.classList.add('medium');
+    } else {
+      passwordStrengthBar.classList.add('strong');
+    }
+  }
+  
+  return { hasLength, hasUppercase, hasNumber, strength };
+}
+
+// Password strength on input
+regPw?.addEventListener('input', () => {
+  const password = regPw.value;
+  const result = checkPasswordStrength(password);
+  
+  // Visual feedback
+  if (password.length === 0) {
+    regPw.classList.remove('valid', 'invalid');
+  } else if (result.hasLength && result.hasUppercase && result.hasNumber) {
+    regPw.classList.add('valid');
+    regPw.classList.remove('invalid');
+  } else {
+    regPw.classList.add('invalid');
+    regPw.classList.remove('valid');
+  }
+});
+
+// Password match checker
+regPw2?.addEventListener('input', () => {
+  const password = regPw?.value || '';
+  const password2 = regPw2.value;
+  
+  if (password2.length === 0) {
+    regPw2.classList.remove('valid', 'invalid');
+  } else if (password === password2) {
+    regPw2.classList.add('valid');
+    regPw2.classList.remove('invalid');
+  } else {
+    regPw2.classList.add('invalid');
+    regPw2.classList.remove('valid');
+  }
+});
+
+// Email validation
+regEmail?.addEventListener('input', () => {
+  const email = regEmail.value.trim();
+  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  
+  if (email.length === 0) {
+    regEmail.classList.remove('valid', 'invalid');
+  } else if (emailRe.test(email)) {
+    regEmail.classList.add('valid');
+    regEmail.classList.remove('invalid');
+  } else {
+    regEmail.classList.add('invalid');
+    regEmail.classList.remove('valid');
+  }
+});
+
+// Username validation
+regUsername?.addEventListener('input', () => {
+  const username = regUsername.value.trim();
+  
+  if (username.length === 0) {
+    regUsername.classList.remove('valid', 'invalid');
+  } else if (username.length >= 3) {
+    regUsername.classList.add('valid');
+    regUsername.classList.remove('invalid');
+  } else {
+    regUsername.classList.add('invalid');
+    regUsername.classList.remove('valid');
+  }
+});
 
 // --- CSRF ---
 let csrfToken = null;
@@ -53,6 +161,25 @@ try {
 const savedLogin = localStorage.getItem('login');
 if (savedLogin && loginInput) loginInput.value = savedLogin;
 
+// --- Przywrócenie pól rejestracji ---
+const savedRegEmail = localStorage.getItem('reg_email');
+const savedRegUsername = localStorage.getItem('reg_username');
+const savedRegName = localStorage.getItem('reg_name');
+if (savedRegEmail && regEmail) regEmail.value = savedRegEmail;
+if (savedRegUsername && regUsername) regUsername.value = savedRegUsername;
+if (savedRegName && regName) regName.value = savedRegName;
+
+// --- Auto-save formularza rejestracji ---
+regEmail?.addEventListener('input', () => {
+  localStorage.setItem('reg_email', regEmail.value);
+});
+regUsername?.addEventListener('input', () => {
+  localStorage.setItem('reg_username', regUsername.value);
+});
+regName?.addEventListener('input', () => {
+  localStorage.setItem('reg_name', regName.value);
+});
+
 // --- Remember me ---
 loginInput?.addEventListener('input', () => {
   if (remember?.checked) localStorage.setItem('login', loginInput.value);
@@ -64,6 +191,17 @@ remember?.addEventListener('change', () => {
 togglePw?.addEventListener('click', () => {
   if (!pwInput) return;
   pwInput.type = pwInput.type === 'password' ? 'text' : 'password';
+});
+
+// Toggle password visibility for registration
+toggleRegPw?.addEventListener('click', () => {
+  if (!regPw) return;
+  regPw.type = regPw.type === 'password' ? 'text' : 'password';
+});
+
+toggleRegPw2?.addEventListener('click', () => {
+  if (!regPw2) return;
+  regPw2.type = regPw2.type === 'password' ? 'text' : 'password';
 });
 
 // --- UI helpers ---
@@ -113,6 +251,9 @@ form?.addEventListener('submit', async (e) => {
   if (payload.login.length < 3) { errorEl.textContent = 'Login za krótki.'; return; }
   if (payload.password.length < 6) { errorEl.textContent = 'Hasło za krótkie.'; return; }
 
+  const submitBtn = form.querySelector('button[type="submit"]');
+  submitBtn?.classList.add('loading');
+  
   try {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
@@ -133,6 +274,8 @@ form?.addEventListener('submit', async (e) => {
     errorEl.style.color = '#d33';
     errorEl.textContent = err.message;
     showBanner('Nie udało się zalogować', false);
+  } finally {
+    submitBtn?.classList.remove('loading');
   }
 });
 
@@ -157,6 +300,9 @@ regForm?.addEventListener('submit', async (e) => {
   if (password.length < 6) { regError.textContent = 'Hasło za krótkie (min 6).'; return; }
   if (password !== password2) { regError.textContent = 'Hasła się nie zgadzają.'; return; }
 
+  const submitBtn = regForm.querySelector('button[type="submit"]');
+  submitBtn?.classList.add('loading');
+
   try {
     const res = await fetch('/api/auth/register', {
       method: 'POST',
@@ -167,12 +313,19 @@ regForm?.addEventListener('submit', async (e) => {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Błąd rejestracji');
 
+    // Wyczyść zapisane pola po udanej rejestracji
+    localStorage.removeItem('reg_email');
+    localStorage.removeItem('reg_username');
+    localStorage.removeItem('reg_name');
+
     showBanner('Konto utworzone. Zalogowano ✅', true);
     setLoggedInUI(data.user);
     setTimeout(() => window.location.href = '/dashboard.html', 600);
   } catch (err) {
     regError.textContent = err.message;
     showBanner(err.message, false);
+  } finally {
+    submitBtn?.classList.remove('loading');
   }
 });
 

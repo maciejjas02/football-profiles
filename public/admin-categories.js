@@ -1,0 +1,296 @@
+import { fetchWithAuth, getCurrentUser, handleLogout } from './utils/api-client.js';
+
+let currentUser = null;
+let allCategories = [];
+let allModerators = [];
+
+async function init() {
+  await checkAuth();
+  await loadModerators();
+  await loadCategories();
+  setupEventListeners();
+}
+
+async function checkAuth() {
+  console.log('🔍 checkAuth() started');
+  try {
+    console.log('📡 Calling getCurrentUser()...');
+    currentUser = await getCurrentUser();
+    console.log('👤 Current user:', currentUser);
+    
+    if (!currentUser) {
+      console.log('❌ No user returned');
+      alert('Nie jesteś zalogowany. Przekierowanie na stronę logowania.');
+      window.location.href = 'index.html';
+      return;
+    }
+    
+    if (currentUser.role !== 'admin') {
+      console.log('❌ Access denied. User role:', currentUser.role);
+      alert('Brak dostępu. Tylko administratorzy mogą korzystać z tej strony.');
+      window.location.href = 'forum.html';
+      return;
+    }
+    
+    console.log('✅ Admin access granted');
+    // Display user info
+    document.getElementById('who').textContent = currentUser.name || currentUser.username;
+  } catch (error) {
+    console.error('💥 Auth check failed:', error);
+    alert('Błąd sprawdzania autoryzacji: ' + error.message);
+    window.location.href = 'index.html';
+  }
+
+  document.getElementById('logoutBtn')?.addEventListener('click', async () => {
+    await handleLogout();
+    window.location.href = 'index.html';
+  });
+}
+
+async function loadModerators() {
+  try {
+    // Fetch all users (would need an endpoint, using mock for now)
+    // In real app, you'd have /api/admin/users?role=moderator
+    allModerators = [
+      { id: 2, username: 'moderator', name: 'Moderator' }
+    ];
+    
+    const select = document.getElementById('assignModerator');
+    select.innerHTML = '<option value="">Wybierz moderatora...</option>' +
+      allModerators.map(mod => `<option value="${mod.id}">${mod.name} (@${mod.username})</option>`).join('');
+  } catch (error) {
+    console.error('Failed to load moderators:', error);
+  }
+}
+
+async function loadCategories() {
+  try {
+    allCategories = await fetchWithAuth('/api/forum/categories');
+    
+    // Update parent category dropdown
+    const parentSelect = document.getElementById('parentCategory');
+    parentSelect.innerHTML = '<option value="">Brak (główna kategoria)</option>' +
+      allCategories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
+    
+    // Update assignment category dropdown
+    const assignSelect = document.getElementById('assignCategory');
+    assignSelect.innerHTML = '<option value="">Wybierz kategorię...</option>' +
+      allCategories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
+    
+    // Display categories table
+    const list = document.getElementById('categoriesList');
+    
+    if (allCategories.length === 0) {
+      list.innerHTML = '<div class="empty-state">Brak kategorii</div>';
+      return;
+    }
+    
+    list.innerHTML = `
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Nazwa</th>
+            <th>Slug</th>
+            <th>Opis</th>
+            <th>Posty</th>
+            <th>Podkategorie</th>
+            <th>Akcje</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${allCategories.map(cat => `
+            <tr>
+              <td><strong>${cat.name}</strong></td>
+              <td><code>${cat.slug}</code></td>
+              <td>${cat.description || '-'}</td>
+              <td>${cat.post_count || 0}</td>
+              <td>${cat.subcategory_count || 0}</td>
+              <td>
+                <button class="btn btn-secondary btn-sm" onclick="editCategory(${cat.id})">✏️</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteCategory(${cat.id})">🗑️</button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  } catch (error) {
+    console.error('Failed to load categories:', error);
+  }
+}
+
+function setupEventListeners() {
+  // Create category form
+  document.getElementById('createCategoryForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const name = document.getElementById('categoryName').value.trim();
+    const slug = document.getElementById('categorySlug').value.trim();
+    const description = document.getElementById('categoryDescription').value.trim();
+    const parent_id = document.getElementById('parentCategory').value || null;
+    
+    if (!name || !slug) {
+      alert('Nazwa i slug są wymagane');
+      return;
+    }
+    
+    try {
+      await fetchWithAuth('/api/forum/categories', {
+        method: 'POST',
+        body: JSON.stringify({ name, slug, description, parent_id })
+      });
+      
+      alert('✅ Kategoria utworzona');
+      document.getElementById('createCategoryForm').reset();
+      loadCategories();
+    } catch (error) {
+      console.error('Failed to create category:', error);
+      alert('❌ Błąd podczas tworzenia kategorii');
+    }
+  });
+  
+  // Auto-generate slug
+  document.getElementById('categoryName').addEventListener('input', (e) => {
+    const slug = e.target.value
+      .toLowerCase()
+      .replace(/ą/g, 'a').replace(/ć/g, 'c').replace(/ę/g, 'e')
+      .replace(/ł/g, 'l').replace(/ń/g, 'n').replace(/ó/g, 'o')
+      .replace(/ś/g, 's').replace(/ź|ż/g, 'z')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+    document.getElementById('categorySlug').value = slug;
+  });
+  
+  // Assign moderator
+  document.getElementById('assignBtn').addEventListener('click', async () => {
+    const category_id = document.getElementById('assignCategory').value;
+    const user_id = document.getElementById('assignModerator').value;
+    
+    if (!category_id || !user_id) {
+      alert('Wybierz kategorię i moderatora');
+      return;
+    }
+    
+    try {
+      await fetchWithAuth(`/api/forum/categories/${category_id}/moderators`, {
+        method: 'POST',
+        body: JSON.stringify({ user_id: parseInt(user_id) })
+      });
+      
+      alert('✅ Moderator przypisany');
+      loadAssignments(category_id);
+    } catch (error) {
+      console.error('Failed to assign moderator:', error);
+      alert('❌ Błąd podczas przypisywania moderatora');
+    }
+  });
+  
+  // Load assignments when category selected
+  document.getElementById('assignCategory').addEventListener('change', (e) => {
+    if (e.target.value) {
+      loadAssignments(e.target.value);
+    }
+  });
+}
+
+async function loadAssignments(category_id) {
+  try {
+    const moderators = await fetchWithAuth(`/api/forum/categories/${category_id}/moderators`);
+    const list = document.getElementById('assignmentsList');
+    
+    if (moderators.length === 0) {
+      list.innerHTML = '<p style="margin-top: 20px; color: rgba(255,255,255,0.5);">Brak przypisanych moderatorów</p>';
+      return;
+    }
+    
+    list.innerHTML = `
+      <div style="margin-top: 20px;">
+        <h3>Przypisani moderatorzy:</h3>
+        <div class="moderators-list">
+          ${moderators.map(mod => `
+            <div class="moderator-item">
+              <span>👤 ${mod.name} (@${mod.username})</span>
+              <button 
+                class="btn btn-danger btn-sm" 
+                onclick="removeModerator(${category_id}, ${mod.id})"
+              >
+                Usuń
+              </button>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    console.error('Failed to load assignments:', error);
+  }
+}
+
+window.editCategory = async (id) => {
+  const category = allCategories.find(c => c.id === id);
+  if (!category) return;
+  
+  const newName = prompt('Nowa nazwa:', category.name);
+  if (!newName || newName === category.name) return;
+  
+  const newSlug = prompt('Nowy slug:', category.slug);
+  if (!newSlug) return;
+  
+  const newDescription = prompt('Nowy opis:', category.description || '');
+  
+  try {
+    await fetchWithAuth(`/api/forum/categories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ 
+        name: newName, 
+        slug: newSlug, 
+        description: newDescription 
+      })
+    });
+    
+    alert('✅ Kategoria zaktualizowana');
+    loadCategories();
+  } catch (error) {
+    console.error('Failed to update category:', error);
+    alert('❌ Błąd podczas aktualizacji kategorii');
+  }
+};
+
+window.deleteCategory = async (id) => {
+  const category = allCategories.find(c => c.id === id);
+  if (!category) return;
+  
+  if (!confirm(`Czy na pewno chcesz usunąć kategorię "${category.name}"? Zostaną usunięte wszystkie posty i podkategorie!`)) {
+    return;
+  }
+  
+  try {
+    await fetchWithAuth(`/api/forum/categories/${id}`, {
+      method: 'DELETE'
+    });
+    
+    alert('✅ Kategoria usunięta');
+    loadCategories();
+  } catch (error) {
+    console.error('Failed to delete category:', error);
+    alert('❌ Błąd podczas usuwania kategorii');
+  }
+};
+
+window.removeModerator = async (category_id, user_id) => {
+  if (!confirm('Czy na pewno chcesz usunąć tego moderatora z kategorii?')) return;
+  
+  try {
+    await fetchWithAuth(`/api/forum/categories/${category_id}/moderators/${user_id}`, {
+      method: 'DELETE'
+    });
+    
+    alert('✅ Moderator usunięty z kategorii');
+    loadAssignments(category_id);
+  } catch (error) {
+    console.error('Failed to remove moderator:', error);
+    alert('❌ Błąd podczas usuwania moderatora');
+  }
+};
+
+init();

@@ -54,7 +54,8 @@ export class ApiClient {
   }
 
   async getCurrentUser() {
-    return this.request('/api/auth/me');
+    const response = await this.request('/api/auth/me');
+    return response.user || response; // Return user object directly
   }
 
   async login(credentials) {
@@ -85,3 +86,39 @@ export class ApiClient {
 }
 
 export const apiClient = new ApiClient();
+
+// Helper functions for gallery and other modules
+export async function fetchWithAuth(endpoint, options = {}) {
+  const response = await fetch(endpoint, {
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers
+    },
+    ...options
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  return response.json();
+}
+
+export async function getCurrentUser() {
+  try {
+    return await apiClient.getCurrentUser();
+  } catch (error) {
+    return null;
+  }
+}
+
+export async function handleLogout() {
+  try {
+    await apiClient.logout();
+    window.location.href = '/';
+  } catch (error) {
+    console.error('Logout error:', error);
+    window.location.href = '/';
+  }
+}

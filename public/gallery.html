@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Galeria | Football Profiles</title>
+  <link rel="stylesheet" href="/styles.css"/>
+</head>
+<body>
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="topbar-content">
+      <div class="logo-section">
+        <img src="/images/logo.png" alt="Football Profiles" class="topbar-logo" />
+        <span class="site-title">Football Profiles</span>
+      </div>
+      <nav class="topbar-nav">
+        <a href="dashboard.html" class="nav-tab">Panel</a>
+        <a href="gallery.html" class="nav-tab active">Galeria</a>
+        <a href="forum.html" class="nav-tab">Forum</a>
+        <a href="moderator-posts.html" class="nav-tab" id="moderatorLink" style="display:none;">Moderacja</a>
+        <a href="admin-categories.html" class="nav-tab" id="adminLink" style="display:none;">Admin</a>
+      </nav>
+      <div class="topbar-actions">
+        <button id="notificationsBtn" class="icon-button" style="display:none;">
+          <span>🔔</span>
+          <span id="notificationBadge" class="notification-badge" style="display:none;">0</span>
+        </button>
+        <div id="notificationsDropdown" class="notifications-dropdown" style="display:none;">
+          <div class="notifications-header">
+            <h3>Powiadomienia</h3>
+            <button id="markAllReadBtn" class="mark-read-btn">Oznacz wszystkie jako przeczytane</button>
+          </div>
+          <div id="notificationsList" class="notifications-list"></div>
+        </div>
+        <div id="authBar" class="authbar">
+          <span id="userDisplay">Ładowanie...</span>
+          <button id="logoutBtn" class="btn btn-ghost">Wyloguj</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="gallery-view">
+    <h1> Galeria Football Profiles</h1>
+    <p style="text-align: center; color: rgba(255,255,255,0.7); margin-bottom: 40px;">
+      Odkryj najlepsze momenty i zdjęcia z historii piłki nożnej
+    </p>
+
+    <!-- Responsive Grid Slider (MIN: 1/2/3 columns) -->
+    <div id="gallerySlider" class="gallery-slider">
+      <div class="loading" style="grid-column: 1/-1; text-align: center; padding: 60px;">
+        Ładowanie galerii...
+      </div>
+    </div>
+
+    <!-- Slider Navigation -->
+    <div class="slider-nav">
+      <button id="prevBtn" aria-label="Previous">‹</button>
+      <div class="slider-dots" id="sliderDots"></div>
+      <button id="nextBtn" aria-label="Next">›</button>
+    </div>
+  </main>
+
+  <script type="module" src="/gallery.js"></script>
+</body>
+</html>

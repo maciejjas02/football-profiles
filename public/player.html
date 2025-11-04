@@ -14,7 +14,6 @@
   <!-- Pasek górny -->
   <header class="topbar">
     <div class="brand-mini">
-      <span class="ball">⚽</span>
       <strong>Football Profiles</strong>
     </div>
     <div id="authBar" class="authbar">
@@ -27,11 +26,7 @@
   <div id="banner" class="banner" role="status" aria-live="polite" hidden></div>
 
   <!-- Tło -->
-  <div class="bg">
-    <div class="blob b1"></div>
-    <div class="blob b2"></div>
-    <div class="grid"></div>
-  </div>
+  <div class="bg"></div>
 
   <main class="container">
     <!-- Loading state -->
@@ -91,6 +86,32 @@
                 <span class="meta-label">Wartość:</span>
                 <span id="player-value"></span>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Player Rating Bar -->
+        <div class="player-rating-section">
+          <h3>Ocena Społeczności</h3>
+          <div class="rating-controls">
+            <button class="rating-btn like-btn" id="player-like-btn">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
+              </svg>
+              <span id="player-likes-count">0</span>
+            </button>
+            <button class="rating-btn dislike-btn" id="player-dislike-btn">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path>
+              </svg>
+              <span id="player-dislikes-count">0</span>
+            </button>
+          </div>
+          <div class="rating-bar">
+            <div class="rating-bar-positive" id="player-rating-bar"></div>
+            <div class="rating-percentage">
+              <span class="positive-percent" id="positive-percent">0%</span>
+              <span class="negative-percent" id="negative-percent">0%</span>
             </div>
           </div>
         </div>
@@ -156,6 +177,36 @@
           <h2>📖 Biografia</h2>
           <div class="biography-content">
             <p id="player-biography"></p>
+          </div>
+        </div>
+
+        <!-- Comments section -->
+        <div class="comments-section">
+          <h2>💬 Komentarze (<span id="comments-count">0</span>)</h2>
+          
+          <!-- Add comment form -->
+          <div class="add-comment-form">
+            <textarea 
+              id="comment-input" 
+              placeholder="Podziel się swoją opinią o tym zawodniku..."
+              maxlength="500"
+              rows="3"
+            ></textarea>
+            <div class="comment-form-actions">
+              <span id="char-counter" class="char-counter">0/500</span>
+              <button id="submit-comment-btn" class="btn btn-primary">Dodaj komentarz</button>
+            </div>
+          </div>
+
+          <!-- Comments list -->
+          <div id="comments-list" class="comments-list">
+            <!-- Dynamically loaded comments -->
+          </div>
+
+          <!-- Empty state -->
+          <div id="comments-empty" class="comments-empty hidden">
+            <div class="empty-icon">💭</div>
+            <p>Brak komentarzy. Bądź pierwszy!</p>
           </div>
         </div>
       </div>

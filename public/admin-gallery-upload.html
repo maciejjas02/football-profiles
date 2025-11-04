@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin - Upload Zdjęć | Football Profiles</title>
+  <link rel="stylesheet" href="/styles.css"/>
+</head>
+<body>
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="topbar-content">
+      <div class="logo-section">
+        <img src="/images/logo.png" alt="Football Profiles" class="topbar-logo" />
+        <span class="site-title">Football Profiles</span>
+      </div>
+      <nav class="topbar-nav">
+        <a href="dashboard.html" class="nav-tab">Panel</a>
+        <a href="gallery.html" class="nav-tab">Galeria</a>
+        <a href="forum.html" class="nav-tab">Forum</a>
+        <a href="moderator-posts.html" class="nav-tab" id="moderatorLink" style="display:none;">Moderacja</a>
+        <a href="admin-categories.html" class="nav-tab active">Admin</a>
+      </nav>
+      <div class="topbar-actions">
+        <button id="notificationsBtn" class="icon-button" style="display:none;">
+          <span>🔔</span>
+          <span id="notificationBadge" class="notification-badge" style="display:none;">0</span>
+        </button>
+        <div id="notificationsDropdown" class="notifications-dropdown" style="display:none;">
+          <div class="notifications-header">
+            <h3>Powiadomienia</h3>
+            <button id="markAllReadBtn" class="mark-read-btn">Oznacz wszystkie jako przeczytane</button>
+          </div>
+          <div id="notificationsList" class="notifications-list"></div>
+        </div>
+        <div id="authBar" class="authbar">
+          <span id="userDisplay">Ładowanie...</span>
+          <button id="logoutBtn" class="btn btn-ghost">Wyloguj</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container" style="margin-top: 100px; max-width: 1000px;">
+    <div class="page-header">
+      <h1 class="page-title">📤 Upload Zdjęć do Galerii</h1>
+      <div class="sub-nav">
+        <a href="admin-categories.html" class="sub-nav-link">Kategorie Forum</a>
+        <a href="admin-gallery-upload.html" class="sub-nav-link active">Upload Galerii</a>
+        <a href="admin-gallery-manage.html" class="sub-nav-link">Zarządzaj Galerią</a>
+      </div>
+    </div>
+    <div class="admin-panel">
+      <p class="hint">Dodaj zdjęcia do bazy danych. Zdjęcia zostaną automatycznie przeskalowane.</p>
+
+      <!-- Upload Form -->
+      <div class="upload-zone" id="uploadZone">
+        <div class="upload-icon">📁</div>
+        <p>Przeciągnij zdjęcie tutaj lub kliknij aby wybrać</p>
+        <input type="file" id="fileInput" accept="image/*" style="display:none;"/>
+        <button type="button" class="btn btn-primary" id="selectBtn">Wybierz Plik</button>
+      </div>
+
+      <!-- Upload Form Details -->
+      <form id="uploadForm" style="display:none;">
+        <div class="preview-container">
+          <img id="preview" alt="Preview" />
+        </div>
+
+        <label for="title">Tytuł zdjęcia *</label>
+        <input type="text" id="title" placeholder="np. Cristiano Ronaldo 2024" required />
+
+        <label for="description">Opis (opcjonalnie)</label>
+        <textarea id="description" rows="3" placeholder="Szczegółowy opis zdjęcia..."></textarea>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">📤 Upload</button>
+          <button type="button" class="btn btn-secondary" id="cancelBtn">Anuluj</button>
+        </div>
+
+        <p id="uploadError" class="error" role="alert"></p>
+        <p id="uploadSuccess" class="success" role="alert"></p>
+      </form>
+
+      <!-- Uploaded Images List -->
+      <div class="uploaded-section">
+        <h2>📷 Zdjęcia w Bazie</h2>
+        <div id="imagesList" class="images-grid">
+          <div class="loading">Ładowanie...</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script type="module" src="/admin-gallery-upload.js"></script>
+</body>
+</html>

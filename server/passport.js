@@ -3,7 +3,7 @@ import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { Strategy as GitHubStrategy } from 'passport-github2';
 
 passport.serializeUser((user, done) => {
-  done(null, { id: user.id || user.id, provider: user.provider || user.provider });
+  done(null, { id: user.id, provider: user.provider });
 });
 
 passport.deserializeUser((obj, done) => done(null, obj));

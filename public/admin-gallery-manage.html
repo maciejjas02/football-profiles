@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin - Zarządzaj Sliderem | Football Profiles</title>
+  <link rel="stylesheet" href="/styles.css"/>
+</head>
+<body>
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="topbar-content">
+      <div class="logo-section">
+        <img src="/images/logo.png" alt="Football Profiles" class="topbar-logo" />
+        <span class="site-title">Football Profiles</span>
+      </div>
+      <nav class="topbar-nav">
+        <a href="dashboard.html" class="nav-tab">Panel</a>
+        <a href="gallery.html" class="nav-tab">Galeria</a>
+        <a href="forum.html" class="nav-tab">Forum</a>
+        <a href="moderator-posts.html" class="nav-tab" id="moderatorLink" style="display:none;">Moderacja</a>
+        <a href="admin-categories.html" class="nav-tab active">Admin</a>
+      </nav>
+      <div class="topbar-actions">
+        <button id="notificationsBtn" class="icon-button" style="display:none;">
+          <span>🔔</span>
+          <span id="notificationBadge" class="notification-badge" style="display:none;">0</span>
+        </button>
+        <div id="notificationsDropdown" class="notifications-dropdown" style="display:none;">
+          <div class="notifications-header">
+            <h3>Powiadomienia</h3>
+            <button id="markAllReadBtn" class="mark-read-btn">Oznacz wszystkie jako przeczytane</button>
+          </div>
+          <div id="notificationsList" class="notifications-list"></div>
+        </div>
+        <div id="authBar" class="authbar">
+          <span id="userDisplay">Ładowanie...</span>
+          <button id="logoutBtn" class="btn btn-ghost">Wyloguj</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container" style="margin-top: 100px; max-width: 1000px;">
+    <div class="page-header">
+      <h1 class="page-title">🎨 Zarządzaj Sliderem/Galerią</h1>
+      <div class="sub-nav">
+        <a href="admin-categories.html" class="sub-nav-link">Kategorie Forum</a>
+        <a href="admin-gallery-upload.html" class="sub-nav-link">Upload Galerii</a>
+        <a href="admin-gallery-manage.html" class="sub-nav-link active">Zarządzaj Galerią</a>
+      </div>
+    </div>
+    <div class="admin-panel">
+      <p class="hint">Twórz różne kolekcje sliderów i zarządzaj ich zawartością</p>
+
+      <!-- Create Collection -->
+      <div class="card" style="margin: 30px 0;">
+        <h2>➕ Utwórz Nową Kolekcję</h2>
+        <form id="createCollectionForm">
+          <label for="collectionName">Nazwa kolekcji *</label>
+          <input type="text" id="collectionName" placeholder="np. Sezon 2024/2025" required />
+
+          <label for="collectionDesc">Opis</label>
+          <textarea id="collectionDesc" rows="2" placeholder="Krótki opis kolekcji..."></textarea>
+
+          <button type="submit" class="btn btn-primary">Utwórz Kolekcję</button>
+          <p id="createError" class="error"></p>
+          <p id="createSuccess" class="success"></p>
+        </form>
+      </div>
+
+      <!-- Collections List -->
+      <h2>📁 Wszystkie Kolekcje</h2>
+      <div id="collectionsList" class="collections-grid">
+        <div class="loading">Ładowanie...</div>
+      </div>
+
+      <!-- Selected Collection Management -->
+      <div id="manageSection" style="display:none; margin-top: 60px;">
+        <h2>🔧 Edytuj: <span id="selectedCollectionName"></span></h2>
+        
+        <!-- Add Images to Collection -->
+        <div class="card" style="margin: 20px 0;">
+          <h3>➕ Dodaj Zdjęcia</h3>
+          <select id="availableImages" size="5" style="width: 100%; margin-bottom: 15px;">
+            <option value="">Ładowanie...</option>
+          </select>
+          <button id="addImageBtn" class="btn btn-primary">Dodaj do Slidera</button>
+        </div>
+
+        <!-- Slider Items (Drag & Drop +0.5 bonus) -->
+        <h3>🖼️ Zdjęcia w Sliderze (przeciągnij aby zmienić kolejność)</h3>
+        <div id="sliderItems" class="slider-items">
+          <div class="loading">Brak zdjęć w tej kolekcji</div>
+        </div>
+        <button id="saveOrderBtn" class="btn btn-primary" style="margin-top: 20px; display:none;">💾 Zapisz Kolejność</button>
+      </div>
+    </div>
+  </main>
+
+  <script type="module" src="/admin-gallery-manage.js"></script>
+</body>
+</html>
