@@ -197,7 +197,8 @@ function setupEventListeners() {
     const name = document.getElementById('categoryName').value.trim();
     let slug = document.getElementById('categorySlug').value.trim();
     const description = document.getElementById('categoryDescription').value.trim();
-    const parent_id = document.getElementById('parentCategory').value || null;
+    let parent_id = document.getElementById('parentCategory').value;
+    parent_id = parent_id === "" ? null : parseInt(parent_id);
 
     if (!name || !slug) {
       alert('Nazwa i slug są wymagane');

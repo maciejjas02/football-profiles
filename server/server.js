@@ -53,7 +53,7 @@ const galleryUploadDir = path.join(__dirname, '..', 'public', 'uploads', 'galler
 const galleryThumbDir = path.join(galleryUploadDir, 'thumbnails');
 
 [postsUploadDir, galleryUploadDir, galleryThumbDir].forEach(dir => {
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
 
 const postStorage = multer.diskStorage({
@@ -69,25 +69,28 @@ const galleryStorage = multer.diskStorage({
 const uploadGalleryImage = multer({ storage: galleryStorage });
 
 app.use(compression());
+
+// --- POPRAWIONA KONFIGURACJA HELMET (CSP) ---
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
+      // Zezwalamy na style inline (potrzebne do background-image w dashboard.js)
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.tiny.cloud", "https://cdnjs.cloudflare.com"],
       scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.tiny.cloud", "https://cdnjs.cloudflare.com"],
-      scriptSrcAttr: ["'unsafe-inline'"], 
-      imgSrc: ["'self'", "data:", "https:", "blob:"],
+      scriptSrcAttr: ["'unsafe-inline'"],
+      // Zezwalamy na obrazki z DOWOLNEGO źródła (https: data: blob: *)
+      imgSrc: ["'self'", "data:", "https:", "blob:", "*"],
       fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
       connectSrc: ["'self'", "https://cdn.tiny.cloud"],
     },
   },
+  crossOriginEmbedderPolicy: false, // Wyłączenie dla pewności przy ładowaniu zewnętrznych zasobów
 }));
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(cookieParser());
-
-
 
 app.use(session({
   secret: 'secret', resave: false, saveUninitialized: false, cookie: { httpOnly: true, sameSite: 'lax', secure: isProd }
@@ -119,7 +122,6 @@ function getUserByIdFromReq(req) {
   return null;
 }
 
-// ULEPSZONE: Autoryzacja z ładowaniem obiektu użytkownika do req.user
 function requireAuth(req, res, next) {
   const id = getUserByIdFromReq(req);
   if (!id) return res.status(401).json({ error: 'Wymagane logowanie' });
@@ -168,41 +170,52 @@ app.get('/api/players/category/:cat', (req, res) => res.json(getPlayersByCategor
 // PURCHASES
 app.post('/api/purchase', requireAuth, (req, res) => { createPurchase(getUserByIdFromReq(req), req.body.playerId, 299); res.json({ success: true }); });
 app.get('/api/user/purchases', requireAuth, (req, res) => res.json(getUserPurchases(getUserByIdFromReq(req))));
-app.post('/api/purchases/:id/pay', requireAuth, (req, res) => { updatePurchaseStatus(req.params.id, 'completed'); res.json({success:true}); });
+app.post('/api/purchases/:id/pay', requireAuth, (req, res) => { updatePurchaseStatus(req.params.id, 'completed'); res.json({ success: true }); });
 
 // FORUM
 app.post('/api/forum/upload', requireModerator, uploadPostImage.single('image'), (req, res) => {
-    if (!req.file) return res.status(400).json({ error: 'No file' });
-    res.json({ location: `/uploads/posts/${req.file.filename}` });
+  if (!req.file) return res.status(400).json({ error: 'No file' });
+  res.json({ location: `/uploads/posts/${req.file.filename}` });
 });
 app.get('/api/forum/categories', (req, res) => res.json(getAllCategories()));
-app.post('/api/forum/categories', requireAdmin, (req, res) => { createCategory(req.body.name, req.body.slug, req.body.description, null); res.json({success:true}); });
-app.put('/api/forum/categories/:id', requireAdmin, (req, res) => { updateCategory(req.params.id, req.body.name, req.body.slug, req.body.description); res.json({success:true}); });
-app.delete('/api/forum/categories/:id', requireAdmin, (req, res) => { deleteCategory(req.params.id); res.json({success:true}); });
+
+// NOWE API DLA PODKATEGORII
+app.get('/api/forum/categories/:id/subcategories', async (req, res) => {
+  const subs = await getSubcategories(req.params.id);
+  res.json(subs);
+});
+
+app.post('/api/forum/categories', requireAdmin, (req, res) => {
+  createCategory(req.body.name, req.body.slug, req.body.description, req.body.parent_id || null);
+  res.json({ success: true });
+});
+
+app.put('/api/forum/categories/:id', requireAdmin, (req, res) => { updateCategory(req.params.id, req.body.name, req.body.slug, req.body.description); res.json({ success: true }); });
+app.delete('/api/forum/categories/:id', requireAdmin, (req, res) => { deleteCategory(req.params.id); res.json({ success: true }); });
 
 // Zarządzanie moderatorami kategorii
 app.get('/api/forum/categories/:id/moderators', requireAdmin, (req, res) => {
-    res.json(getCategoryModerators(req.params.id));
+  res.json(getCategoryModerators(req.params.id));
 });
 app.post('/api/forum/categories/:id/moderators', requireAdmin, (req, res) => {
-    assignModeratorToCategory(req.body.user_id, req.params.id);
-    res.json({ success: true });
+  assignModeratorToCategory(req.body.user_id, req.params.id);
+  res.json({ success: true });
 });
 app.delete('/api/forum/categories/:catId/moderators/:userId', requireAdmin, (req, res) => {
-    removeModeratorFromCategory(req.params.userId, req.params.catId);
-    res.json({ success: true });
+  removeModeratorFromCategory(req.params.userId, req.params.catId);
+  res.json({ success: true });
 });
 
 app.get('/api/forum/posts', (req, res) => {
-    const limit = parseInt(req.query.limit) || 20;
-    const offset = parseInt(req.query.offset) || 0;
-    if(req.query.category_id) res.json(getPostsByCategory(req.query.category_id, limit, offset));
-    else res.json(getAllPosts(limit, offset));
+  const limit = parseInt(req.query.limit) || 20;
+  const offset = parseInt(req.query.offset) || 0;
+  if (req.query.category_id) res.json(getPostsByCategory(req.query.category_id, limit, offset));
+  else res.json(getAllPosts(limit, offset));
 });
 app.get('/api/forum/posts/pending/list', requireAuth, requireModerator, (req, res) => res.json(getPendingPosts()));
-app.get('/api/forum/posts/:id', (req, res) => { 
-    const p = getPostById(req.params.id); 
-    p ? res.json(p) : res.status(404).json({error: 'Not found'}); 
+app.get('/api/forum/posts/:id', (req, res) => {
+  const p = getPostById(req.params.id);
+  p ? res.json(p) : res.status(404).json({ error: 'Not found' });
 });
 app.post('/api/forum/posts', requireModerator, (req, res) => {
   const id = getUserByIdFromReq(req);
@@ -214,9 +227,9 @@ app.post('/api/forum/posts', requireModerator, (req, res) => {
 app.put('/api/forum/posts/:id', requireModerator, (req, res) => {
   try {
     updatePost(
-      req.params.id, 
-      req.body.title, 
-      req.body.content, 
+      req.params.id,
+      req.body.title,
+      req.body.content,
       req.body.category_id
     );
     res.json({ success: true });
@@ -234,99 +247,95 @@ app.delete('/api/forum/posts/:id', requireModerator, (req, res) => {
 });
 
 // Powiadomienia po zatwierdzeniu/odrzuceniu postów
-app.post('/api/forum/posts/:id/approve', requireModerator, async (req, res) => { 
-    const post = await getPostById(req.params.id);
-    approvePost(req.params.id);
-    if(post) createNotification(post.author_id, 'post_approved', 'Post zatwierdzony', `Twój post "${post.title}" został zatwierdzony.`, `/post.html?id=${post.id}`);
-    res.json({success:true}); 
+app.post('/api/forum/posts/:id/approve', requireModerator, async (req, res) => {
+  const post = await getPostById(req.params.id);
+  approvePost(req.params.id);
+  if (post) createNotification(post.author_id, 'post_approved', 'Post zatwierdzony', `Twój post "${post.title}" został zatwierdzony.`, `/post.html?id=${post.id}`);
+  res.json({ success: true });
 });
-app.post('/api/forum/posts/:id/reject', requireModerator, async (req, res) => { 
-    const post = await getPostById(req.params.id);
-    rejectPost(req.params.id);
-    if(post) createNotification(post.author_id, 'post_rejected', 'Post odrzucony', `Twój post "${post.title}" został odrzucony.`, `/moderator-posts.html`);
-    res.json({success:true}); 
+app.post('/api/forum/posts/:id/reject', requireModerator, async (req, res) => {
+  const post = await getPostById(req.params.id);
+  rejectPost(req.params.id);
+  if (post) createNotification(post.author_id, 'post_rejected', 'Post odrzucony', `Twój post "${post.title}" został odrzucony.`, `/moderator-posts.html`);
+  res.json({ success: true });
 });
 
 app.get('/api/forum/posts/:id/comments', (req, res) => res.json(getPostComments(req.params.id, getUserByIdFromReq(req))));
-app.post('/api/forum/posts/:id/comments', requireAuth, (req, res) => { createComment(req.params.id, req.body.content, getUserByIdFromReq(req)); res.json({success:true}); });
+app.post('/api/forum/posts/:id/comments', requireAuth, (req, res) => { createComment(req.params.id, req.body.content, getUserByIdFromReq(req)); res.json({ success: true }); });
 app.post('/api/forum/comments/:id/rate', requireAuth, (req, res) => {
-    try {
-        const commentId = parseInt(req.params.id, 10);
-        const userId = req.user.id; // Użycie req.user z requireAuth
-        const rating = parseInt(req.body.rating, 10);
+  try {
+    const commentId = parseInt(req.params.id, 10);
+    const userId = req.user.id;
+    const rating = parseInt(req.body.rating, 10);
 
-        if (isNaN(commentId) || isNaN(rating)) {
-            return res.status(400).json({ error: "Nieprawidłowe dane (NaN)" });
-        }
-
-        rateComment(commentId, userId, rating);
-        res.json({ success: true });
-    } catch (e) {
-        console.error("Błąd oceniania:", e);
-        res.status(500).json({ error: e.message });
+    if (isNaN(commentId) || isNaN(rating)) {
+      return res.status(400).json({ error: "Nieprawidłowe dane (NaN)" });
     }
+
+    rateComment(commentId, userId, rating);
+    res.json({ success: true });
+  } catch (e) {
+    console.error("Błąd oceniania:", e);
+    res.status(500).json({ error: e.message });
+  }
 });
 
-// Endpoint do edycji komentarza (dla moderatora)
-app.put('/api/forum/comments/:id', requireModerator, (req, res) => { 
-    updateComment(req.params.id, req.body.content); 
-    res.json({ success: true }); 
+app.put('/api/forum/comments/:id', requireModerator, (req, res) => {
+  updateComment(req.params.id, req.body.content);
+  res.json({ success: true });
 });
 
 app.get('/api/forum/comments/pending/list', requireAuth, requireModerator, (req, res) => res.json(getPendingComments()));
 
-// Powiadomienia po zatwierdzeniu/odrzuceniu komentarzy
-app.post('/api/forum/comments/:id/approve', requireModerator, async (req, res) => { 
-    const comment = await getCommentById(req.params.id);
-    approveComment(req.params.id); 
-    if(comment) createNotification(comment.author_id, 'comment_approved', 'Komentarz zatwierdzony', 'Twój komentarz został zatwierdzony.', `/post.html?id=${comment.post_id}`);
-    res.json({success:true}); 
+app.post('/api/forum/comments/:id/approve', requireModerator, async (req, res) => {
+  const comment = await getCommentById(req.params.id);
+  approveComment(req.params.id);
+  if (comment) createNotification(comment.author_id, 'comment_approved', 'Komentarz zatwierdzony', 'Twój komentarz został zatwierdzony.', `/post.html?id=${comment.post_id}`);
+  res.json({ success: true });
 });
-app.post('/api/forum/comments/:id/reject', requireModerator, async (req, res) => { 
-    const comment = await getCommentById(req.params.id);
-    rejectComment(req.params.id); 
-    if(comment) createNotification(comment.author_id, 'comment_rejected', 'Komentarz odrzucony', 'Twój komentarz został odrzucony.', `/post.html?id=${comment.post_id}`);
-    res.json({success:true}); 
+app.post('/api/forum/comments/:id/reject', requireModerator, async (req, res) => {
+  const comment = await getCommentById(req.params.id);
+  rejectComment(req.params.id);
+  if (comment) createNotification(comment.author_id, 'comment_rejected', 'Komentarz odrzucony', 'Twój komentarz został odrzucony.', `/post.html?id=${comment.post_id}`);
+  res.json({ success: true });
 });
 
 // API Powiadomień
 app.get('/api/user/notifications', requireAuth, (req, res) => res.json(getUserNotifications(req.user.id)));
-app.post('/api/user/notifications/:id/read', requireAuth, (req, res) => { markNotificationAsRead(req.params.id); res.json({success:true}); });
-app.post('/api/user/notifications/read-all', requireAuth, (req, res) => { markAllNotificationsAsRead(req.user.id); res.json({success:true}); });
+app.post('/api/user/notifications/:id/read', requireAuth, (req, res) => { markNotificationAsRead(req.params.id); res.json({ success: true }); });
+app.post('/api/user/notifications/read-all', requireAuth, (req, res) => { markAllNotificationsAsRead(req.user.id); res.json({ success: true }); });
 
 
 // GALLERY API
 app.post('/api/gallery/upload', requireAdmin, uploadGalleryImage.single('image'), async (req, res) => {
-    if (!req.file) return res.status(400).json({error:'No file'});
-    
-    // Użycie dynamicznego importu Sharp
-    const { default: sharp } = await import('sharp');
-    
-    sharp(req.file.path).resize(400).toFile(path.join(galleryThumbDir, req.file.filename));
-    
-    // Zmieniono, aby używać obiektu danych
-    createGalleryImage({filename: req.file.filename, title: req.body.title, description: req.body.description, width:0, height:0});
-    
-    res.json({success:true});
+  if (!req.file) return res.status(400).json({ error: 'No file' });
+
+  const { default: sharp } = await import('sharp');
+
+  sharp(req.file.path).resize(400).toFile(path.join(galleryThumbDir, req.file.filename));
+
+  createGalleryImage({ filename: req.file.filename, title: req.body.title, description: req.body.description, width: 0, height: 0 });
+
+  res.json({ success: true });
 });
 app.get('/api/gallery/images', (req, res) => res.json(getAllGalleryImages()));
-app.delete('/api/gallery/images/:id', requireAdmin, (req, res) => { deleteGalleryImage(req.params.id); res.json({success:true}); });
+app.delete('/api/gallery/images/:id', requireAdmin, (req, res) => { deleteGalleryImage(req.params.id); res.json({ success: true }); });
 app.get('/api/gallery/collections', (req, res) => res.json(getAllGalleryCollections()));
-app.post('/api/gallery/collections', requireAdmin, (req, res) => { createGalleryCollection(req.body); res.json({success:true}); });
-app.put('/api/gallery/collections/:id/activate', requireAdmin, (req, res) => { setActiveGalleryCollection(req.params.id); res.json({success:true}); });
-app.delete('/api/gallery/collections/:id', requireAdmin, (req, res) => { deleteGalleryCollection(req.params.id); res.json({success:true}); });
+app.post('/api/gallery/collections', requireAdmin, (req, res) => { createGalleryCollection(req.body); res.json({ success: true }); });
+app.put('/api/gallery/collections/:id/activate', requireAdmin, (req, res) => { setActiveGalleryCollection(req.params.id); res.json({ success: true }); });
+app.delete('/api/gallery/collections/:id', requireAdmin, (req, res) => { deleteGalleryCollection(req.params.id); res.json({ success: true }); });
 app.get('/api/gallery/collections/:id/items', (req, res) => res.json(getCollectionItems(req.params.id)));
-app.post('/api/gallery/collections/:id/items', requireAdmin, (req, res) => { 
-    const items = getCollectionItems(req.params.id);
-    addImageToCollection({ collection_id: req.params.id, image_id: req.body.image_id, position: items.length });
-    res.json({success:true});
+app.post('/api/gallery/collections/:id/items', requireAdmin, (req, res) => {
+  const items = getCollectionItems(req.params.id);
+  addImageToCollection({ collection_id: req.params.id, image_id: req.body.image_id, position: items.length });
+  res.json({ success: true });
 });
-app.delete('/api/gallery/items/:id', requireAdmin, (req, res) => { removeImageFromCollection(req.params.id); res.json({success:true}); });
-app.put('/api/gallery/collections/:id/reorder', requireAdmin, (req, res) => { reorderCollectionItems(req.params.id, req.body.items); res.json({success:true}); });
+app.delete('/api/gallery/items/:id', requireAdmin, (req, res) => { removeImageFromCollection(req.params.id); res.json({ success: true }); });
+app.put('/api/gallery/collections/:id/reorder', requireAdmin, (req, res) => { reorderCollectionItems(req.params.id, req.body.items); res.json({ success: true }); });
 app.get('/api/gallery/active', (req, res) => {
-    const c = getActiveGalleryCollection();
-    if(!c) return res.json({items:[]});
-    res.json({items: getCollectionItems(c.id)});
+  const c = getActiveGalleryCollection();
+  if (!c) return res.json({ items: [] });
+  res.json({ items: getCollectionItems(c.id) });
 });
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'index.html')));

@@ -1,14 +1,18 @@
+// public/forum.js
+
 let currentUser = null;
 let currentPage = 1;
 let selectedCategory = null;
+let currentParentId = null; // Śledzi, w której kategorii nadrzędnej jesteśmy
 const POSTS_PER_PAGE = 20;
 
 async function init() {
   await setupAuth();
-  await loadCategories();
+  await loadCategories(null); // Na start ładujemy tylko GŁÓWNE kategorie (parent_id = null)
   await loadPosts();
   setupPagination();
-  // Dodano: ładowanie powiadomień
+
+  // Ładowanie powiadomień (jeśli user zalogowany)
   if (currentUser) {
     await loadNotifications();
   }
@@ -27,7 +31,7 @@ async function setupAuth() {
         window.location.href = '/';
       });
 
-      // Logika pokazywania ukrytych linków
+      // Odkrywanie linków Admina/Moderatora
       if (currentUser.role === 'moderator' || currentUser.role === 'admin') {
         const modLink = document.getElementById('moderatorLink');
         if (modLink) modLink.style.display = 'block';
@@ -43,16 +47,14 @@ async function setupAuth() {
       document.getElementById('who').textContent = "Gość";
       const logoutBtn = document.getElementById('logoutBtn');
       if (logoutBtn) logoutBtn.style.display = 'none';
-      // Ukryj dzwoneczek dla gościa
+      // Ukryj dzwonek dla gościa
       const notifBtn = document.getElementById('notificationsBtn');
       if (notifBtn) notifBtn.style.display = 'none';
     }
-  } catch (error) {
-    console.error("Auth error:", error);
-  }
+  } catch (error) { }
 }
 
-// --- POWIADOMIENIA (Skopiowane z dashboard.js) ---
+// --- LOGIKA POWIADOMIEŃ ---
 async function loadNotifications() {
   const btn = document.getElementById('notificationsBtn');
   const badge = document.getElementById('notificationBadge');
@@ -74,6 +76,9 @@ async function loadNotifications() {
       badge.style.display = 'none';
     }
 
+    // Pokaż dzwoneczek
+    btn.style.display = 'block';
+
     if (notifications.length === 0) {
       list.innerHTML = '<div class="notification-empty">Brak powiadomień.</div>';
     } else {
@@ -88,20 +93,17 @@ async function loadNotifications() {
             `).join('');
     }
 
-    // Obsługa kliknięcia dzwoneczka
     btn.onclick = (e) => {
       e.stopPropagation();
       dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
     };
 
-    // Zamykanie dropdowna przy kliknięciu na zewnątrz
     document.addEventListener('click', (e) => {
       if (dropdown.style.display === 'block' && !dropdown.contains(e.target) && !btn.contains(e.target)) {
         dropdown.style.display = 'none';
       }
     });
 
-    // Oznacz wszystkie jako przeczytane
     const markReadBtn = document.getElementById('markAllReadBtn');
     if (markReadBtn) {
       markReadBtn.onclick = async () => {
@@ -119,57 +121,109 @@ async function loadNotifications() {
 window.handleNotificationClick = async (id, link, isRead) => {
   if (isRead === 0) {
     await fetch(`/api/user/notifications/${id}/read`, { method: 'POST' });
-    // Nie przeładowujemy listy tutaj, żeby od razu przenieść usera
   }
   if (link && link !== '#') {
     window.location.href = link;
   } else {
-    loadNotifications(); // Odśwież jeśli nie ma linku
+    loadNotifications();
   }
 };
-// --- KONIEC POWIADOMIEŃ ---
+// --- KONIEC LOGIKI POWIADOMIEŃ ---
 
-async function loadCategories() {
+// Funkcja ładująca kategorie (Główne lub Podkategorie)
+async function loadCategories(parentId = null) {
   try {
-    const res = await fetch('/api/forum/categories?t=' + Date.now());
-    const categories = await res.json();
-    const categoriesList = document.getElementById('categoriesList');
-    const categoryFilter = document.getElementById('categoryFilter');
+    let categories = [];
 
-    if (!categoriesList) return;
-
-    if (categories.length === 0) {
-      categoriesList.innerHTML = '<p>Brak kategorii.</p>';
-      return;
+    if (parentId) {
+      // Pobieramy podkategorie konkretnego rodzica
+      const res = await fetch(`/api/forum/categories/${parentId}/subcategories`);
+      categories = await res.json();
+    } else {
+      // Pobieramy wszystko i filtrujemy tylko główne (bez rodzica)
+      const res = await fetch('/api/forum/categories');
+      const allCats = await res.json();
+      categories = allCats.filter(c => !c.parent_id);
     }
 
-    categoriesList.innerHTML = categories.map(cat => `
-      <div class="category-card" style="cursor: pointer;" onclick="filterByCategory(${cat.id})">
+    renderCategoriesList(categories, parentId);
+
+  } catch (error) { console.error(error); }
+}
+
+function renderCategoriesList(categories, parentId) {
+  const categoriesList = document.getElementById('categoriesList');
+  if (!categoriesList) return;
+
+  let html = '';
+
+  // Jeśli jesteśmy "głębiej" (parentId istnieje), dodaj przycisk powrotu
+  if (parentId) {
+    html += `
+            <div class="category-card back-card" onclick="goBackToMain()" style="cursor: pointer; border: 1px dashed var(--primary-color); display:flex; align-items:center; justify-content:center; background: rgba(255,255,255,0.05);">
+                <h3 style="margin:0;">⬅️ Wróć do głównych</h3>
+            </div>
+        `;
+  }
+
+  if (categories.length === 0 && !parentId) {
+    categoriesList.innerHTML = '<p>Brak kategorii.</p>';
+    return;
+  }
+
+  // Jeśli brak podkategorii, ale jesteśmy w trybie "drążenia", nic nie wyświetlamy (poza przyciskiem wstecz),
+  // bo zaraz pod spodem załadują się posty.
+
+  html += categories.map(cat => `
+      <div class="category-card" style="cursor: pointer;" onclick="handleCategoryClick(${cat.id}, '${cat.name}')">
         <h3>${cat.name}</h3>
         <p>${cat.description || ''}</p>
         <div class="category-stats"><span>📄 ${cat.post_count || 0} postów</span></div>
       </div>
     `).join('');
 
-    if (categoryFilter) {
-      categoryFilter.innerHTML = '<option value="">Wszystkie kategorie</option>' +
-        categories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
-
-      categoryFilter.addEventListener('change', (e) => {
-        selectedCategory = e.target.value ? parseInt(e.target.value) : null;
-        currentPage = 1;
-        loadPosts();
-      });
-    }
-  } catch (error) { }
+  categoriesList.innerHTML = html;
 }
+
+// Główna logika "wchodzenia" w kategorie
+window.handleCategoryClick = async (catId, catName) => {
+  try {
+    // 1. Sprawdź czy ta kategoria ma podkategorie
+    const res = await fetch(`/api/forum/categories/${catId}/subcategories`);
+    const subcategories = await res.json();
+
+    if (subcategories.length > 0) {
+      // SĄ podkategorie -> Wchodzimy głębiej (podmieniamy kafelki)
+      currentParentId = catId;
+      renderCategoriesList(subcategories, catId);
+
+      // Opcjonalnie: filtrujemy też posty dla tej kategorii nadrzędnej
+      filterByCategory(catId);
+    } else {
+      // BRAK podkategorii -> To jest kategoria końcowa, tylko filtrujemy posty
+      filterByCategory(catId);
+    }
+  } catch (e) {
+    console.error("Błąd sprawdzania podkategorii", e);
+    filterByCategory(catId);
+  }
+};
+
+window.goBackToMain = () => {
+  currentParentId = null;
+  loadCategories(null); // Załaduj główne
+  filterByCategory(null); // Pokaż wszystkie posty (lub zresetuj filtr)
+};
 
 window.filterByCategory = (categoryId) => {
   selectedCategory = categoryId;
   const filter = document.getElementById('categoryFilter');
-  if (filter) filter.value = categoryId;
+  if (filter) filter.value = categoryId || "";
+
   currentPage = 1;
   loadPosts();
+
+  // Przewiń do postów
   const postsSection = document.getElementById('postsSection');
   if (postsSection) postsSection.scrollIntoView({ behavior: 'smooth' });
 };
@@ -194,12 +248,9 @@ async function loadPosts() {
     }
 
     postsList.innerHTML = posts.map(post => {
-      // Inteligentne tworzenie zajawki
       let plainText = post.content.replace(/<[^>]*>/g, '').trim();
       let excerpt = plainText.substring(0, 150);
-
       if (excerpt.length < plainText.length) excerpt += '...';
-
       if (excerpt.length === 0 && post.content.includes('<img')) {
         excerpt = '<span style="color: #FFD700;">📷 [Post zawiera zdjęcie]</span>';
       } else if (excerpt.length === 0) {
@@ -225,7 +276,6 @@ async function loadPosts() {
         `;
     }).join('');
   } catch (error) {
-    console.error(error);
     postsList.innerHTML = '<div class="error-state">Błąd połączenia</div>';
   }
 }

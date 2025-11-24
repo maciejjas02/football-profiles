@@ -9,8 +9,9 @@ const __dirname = path.dirname(__filename);
 export const db = new Database(path.join(__dirname, 'app.sqlite'));
 
 export function ensureSchema() {
-  db.exec(`
+    db.exec(`
     PRAGMA journal_mode = WAL;
+    PRAGMA foreign_keys = ON; 
     
     CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE, username TEXT UNIQUE, password_hash TEXT, name TEXT, avatar_url TEXT, role TEXT DEFAULT 'user', reputation INTEGER DEFAULT 0, provider TEXT, provider_id TEXT, created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now')));
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
@@ -40,57 +41,265 @@ export function ensureSchema() {
 
 // --- SEEDING ---
 export async function ensureSeedAdmin() {
-  const row = db.prepare('SELECT id FROM users WHERE email = ?').get('admin@example.com');
-  if (!row) {
-    const hash = await bcrypt.hash('admin1234', 10);
-    db.prepare(`INSERT INTO users (email, username, password_hash, name, role, provider) VALUES (?, ?, ?, ?, ?, ?)`).run('admin@example.com', 'admin', hash, 'Admin', 'admin', 'local');
-  } else {
-    // Fix role if exists but wrong
-    db.prepare("UPDATE users SET role = 'admin' WHERE email = 'admin@example.com'").run();
-    // DODANO: Upewnij się, że jest też "moderator"
-    const modRow = db.prepare('SELECT id FROM users WHERE email = ?').get('moderator@example.com');
-    if(!modRow) {
-        const hash = await bcrypt.hash('moderator1234', 10);
-        db.prepare(`INSERT INTO users (email, username, password_hash, name, role, provider) VALUES (?, ?, ?, ?, ?, ?)`).run('moderator@example.com', 'moderator', hash, 'Moderator', 'moderator', 'local');
+    const row = db.prepare('SELECT id FROM users WHERE email = ?').get('admin@example.com');
+    if (!row) {
+        const hash = await bcrypt.hash('admin1234', 10);
+        db.prepare(`INSERT INTO users (email, username, password_hash, name, role, provider) VALUES (?, ?, ?, ?, ?, ?)`).run('admin@example.com', 'admin', hash, 'Admin', 'admin', 'local');
+    } else {
+        db.prepare("UPDATE users SET role = 'admin' WHERE email = 'admin@example.com'").run();
+        const modRow = db.prepare('SELECT id FROM users WHERE email = ?').get('moderator@example.com');
+        if (!modRow) {
+            const hash = await bcrypt.hash('moderator1234', 10);
+            db.prepare(`INSERT INTO users (email, username, password_hash, name, role, provider) VALUES (?, ?, ?, ?, ?, ?)`).run('moderator@example.com', 'moderator', hash, 'Moderator', 'moderator', 'local');
+        }
     }
-  }
 }
 
 export function ensureSeedCategories() {
-  if (!db.prepare("SELECT id FROM categories WHERE slug='news'").get()) {
-    db.prepare("INSERT INTO categories (name, slug, description) VALUES (?, ?, ?)").run('Aktualności', 'news', 'Newsy ze świata piłki');
-    db.prepare("INSERT INTO categories (name, slug, description) VALUES (?, ?, ?)").run('Dyskusje', 'discussions', 'Ogólne rozmowy o meczach');
-  }
+    if (!db.prepare("SELECT id FROM categories WHERE slug='news'").get()) {
+        db.prepare("INSERT INTO categories (name, slug, description) VALUES (?, ?, ?)").run('Aktualności', 'news', 'Newsy ze świata piłki');
+        db.prepare("INSERT INTO categories (name, slug, description) VALUES (?, ?, ?)").run('Dyskusje', 'discussions', 'Ogólne rozmowy o meczach');
+    }
 }
 
 export function ensureSeedClubs() {
-  if(db.prepare('SELECT count(*) as c FROM clubs').get().c > 0) return;
-  const insert = db.prepare(`INSERT INTO clubs (id, name, full_name, country, league, founded, stadium, logo_url, primary_color, secondary_color) VALUES (@id, @name, @full_name, @country, @league, @founded, @stadium, @logo_url, @primary_color, @secondary_color)`);
-  
-  const clubsData = [
-    { id: 'manchester-city', name: 'Manchester City', full_name: 'Manchester City FC', country: 'Anglia', league: 'Premier League', founded: 1880, stadium: 'Etihad', logo_url: '', primary_color: '#6CABDD', secondary_color: '#FFF' },
-    { id: 'real-madrid', name: 'Real Madrid', full_name: 'Real Madrid CF', country: 'Hiszpania', league: 'La Liga', founded: 1902, stadium: 'Bernabeu', logo_url: '', primary_color: '#FFF', secondary_color: '#000' },
-    { id: 'inter-miami', name: 'Inter Miami', full_name: 'Inter Miami CF', country: 'USA', league: 'MLS', founded: 2018, stadium: 'DRV PNK', logo_url: '', primary_color: '#F7B5CD', secondary_color: '#000' },
-    { id: 'al-nassr', name: 'Al Nassr', full_name: 'Al Nassr FC', country: 'Arabia Saudyjska', league: 'Saudi Pro League', founded: 1955, stadium: 'Al-Awwal', logo_url: '', primary_color: '#FFD700', secondary_color: '#000' },
-    { id: 'fc-barcelona', name: 'FC Barcelona', full_name: 'Futbol Club Barcelona', country: 'Hiszpania', league: 'La Liga', founded: 1899, stadium: 'Camp Nou', logo_url: '', primary_color: '#A50044', secondary_color: '#004D98' }
-  ];
-  clubsData.forEach(club => insert.run(club));
+    const insert = db.prepare(`INSERT OR IGNORE INTO clubs (id, name, full_name, country, league, founded, stadium, logo_url, primary_color, secondary_color) VALUES (@id, @name, @full_name, @country, @league, @founded, @stadium, @logo_url, @primary_color, @secondary_color)`);
+
+    const clubsData = [
+        { id: 'manchester-city', name: 'Manchester City', full_name: 'Manchester City FC', country: 'Anglia', league: 'Premier League', founded: 1880, stadium: 'Etihad', logo_url: 'https://upload.wikimedia.org/wikipedia/en/e/eb/Manchester_City_FC_badge.svg', primary_color: '#6CABDD', secondary_color: '#FFF' },
+        { id: 'real-madrid', name: 'Real Madrid', full_name: 'Real Madrid CF', country: 'Hiszpania', league: 'La Liga', founded: 1902, stadium: 'Bernabeu', logo_url: 'https://upload.wikimedia.org/wikipedia/en/5/56/Real_Madrid_CF.svg', primary_color: '#FFF', secondary_color: '#000' },
+        { id: 'inter-miami', name: 'Inter Miami', full_name: 'Inter Miami CF', country: 'USA', league: 'MLS', founded: 2018, stadium: 'DRV PNK', logo_url: 'https://upload.wikimedia.org/wikipedia/en/5/5c/Inter_Miami_CF_logo.svg', primary_color: '#F7B5CD', secondary_color: '#000' },
+        { id: 'al-nassr', name: 'Al Nassr', full_name: 'Al Nassr FC', country: 'Arabia Saudyjska', league: 'Saudi Pro League', founded: 1955, stadium: 'Al-Awwal', logo_url: 'https://upload.wikimedia.org/wikipedia/en/e/e8/Al_Nassr_FC_Logo.svg', primary_color: '#FFD700', secondary_color: '#000' },
+        { id: 'fc-barcelona', name: 'FC Barcelona', full_name: 'Futbol Club Barcelona', country: 'Hiszpania', league: 'La Liga', founded: 1899, stadium: 'Camp Nou', logo_url: 'https://upload.wikimedia.org/wikipedia/en/4/47/FC_Barcelona_%28crest%29.svg', primary_color: '#A50044', secondary_color: '#004D98' },
+        { id: 'bayern-monachium', name: 'Bayern Monachium', full_name: 'FC Bayern München', country: 'Niemcy', league: 'Bundesliga', founded: 1900, stadium: 'Allianz Arena', logo_url: 'https://upload.wikimedia.org/wikipedia/commons/1/1b/FC_Bayern_München_logo_%282017%29.svg', primary_color: '#DC052D', secondary_color: '#FFF' },
+        { id: 'sevilla', name: 'Sevilla FC', full_name: 'Sevilla Fútbol Club', country: 'Hiszpania', league: 'La Liga', founded: 1890, stadium: 'Ramón Sánchez Pizjuán', logo_url: 'https://upload.wikimedia.org/wikipedia/en/3/3b/Sevilla_FC_logo.svg', primary_color: '#FFFFFF', secondary_color: '#F43333' }
+    ];
+    clubsData.forEach(club => insert.run(club));
 }
 
 export function ensureSeedPlayers() {
-  if(db.prepare('SELECT count(*) as c FROM players').get().c > 0) return;
-  const insertPlayer = db.prepare(`INSERT OR IGNORE INTO players (id, name, full_name, club_id, team, position, nationality, age, height, weight, market_value, biography, jersey_price, jersey_available, category) VALUES (@id, @name, @full_name, @club_id, @team, @position, @nationality, @age, @height, @weight, @market_value, @biography, @jersey_price, @jersey_available, @category)`);
-  const insertStats = db.prepare(`INSERT OR REPLACE INTO player_stats (player_id, goals, assists, matches, trophies) VALUES (@player_id, @goals, @assists, @matches, @trophies)`);
-  
-  const players = [
-    { id: 'lionel-messi', name: 'Lionel Messi', full_name: 'Lionel Andrés Messi', club_id: 'inter-miami', team: 'Inter Miami', position: 'Napastnik', nationality: 'Argentyna', age: 36, height: '1.70m', weight: '67kg', market_value: '30M', biography: 'Legenda.', jersey_price: 299, jersey_available: 1, category: 'top-players', goals: 800, assists: 350, matches: 1000, trophies: 44 }
-  ];
+    const insertPlayer = db.prepare(`INSERT OR IGNORE INTO players (id, name, full_name, club_id, team, position, nationality, age, height, weight, market_value, biography, jersey_price, jersey_available, category, image_url, team_logo, national_flag) VALUES (@id, @name, @full_name, @club_id, @team, @position, @nationality, @age, @height, @weight, @market_value, @biography, @jersey_price, @jersey_available, @category, @image_url, @team_logo, @national_flag)`);
+    const insertStats = db.prepare(`INSERT OR REPLACE INTO player_stats (player_id, goals, assists, matches, trophies) VALUES (@player_id, @goals, @assists, @matches, @trophies)`);
 
-  players.forEach(p => {
-    const { goals, assists, matches, trophies, ...playerData } = p;
-    insertPlayer.run(playerData);
-    insertStats.run({ player_id: p.id, goals, assists, matches, trophies });
-  });
+    const players = [
+        {
+            id: 'lionel-messi',
+            name: 'Lionel Messi',
+            full_name: 'Lionel Andrés Messi',
+            club_id: 'inter-miami',
+            team: 'Inter Miami',
+            position: 'Napastnik',
+            nationality: 'Argentyna',
+            age: 36,
+            height: '1.70m',
+            weight: '67kg',
+            market_value: '30M €',
+            biography: 'Argentyński piłkarz, kapitan reprezentacji Argentyny. Uważany za jednego z najlepszych piłkarzy w historii.',
+            jersey_price: 499,
+            jersey_available: 100,
+            category: 'top-players',
+            image_url: 'https://img.a.transfermarkt.technology/portrait/big/28003-1740766555.jpg?lm=1',
+            team_logo: 'https://upload.wikimedia.org/wikipedia/en/5/5c/Inter_Miami_CF_logo.svg',
+            national_flag: 'https://upload.wikimedia.org/wikipedia/commons/1/1a/Flag_of_Argentina.svg',
+            goals: 821, assists: 350, matches: 1047, trophies: 44
+        },
+        {
+            id: 'cristiano-ronaldo',
+            name: 'Cristiano Ronaldo',
+            full_name: 'Cristiano Ronaldo dos Santos Aveiro',
+            club_id: 'al-nassr',
+            team: 'Al Nassr',
+            position: 'Napastnik',
+            nationality: 'Portugalia',
+            age: 39,
+            height: '1.87m',
+            weight: '83kg',
+            market_value: '15M €',
+            biography: 'Portugalski piłkarz występujący na pozycji napastnika, kapitan reprezentacji Portugalii. Legenda Realu Madryt i Manchesteru United.',
+            jersey_price: 459,
+            jersey_available: 100,
+            category: 'legends',
+            image_url: 'https://b.fssta.com/uploads/application/soccer/headshots/885.vresize.350.350.medium.14.png',
+            team_logo: 'https://upload.wikimedia.org/wikipedia/en/e/e8/Al_Nassr_FC_Logo.svg',
+            national_flag: 'https://upload.wikimedia.org/wikipedia/commons/5/5c/Flag_of_Portugal.svg',
+            goals: 873, assists: 249, matches: 1204, trophies: 35
+        },
+        {
+            id: 'kylian-mbappe',
+            name: 'Kylian Mbappé',
+            full_name: 'Kylian Mbappé Lottin',
+            club_id: 'real-madrid',
+            team: 'Real Madrid',
+            position: 'Napastnik',
+            nationality: 'Francja',
+            age: 25,
+            height: '1.78m',
+            weight: '73kg',
+            market_value: '180M €',
+            biography: 'Jeden z najszybszych i najbardziej utalentowanych napastników na świecie. Mistrz Świata 2018.',
+            jersey_price: 599,
+            jersey_available: 100,
+            category: 'top-players',
+            image_url: 'https://img.a.transfermarkt.technology/portrait/big/342229-1682683695.jpg?lm=1',
+            team_logo: 'https://upload.wikimedia.org/wikipedia/en/5/56/Real_Madrid_CF.svg',
+            national_flag: 'https://upload.wikimedia.org/wikipedia/en/c/c3/Flag_of_France.svg',
+            goals: 315, assists: 150, matches: 420, trophies: 18
+        },
+        {
+            id: 'erling-haaland',
+            name: 'Erling Haaland',
+            full_name: 'Erling Braut Haaland',
+            club_id: 'manchester-city',
+            team: 'Manchester City',
+            position: 'Napastnik',
+            nationality: 'Norwegia',
+            age: 23,
+            height: '1.95m',
+            weight: '88kg',
+            market_value: '180M €',
+            biography: 'Norweska maszyna do strzelania bramek. Znany z siły, szybkości i wykończenia.',
+            jersey_price: 549,
+            jersey_available: 100,
+            category: 'top-players',
+            image_url: 'https://img.a.transfermarkt.technology/portrait/big/418560-1709108116.png?lm=1',
+            team_logo: 'https://upload.wikimedia.org/wikipedia/en/e/eb/Manchester_City_FC_badge.svg',
+            national_flag: 'https://upload.wikimedia.org/wikipedia/commons/d/d9/Flag_of_Norway.svg',
+            goals: 220, assists: 50, matches: 270, trophies: 10
+        },
+        {
+            id: 'jude-bellingham',
+            name: 'Jude Bellingham',
+            full_name: 'Jude Victor William Bellingham',
+            club_id: 'real-madrid',
+            team: 'Real Madrid',
+            position: 'Pomocnik',
+            nationality: 'Anglia',
+            age: 20,
+            height: '1.86m',
+            weight: '75kg',
+            market_value: '180M €',
+            biography: 'Fenomenalny młody pomocnik, który podbił serca kibiców Realu Madryt w swoim debiutanckim sezonie.',
+            jersey_price: 529,
+            jersey_available: 100,
+            category: 'new-talents',
+            image_url: 'https://img.a.transfermarkt.technology/portrait/big/581678-1748102891.jpg?lm=1',
+            team_logo: 'https://upload.wikimedia.org/wikipedia/en/5/56/Real_Madrid_CF.svg',
+            national_flag: 'https://upload.wikimedia.org/wikipedia/en/b/be/Flag_of_England.svg',
+            goals: 45, assists: 35, matches: 200, trophies: 5
+        },
+        {
+            id: 'robert-lewandowski',
+            name: 'Robert Lewandowski',
+            full_name: 'Robert Lewandowski',
+            club_id: 'fc-barcelona',
+            team: 'FC Barcelona',
+            position: 'Napastnik',
+            nationality: 'Polska',
+            age: 35,
+            height: '1.85m',
+            weight: '81kg',
+            market_value: '20M €',
+            biography: 'Najlepszy polski piłkarz w historii. Rekordzista Bundesligi, gwiazda Barcelony.',
+            jersey_price: 399,
+            jersey_available: 100,
+            category: 'top-players',
+            image_url: 'https://img.a.transfermarkt.technology/portrait/big/38253-1760445524.jpg?lm=1',
+            team_logo: 'https://upload.wikimedia.org/wikipedia/en/4/47/FC_Barcelona_%28crest%29.svg',
+            national_flag: 'https://upload.wikimedia.org/wikipedia/en/1/12/Flag_of_Poland.svg',
+            goals: 600, assists: 150, matches: 900, trophies: 28
+        },
+        {
+            id: 'thibaut-courtois',
+            name: 'Thibaut Courtois',
+            full_name: 'Thibaut Nicolas Marc Courtois',
+            club_id: 'real-madrid',
+            team: 'Real Madrid',
+            position: 'Bramkarz',
+            nationality: 'Belgia',
+            age: 31,
+            height: '2.00m',
+            weight: '96kg',
+            market_value: '35M €',
+            biography: 'Jeden z najlepszych bramkarzy na świecie. Mur nie do przejścia w bramce Realu Madryt.',
+            jersey_price: 349,
+            jersey_available: 100,
+            category: 'goalkeepers',
+            image_url: 'https://img.a.transfermarkt.technology/portrait/big/108390-1717280733.jpg?lm=1',
+            team_logo: 'https://upload.wikimedia.org/wikipedia/en/5/56/Real_Madrid_CF.svg',
+            national_flag: 'https://upload.wikimedia.org/wikipedia/commons/6/65/Flag_of_Belgium.svg',
+            goals: 0, assists: 1, matches: 600, trophies: 18
+        },
+        {
+            id: 'sergio-ramos',
+            name: 'Sergio Ramos',
+            full_name: 'Sergio Ramos García',
+            club_id: 'sevilla',
+            team: 'Sevilla FC',
+            position: 'Obrońca',
+            nationality: 'Hiszpania',
+            age: 37,
+            height: '1.84m',
+            weight: '82kg',
+            market_value: '3M €',
+            biography: 'Legenda obrony, znany z waleczności i kluczowych goli w ostatnich minutach.',
+            jersey_price: 299,
+            jersey_available: 100,
+            category: 'legends',
+            image_url: 'https://img.a.transfermarkt.technology/portrait/big/25557-1694502812.jpg?lm=1',
+            team_logo: 'https://tmssl.akamaized.net//images/wappen/head/2407.png?lm=1406966074',
+            national_flag: 'https://upload.wikimedia.org/wikipedia/en/9/9a/Flag_of_Spain.svg',
+            goals: 133, assists: 40, matches: 950, trophies: 29
+        },
+        {
+            id: 'gavi',
+            name: 'Gavi',
+            full_name: 'Pablo Martín Páez Gavira',
+            club_id: 'fc-barcelona',
+            team: 'FC Barcelona',
+            position: 'Pomocnik',
+            nationality: 'Hiszpania',
+            age: 19,
+            height: '1.73m',
+            weight: '68kg',
+            market_value: '90M €',
+            biography: 'Niezwykle waleczny młody talent z La Masii. Serce środka pola Barcelony.',
+            jersey_price: 449,
+            jersey_available: 100,
+            category: 'new-talents',
+            image_url: 'https://img.a.transfermarkt.technology/portrait/big/646740-1682685701.jpg?lm=1',
+            team_logo: 'https://upload.wikimedia.org/wikipedia/en/4/47/FC_Barcelona_%28crest%29.svg',
+            national_flag: 'https://upload.wikimedia.org/wikipedia/en/9/9a/Flag_of_Spain.svg',
+            goals: 10, assists: 15, matches: 100, trophies: 2
+        },
+        {
+            id: 'wojciech-szczesny',
+            name: 'Szczesny',
+            full_name: 'Wojciech Szcześni',
+            club_id: 'fc-barcelona',
+            team: 'FC Barcelona',
+            position: 'Bramkarz',
+            nationality: 'Polska',
+            age: 35,
+            height: '1.95m',
+            weight: '80kg',
+            market_value: '1M €',
+            biography: 'Polski bramkarz z Barcelony. Wielokrotny reprezentant Polski.',
+            jersey_price: 299,
+            jersey_available: 100,
+            category: 'goalkeepers',
+            image_url: 'https://img.a.transfermarkt.technology/portrait/big/44058-1744278078.jpg?lm=1',
+            team_logo: 'https://tmssl.akamaized.net//images/wappen/head/131.png?lm=1406739548',
+            national_flag: 'https://upload.wikimedia.org/wikipedia/en/1/12/Flag_of_Poland.svg',
+            goals: 0, assists: 1, matches: 600, trophies: 18
+
+        }
+    ];
+
+    players.forEach(p => {
+        const { goals, assists, matches, trophies, ...playerData } = p;
+        insertPlayer.run(playerData);
+        insertStats.run({ player_id: p.id, goals, assists, matches, trophies });
+    });
 }
 
 // --- USERS ---
@@ -106,41 +315,108 @@ export function existsUserByEmail(e) { return !!db.prepare('SELECT 1 FROM users 
 export function existsUserByUsername(u) { return !!db.prepare('SELECT 1 FROM users WHERE username=?').get(u); }
 
 // --- DATA ---
-export function getPlayerById(id) { 
-  const p = db.prepare('SELECT * FROM players WHERE id=?').get(id);
-  if(!p) return null;
-  p.stats = db.prepare('SELECT * FROM player_stats WHERE player_id=?').get(id) || {};
-  p.achievements = db.prepare('SELECT achievement FROM player_achievements WHERE player_id=?').all(id).map(x=>x.achievement);
-  return p;
+
+// POPRAWIONA FUNKCJA - zwraca obiekt z polami camelCase (np. imageUrl zamiast image_url)
+export function getPlayerById(id) {
+    const p = db.prepare('SELECT * FROM players WHERE id=?').get(id);
+    if (!p) return null;
+
+    // Pobieramy statystyki i osiągnięcia
+    const stats = db.prepare('SELECT * FROM player_stats WHERE player_id=?').get(id) || {};
+    const achievements = db.prepare('SELECT achievement FROM player_achievements WHERE player_id=?').all(id).map(x => x.achievement);
+
+    // Mapowanie snake_case (baza) na camelCase (frontend)
+    return {
+        id: p.id,
+        name: p.name,
+        fullName: p.full_name,
+        team: p.team,
+        position: p.position,
+        nationality: p.nationality,
+        age: p.age,
+        height: p.height,
+        weight: p.weight,
+        marketValue: p.market_value,
+        biography: p.biography,
+        jerseyPrice: p.jersey_price,
+        jerseyAvailable: p.jersey_available,
+        // Kluczowe mapowania dla obrazków:
+        imageUrl: p.image_url,
+        jerseyImageUrl: p.jersey_image_url,
+        teamLogo: p.team_logo,
+        nationalFlag: p.national_flag,
+        category: p.category,
+        stats: stats,
+        achievements: achievements
+    };
 }
-export function getPlayersByCategory(cat) { 
-    const rows = db.prepare('SELECT * FROM players WHERE category=?').all(cat);
-    return rows.map(p => getPlayerById(p.id));
+
+export function getPlayersByCategory(cat) {
+    let rows = [];
+    // Logika "inteligentnych" kategorii
+    if (cat === 'top-players') {
+        rows = db.prepare("SELECT * FROM players WHERE (CAST(REPLACE(REPLACE(market_value, 'M €', ''), '€', '') AS INTEGER) >= 100) OR category='top-players' ORDER BY market_value DESC").all();
+        if (rows.length === 0) rows = db.prepare("SELECT * FROM players WHERE category='top-players'").all();
+    } else if (cat === 'new-talents') {
+        rows = db.prepare("SELECT * FROM players WHERE age <= 23 ORDER BY age ASC").all();
+    } else if (cat === 'legends') {
+        rows = db.prepare("SELECT * FROM players WHERE age >= 34 OR category='legends' ORDER BY age DESC").all();
+    } else if (cat === 'goalkeepers') {
+        rows = db.prepare("SELECT * FROM players WHERE position = 'Bramkarz'").all();
+    } else {
+        rows = db.prepare('SELECT * FROM players WHERE category=?').all(cat);
+    }
+
+    const uniqueRows = [...new Map(rows.map(item => [item['id'], item])).values()];
+    // Ponieważ getPlayerById teraz zwraca poprawnie zmapowany obiekt, mapowanie tutaj zadziała automatycznie
+    return uniqueRows.map(p => getPlayerById(p.id));
 }
+
 export function getAllClubs() { return db.prepare('SELECT * FROM clubs').all(); }
 export function getClubById(id) { return db.prepare('SELECT * FROM clubs WHERE id=?').get(id); }
 export function createPurchase(u, p, j) { return db.prepare('INSERT INTO purchases (user_id, player_id, jersey_price) VALUES (?,?,?)').run(u, p, j); }
-export function getUserPurchases(id) { return db.prepare('SELECT * FROM purchases WHERE user_id=?').all(id); }
+export function getUserPurchases(id) {
+    return db.prepare(`
+        SELECT p.*, pl.name as player_name, pl.team 
+        FROM purchases p 
+        JOIN players pl ON p.player_id = pl.id 
+        WHERE user_id=? 
+        ORDER BY purchase_date DESC
+    `).all(id);
+}
 export function updatePurchaseStatus(id, s) { return db.prepare('UPDATE purchases SET status=? WHERE id=?').run(s, id); }
 
 // --- FORUM ---
 export function getAllCategories() {
     return db.prepare(`
         SELECT c.*, 
-        (SELECT COUNT(*) FROM posts p WHERE p.category_id = c.id) as post_count 
+        (
+            SELECT COUNT(*) FROM posts p 
+            WHERE p.category_id = c.id 
+            OR p.category_id IN (SELECT sub.id FROM categories sub WHERE sub.parent_id = c.id)
+        ) as post_count 
         FROM categories c
-    `).all(); 
+    `).all();
 }
 export function getCategoryBySlug(s) { return db.prepare('SELECT * FROM categories WHERE slug=?').get(s); }
-export function getSubcategories(id) { return []; }
-export function createCategory(n, s, d, p) { return db.prepare('INSERT INTO categories (name, slug, description, parent_id) VALUES (?,?,?,?)').run(n,s,d,p); }
-export function updateCategory(id, n, s, d) { return db.prepare('UPDATE categories SET name=?, slug=?, description=? WHERE id=?').run(n, s, d, id); }
-export function deleteCategory(id) { 
-    db.prepare('DELETE FROM posts WHERE category_id=?').run(id);
-    db.prepare('DELETE FROM categories WHERE id=?').run(id); 
+
+export function getSubcategories(id) {
+    return db.prepare(`
+        SELECT c.*, 
+        (SELECT COUNT(*) FROM posts p WHERE p.category_id = c.id) as post_count 
+        FROM categories c 
+        WHERE parent_id = ?
+    `).all(id);
 }
 
-export function getCategoryModerators(id) { 
+export function createCategory(n, s, d, p) { return db.prepare('INSERT INTO categories (name, slug, description, parent_id) VALUES (?,?,?,?)').run(n, s, d, p); }
+export function updateCategory(id, n, s, d) { return db.prepare('UPDATE categories SET name=?, slug=?, description=? WHERE id=?').run(n, s, d, id); }
+export function deleteCategory(id) {
+    db.prepare('DELETE FROM posts WHERE category_id=?').run(id);
+    db.prepare('DELETE FROM categories WHERE id=?').run(id);
+}
+
+export function getCategoryModerators(id) {
     return db.prepare(`
         SELECT u.id, u.username, u.name, u.email
         FROM moderator_categories mc
@@ -151,7 +427,7 @@ export function getCategoryModerators(id) {
 export function assignModeratorToCategory(u, c) {
     try {
         return db.prepare('INSERT INTO moderator_categories (user_id, category_id) VALUES (?,?)').run(u, c);
-    } catch(e) {
+    } catch (e) {
         if (e.code === 'SQLITE_CONSTRAINT_UNIQUE') return { changes: 0 };
         throw e;
     }
@@ -198,21 +474,21 @@ export function getPostById(id) {
     return p;
 }
 
-export function createPost(t, c, cat, aut, stat) { 
-    return db.prepare('INSERT INTO posts (title, content, category_id, author_id, status) VALUES (?,?,?,?,?)').run(t, c, cat, aut, stat); 
+export function createPost(t, c, cat, aut, stat) {
+    return db.prepare('INSERT INTO posts (title, content, category_id, author_id, status) VALUES (?,?,?,?,?)').run(t, c, cat, aut, stat);
 }
-export function updatePost(id, t, c, cat) { 
-    return db.prepare('UPDATE posts SET title=?, content=?, category_id=? WHERE id=?').run(t, c, cat, id); 
+export function updatePost(id, t, c, cat) {
+    return db.prepare('UPDATE posts SET title=?, content=?, category_id=? WHERE id=?').run(t, c, cat, id);
 }
 export function approvePost(id) { return db.prepare("UPDATE posts SET status='approved' WHERE id=?").run(id); }
 export function rejectPost(id) { return db.prepare("UPDATE posts SET status='rejected' WHERE id=?").run(id); }
 export function deletePost(id) { return db.prepare("DELETE FROM posts WHERE id=?").run(id); }
-export function getPendingPosts() { 
-    return db.prepare("SELECT p.*, c.name as category_name, u.username as author_username FROM posts p LEFT JOIN categories c ON p.category_id=c.id LEFT JOIN users u ON p.author_id=u.id WHERE p.status='pending' ORDER BY p.created_at DESC").all(); 
+export function getPendingPosts() {
+    return db.prepare("SELECT p.*, c.name as category_name, u.username as author_username FROM posts p LEFT JOIN categories c ON p.category_id=c.id LEFT JOIN users u ON p.author_id=u.id WHERE p.status='pending' ORDER BY p.created_at DESC").all();
 }
 
 // COMMENTS
-export function getPostComments(pid, userId) { 
+export function getPostComments(pid, userId) {
     return db.prepare(`
         SELECT pc.*, u.username as author_username, 
         (SELECT COUNT(*) FROM comment_ratings WHERE comment_id = pc.id AND rating = 1) as likes,
@@ -222,23 +498,23 @@ export function getPostComments(pid, userId) {
         LEFT JOIN users u ON pc.author_id=u.id 
         WHERE post_id=? AND status='approved'
         ORDER BY pc.created_at DESC
-    `).all(userId || -1, pid); 
+    `).all(userId || -1, pid);
 }
-export function createComment(pid, c, aid) { 
+export function createComment(pid, c, aid) {
     const user = getUserById(aid);
     const status = (user.role === 'admin' || user.role === 'moderator') ? 'approved' : 'pending';
-    return db.prepare("INSERT INTO post_comments (post_id, content, author_id, status) VALUES (?,?,?,?)").run(pid, c, aid, status); 
+    return db.prepare("INSERT INTO post_comments (post_id, content, author_id, status) VALUES (?,?,?,?)").run(pid, c, aid, status);
 }
 export function getCommentById(id) { return db.prepare("SELECT * FROM post_comments WHERE id=?").get(id); }
 
-export function updateComment(id, content) { 
-    return db.prepare("UPDATE post_comments SET content=? WHERE id=?").run(content, id); 
+export function updateComment(id, content) {
+    return db.prepare("UPDATE post_comments SET content=? WHERE id=?").run(content, id);
 }
 export function approveComment(id) { return db.prepare("UPDATE post_comments SET status='approved' WHERE id=?").run(id); }
 export function rejectComment(id) { return db.prepare("UPDATE post_comments SET status='rejected' WHERE id=?").run(id); }
 export function deleteComment(id) { return db.prepare("DELETE FROM post_comments WHERE id=?").run(id); }
 
-export function getPendingComments() { 
+export function getPendingComments() {
     return db.prepare(`
         SELECT pc.*, u.username as author_username, p.title as post_title, c.name as category_name
         FROM post_comments pc 
@@ -247,13 +523,13 @@ export function getPendingComments() {
         LEFT JOIN categories c ON p.category_id=c.id
         WHERE pc.status='pending'
         ORDER BY pc.created_at DESC
-    `).all(); 
+    `).all();
 }
 
 export function rateComment(cid, uid, r) {
     const e = db.prepare("SELECT rating FROM comment_ratings WHERE comment_id=? AND user_id=?").get(cid, uid);
-    if(e) {
-        if(e.rating === r) db.prepare("DELETE FROM comment_ratings WHERE comment_id=? AND user_id=?").run(cid, uid);
+    if (e) {
+        if (e.rating === r) db.prepare("DELETE FROM comment_ratings WHERE comment_id=? AND user_id=?").run(cid, uid);
         else db.prepare("UPDATE comment_ratings SET rating=? WHERE comment_id=? AND user_id=?").run(r, cid, uid);
     } else db.prepare("INSERT INTO comment_ratings (comment_id, user_id, rating) VALUES (?,?,?)").run(cid, uid, r);
 }
@@ -264,16 +540,15 @@ export function createNotification(userId, type, title, message, link) {
     return db.prepare('INSERT INTO notifications (user_id, type, title, message, link) VALUES (?,?,?,?,?)').run(userId, type, title, message, link);
 }
 
-export function getUserNotifications(userId) { 
+export function getUserNotifications(userId) {
     return db.prepare('SELECT * FROM notifications WHERE user_id=? ORDER BY created_at DESC LIMIT 50').all(userId);
 }
-export function markNotificationAsRead(id) { 
-    return db.prepare('UPDATE notifications SET is_read=1 WHERE id=?').run(id); 
+export function markNotificationAsRead(id) {
+    return db.prepare('UPDATE notifications SET is_read=1 WHERE id=?').run(id);
 }
-export function markAllNotificationsAsRead(userId) { 
+export function markAllNotificationsAsRead(userId) {
     return db.prepare('UPDATE notifications SET is_read=1 WHERE user_id=?').run(userId);
 }
-
 
 // --- GALLERY ---
 export function createGalleryImage(d) { return db.prepare("INSERT INTO gallery_images (filename, title, description, width, height) VALUES (@filename, @title, @description, @width, @height)").run(d).lastInsertRowid; }
@@ -289,8 +564,7 @@ export function deleteGalleryCollection(id) { return db.prepare("DELETE FROM gal
 export function addImageToCollection(d) { return db.prepare("INSERT INTO gallery_items (collection_id, image_id, position) VALUES (@collection_id, @image_id, @position)").run(d).lastInsertRowid; }
 export function getCollectionItems(id) { return db.prepare("SELECT gi.*, i.filename, i.title, i.description FROM gallery_items gi JOIN gallery_images i ON gi.image_id=i.id WHERE collection_id=? ORDER BY position").all(id); }
 export function removeImageFromCollection(id) { return db.prepare("DELETE FROM gallery_items WHERE id=?").run(id); }
-export function reorderCollectionItems(collectionId, items) { 
-
+export function reorderCollectionItems(collectionId, items) {
     const update = db.prepare('UPDATE gallery_items SET position = ? WHERE id = ? AND collection_id = ?');
     const transaction = db.transaction((items) => {
         for (const item of items) {
@@ -300,6 +574,6 @@ export function reorderCollectionItems(collectionId, items) {
     return transaction(items);
 }
 
-export function getUserCommentRating() {}
-export function createDiscussion() {}
+export function getUserCommentRating() { }
+export function createDiscussion() { }
 export function getDiscussionMessages() { return []; }
