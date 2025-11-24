@@ -19,11 +19,7 @@ function showBanner(msg, ok = true) {
 async function init() {
   const urlParams = new URLSearchParams(window.location.search);
   postId = urlParams.get('id');
-  
-  if (!postId) {
-    window.location.href = 'forum.html';
-    return;
-  }
+  if (!postId) return window.location.href = 'forum.html';
   
   await setupAuth();
   await loadPost();
@@ -37,23 +33,19 @@ async function setupAuth() {
       const data = await res.json();
       currentUser = data.user;
       document.getElementById('who').textContent = currentUser.display_name || currentUser.username;
-      document.getElementById('commentFormSection').classList.remove('hidden');
+      document.getElementById('commentFormSection')?.classList.remove('hidden');
       
-      document.getElementById('logoutBtn').addEventListener('click', async () => {
-        await fetch('/api/auth/logout', { method: 'POST' });
-        window.location.href = '/';
-      });
-
-      if (currentUser.role === 'moderator' || currentUser.role === 'admin') {
-        document.getElementById('moderatorLink').style.display = 'block';
-      }
-      if (currentUser.role === 'admin') {
-        document.getElementById('adminLink').style.display = 'block';
+      const logoutBtn = document.getElementById('logoutBtn');
+      if(logoutBtn) {
+          logoutBtn.style.display = 'block';
+          logoutBtn.onclick = async () => {
+            await fetch('/api/auth/logout', { method: 'POST' });
+            window.location.href = '/';
+          };
       }
     } else {
       document.getElementById('who').textContent = "Gość";
-      document.getElementById('logoutBtn').style.display = 'none';
-      document.getElementById('loginToComment').classList.remove('hidden');
+      document.getElementById('loginToComment')?.classList.remove('hidden');
     }
   } catch (error) {}
 }
@@ -61,110 +53,97 @@ async function setupAuth() {
 async function loadPost() {
   try {
     const res = await fetch(`/api/forum/posts/${postId}`);
-    if(!res.ok) throw new Error();
     const post = await res.json();
-    
-    const postContent = document.getElementById('postContent');
-    postContent.innerHTML = `
+    document.getElementById('postContent').innerHTML = `
       <div class="post-header-detail">
-        <h1>${post.title || 'Bez tytułu'}</h1>
+        <h1>${post.title}</h1>
         <div class="post-meta-detail">
           <span class="post-category">${post.category_name || 'Ogólne'}</span>
-          <span>👤 ${post.author_username || 'Nieznany'}</span>
+          <span>👤 ${post.author_username}</span>
           <span>🕒 ${new Date(post.created_at).toLocaleDateString()}</span>
         </div>
       </div>
-      <div class="post-content-html">
-        ${post.content || '<p>Brak treści</p>'}
-      </div>
+      <div class="post-content-html">${post.content}</div>
     `;
-    
-    document.getElementById('loading').classList.add('hidden');
-    postContent.classList.remove('hidden');
+    document.getElementById('postContent').classList.remove('hidden');
     document.getElementById('commentsSection').classList.remove('hidden');
-
-  } catch (error) {
-    document.getElementById('postContent').innerHTML = '<div class="error-state">Nie znaleziono posta.</div>';
-  }
+  } catch (e) { document.getElementById('postContent').innerHTML = 'Błąd wczytywania posta.'; }
 }
+
 async function loadComments() {
   try {
-    const res = await fetch(`/api/forum/posts/${postId}/comments`);
+    // Unikamy cache przeglądarki dodając losowy numer na końcu
+    const res = await fetch(`/api/forum/posts/${postId}/comments?_t=${Date.now()}`);
     const comments = await res.json();
     
-    const commentsList = document.getElementById('commentsList');
     document.getElementById('commentCount').textContent = comments.length;
+    const list = document.getElementById('commentsList');
     
     if (comments.length === 0) {
-      commentsList.innerHTML = '<div class="comments-empty">Brak komentarzy. Bądź pierwszy!</div>';
+      list.innerHTML = '<div class="comments-empty">Brak komentarzy.</div>';
       return;
     }
     
-    commentsList.innerHTML = comments.map(comment => {
-        const initials = comment.author_username.substring(0,2).toUpperCase();
-        const isLiked = comment.user_vote === 1 ? 'active' : '';
-        const isDisliked = comment.user_vote === -1 ? 'active' : '';
+    list.innerHTML = comments.map(c => {
+        const isLiked = c.user_vote === 1;
+        const isDisliked = c.user_vote === -1;
+        const colorLike = isLiked ? '#4ade80' : '#ccc';
+        const colorDislike = isDisliked ? '#f87171' : '#ccc';
 
         return `
           <div class="comment-card">
             <div class="comment-header">
-              <div style="display: flex; align-items: center; gap: 10px;">
-                <div style="width:32px; height:32px; background: linear-gradient(45deg, #FFD700, #DAA520); border-radius:50%; display:flex; align-items:center; justify-content:center; color:black; font-weight:bold; font-size:12px;">${initials}</div>
-                <div>
-                    <span style="color: #FFD700; font-weight: bold; display:block;">${comment.author_username}</span>
-                    <span style="font-size: 11px; color: #888;">${new Date(comment.created_at).toLocaleString()}</span>
-                </div>
-              </div>
+              <strong>${c.author_username}</strong> <span style="font-size:12px; color:#666">${new Date(c.created_at).toLocaleString()}</span>
             </div>
-            <div class="comment-content">${comment.content}</div>
-            
+            <div class="comment-content">${c.content}</div>
             <div class="comment-actions">
-                <button onclick="rateComment(${comment.id}, 1)" class="btn-sm ${isLiked}" style="background: rgba(255,255,255,0.1); border:none; color: ${isLiked ? '#4ade80' : '#ccc'};">👍 ${comment.likes || 0}</button>
-                <button onclick="rateComment(${comment.id}, -1)" class="btn-sm ${isDisliked}" style="background: rgba(255,255,255,0.1); border:none; color: ${isDisliked ? '#f87171' : '#ccc'};">👎 ${comment.dislikes || 0}</button>
+                <button onclick="rateComment(${c.id}, 1)" class="btn-sm" style="border:1px solid ${colorLike}; color:${colorLike}; background:rgba(255,255,255,0.05); cursor:pointer;">
+                    👍 ${c.likes || 0}
+                </button>
+                <button onclick="rateComment(${c.id}, -1)" class="btn-sm" style="border:1px solid ${colorDislike}; color:${colorDislike}; background:rgba(255,255,255,0.05); cursor:pointer;">
+                    👎 ${c.dislikes || 0}
+                </button>
             </div>
           </div>
         `;
     }).join('');
-  } catch (error) { console.error(error); }
+  } catch (e) { console.error(e); }
 }
 
+// To jest funkcja wywoływana po kliknięciu
 window.rateComment = async (id, rating) => {
-    if(!currentUser) return showBanner('Zaloguj się, aby oceniać!', false);
+    console.log(`Kliknięto like/dislike: ID=${id}, Rating=${rating}`); // Zobacz w konsoli (F12)
+    
+    if(!currentUser) return showBanner('Zaloguj się!', false);
+    
     try {
-        await fetch(`/api/forum/comments/${id}/rate`, {
+        const res = await fetch(`/api/forum/comments/${id}/rate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ rating })
         });
-        loadComments();
-    } catch(e) { showBanner('Błąd', false); }
+        
+        if(res.ok) {
+            await loadComments(); // Odśwież po sukcesie
+        } else {
+            const err = await res.json();
+            showBanner('Błąd serwera: ' + (err.error || 'Nieznany'), false);
+        }
+    } catch(e) { showBanner('Błąd połączenia', false); }
 };
 
 const submitBtn = document.getElementById('submitCommentBtn');
 if(submitBtn) {
     submitBtn.addEventListener('click', async () => {
-        if(!currentUser) return showBanner("Musisz być zalogowany!", false);
-        
         const content = document.getElementById('commentContent').value.trim();
-        if (!content) return showBanner("Wpisz treść komentarza", false);
-        
-        try {
-            const res = await fetch(`/api/forum/posts/${postId}/comments`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ content })
-            });
-            
-            if(res.ok) {
-                const data = await res.json();
-                document.getElementById('commentContent').value = '';
-                if(data.status === 'pending') showBanner('✅ Komentarz wysłany do moderacji.', true);
-                else {
-                    showBanner('✅ Komentarz dodany!', true);
-                    loadComments();
-                }
-            } else showBanner('Błąd dodawania komentarza', false);
-        } catch(e) { showBanner('Błąd połączenia', false); }
+        if (!content) return;
+        await fetch(`/api/forum/posts/${postId}/comments`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content })
+        });
+        document.getElementById('commentContent').value = '';
+        loadComments();
     });
 }
 

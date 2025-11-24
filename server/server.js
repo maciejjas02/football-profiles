@@ -75,6 +75,7 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.tiny.cloud", "https://cdnjs.cloudflare.com"],
       scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.tiny.cloud", "https://cdnjs.cloudflare.com"],
+      scriptSrcAttr: ["'unsafe-inline'"], 
       imgSrc: ["'self'", "data:", "https:", "blob:"],
       fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
       connectSrc: ["'self'", "https://cdn.tiny.cloud"],
@@ -85,6 +86,8 @@ app.use(helmet({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(cookieParser());
+
+
 
 app.use(session({
   secret: 'secret', resave: false, saveUninitialized: false, cookie: { httpOnly: true, sameSite: 'lax', secure: isProd }
@@ -198,7 +201,26 @@ app.post('/api/forum/posts/:id/reject', requireModerator, (req, res) => { reject
 
 app.get('/api/forum/posts/:id/comments', (req, res) => res.json(getPostComments(req.params.id, getUserByIdFromReq(req))));
 app.post('/api/forum/posts/:id/comments', requireAuth, (req, res) => { createComment(req.params.id, req.body.content, getUserByIdFromReq(req)); res.json({success:true}); });
-app.post('/api/forum/comments/:id/rate', requireAuth, (req, res) => { rateComment(req.params.id, getUserByIdFromReq(req), req.body.rating); res.json({ success: true }); });
+app.post('/api/forum/comments/:id/rate', requireAuth, (req, res) => {
+    try {
+        // KONWERSJA TYPÓW - TO JEST KLUCZOWE!
+        const commentId = parseInt(req.params.id, 10);
+        const userId = getUserByIdFromReq(req);
+        const rating = parseInt(req.body.rating, 10);
+
+        console.log(`Ocenianie: CommentID=${commentId}, UserID=${userId}, Rating=${rating}`); // Log dla debugowania
+
+        if (isNaN(commentId) || isNaN(rating)) {
+            return res.status(400).json({ error: "Nieprawidłowe dane (NaN)" });
+        }
+
+        rateComment(commentId, userId, rating);
+        res.json({ success: true });
+    } catch (e) {
+        console.error("Błąd oceniania:", e);
+        res.status(500).json({ error: e.message });
+    }
+});
 app.get('/api/forum/comments/pending/list', requireAuth, requireModerator, (req, res) => res.json(getPendingComments()));
 app.post('/api/forum/comments/:id/approve', requireModerator, (req, res) => { approveComment(req.params.id); res.json({success:true}); });
 app.post('/api/forum/comments/:id/reject', requireModerator, (req, res) => { rejectComment(req.params.id); res.json({success:true}); });
@@ -247,3 +269,26 @@ app.get('/admin-gallery-manage.html', (req, res) => res.sendFile(path.join(__dir
 
 app.use((err, req, res, next) => { console.error(err); res.status(500).json({ error: err.message }); });
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+
+app.put('/api/forum/posts/:id', requireModerator, (req, res) => {
+  try {
+    updatePost(
+      req.params.id, 
+      req.body.title, 
+      req.body.content, 
+      req.body.category_id
+    );
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/forum/posts/:id', requireModerator, (req, res) => {
+  try {
+    deletePost(req.params.id);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});

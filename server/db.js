@@ -118,7 +118,13 @@ export function getUserPurchases(id) { return db.prepare('SELECT * FROM purchase
 export function updatePurchaseStatus(id, s) { return db.prepare('UPDATE purchases SET status=? WHERE id=?').run(s, id); }
 
 // --- FORUM ---
-export function getAllCategories() { return db.prepare('SELECT * FROM categories').all(); }
+export function getAllCategories() {
+    return db.prepare(`
+        SELECT c.*, 
+        (SELECT COUNT(*) FROM posts p WHERE p.category_id = c.id) as post_count 
+        FROM categories c
+    `).all(); 
+}
 export function getCategoryBySlug(s) { return db.prepare('SELECT * FROM categories WHERE slug=?').get(s); }
 export function getSubcategories(id) { return []; }
 export function createCategory(n, s, d, p) { return db.prepare('INSERT INTO categories (name, slug, description, parent_id) VALUES (?,?,?,?)').run(n,s,d,p); }
