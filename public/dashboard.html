@@ -25,6 +25,22 @@
         <a href="admin-categories.html" class="nav-tab" id="adminLink" style="display:none;">Admin</a>
       </nav>
       <div class="topbar-actions">
+        <div style="position:relative;">
+          <button id="notificationsBtn" class="icon-button" aria-label="Powiadomienia">
+            <span>🔔</span>
+            <span id="notificationBadge" class="notification-badge" style="display:none;">0</span>
+          </button>
+          <div id="notificationsDropdown" class="notification-dropdown" style="display:none;">
+            <div class="notification-header">
+              <h3>Powiadomienia</h3>
+              <button id="markAllReadBtn" class="btn-link">Oznacz wszystkie jako przeczytane</button>
+            </div>
+            <div class="notification-list" id="notificationsList">
+               <div class="notification-empty">Brak powiadomień.</div>
+            </div>
+          </div>
+        </div>
+        
         <div id="authBar" class="authbar">
           <span id="who">Ładowanie...</span>
           <button id="logoutBtn" class="btn btn-ghost">Wyloguj</button>

@@ -119,22 +119,24 @@ function getUserByIdFromReq(req) {
   return null;
 }
 
+// ULEPSZONE: Autoryzacja z ładowaniem obiektu użytkownika do req.user
 function requireAuth(req, res, next) {
-  if (!getUserByIdFromReq(req)) return res.status(401).json({ error: 'Wymagane logowanie' });
+  const id = getUserByIdFromReq(req);
+  if (!id) return res.status(401).json({ error: 'Wymagane logowanie' });
+  req.user = getUserById(id);
+  if (!req.user) return res.status(401).json({ error: 'Niepoprawny użytkownik' });
   next();
 }
 
 function requireModerator(req, res, next) {
-  const id = getUserByIdFromReq(req);
-  const user = id ? getUserById(id) : null;
-  if (!user || (user.role !== 'moderator' && user.role !== 'admin')) return res.status(403).json({ error: 'Mod only' });
+  if (!req.user) return requireAuth(req, res, () => requireModerator(req, res, next));
+  if (req.user.role !== 'moderator' && req.user.role !== 'admin') return res.status(403).json({ error: 'Moderator lub Admin wymagany' });
   next();
 }
 
 function requireAdmin(req, res, next) {
-  const id = getUserByIdFromReq(req);
-  const user = id ? getUserById(id) : null;
-  if (!user || user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  if (!req.user) return requireAuth(req, res, () => requireAdmin(req, res, next));
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin wymagany' });
   next();
 }
 
@@ -178,6 +180,19 @@ app.post('/api/forum/categories', requireAdmin, (req, res) => { createCategory(r
 app.put('/api/forum/categories/:id', requireAdmin, (req, res) => { updateCategory(req.params.id, req.body.name, req.body.slug, req.body.description); res.json({success:true}); });
 app.delete('/api/forum/categories/:id', requireAdmin, (req, res) => { deleteCategory(req.params.id); res.json({success:true}); });
 
+// Zarządzanie moderatorami kategorii
+app.get('/api/forum/categories/:id/moderators', requireAdmin, (req, res) => {
+    res.json(getCategoryModerators(req.params.id));
+});
+app.post('/api/forum/categories/:id/moderators', requireAdmin, (req, res) => {
+    assignModeratorToCategory(req.body.user_id, req.params.id);
+    res.json({ success: true });
+});
+app.delete('/api/forum/categories/:catId/moderators/:userId', requireAdmin, (req, res) => {
+    removeModeratorFromCategory(req.params.userId, req.params.catId);
+    res.json({ success: true });
+});
+
 app.get('/api/forum/posts', (req, res) => {
     const limit = parseInt(req.query.limit) || 20;
     const offset = parseInt(req.query.offset) || 0;
@@ -196,19 +211,49 @@ app.post('/api/forum/posts', requireModerator, (req, res) => {
   const result = createPost(req.body.title, req.body.content || '', req.body.category_id, id, status);
   res.json({ success: true, id: result.lastInsertRowid });
 });
-app.post('/api/forum/posts/:id/approve', requireModerator, (req, res) => { approvePost(req.params.id); res.json({success:true}); });
-app.post('/api/forum/posts/:id/reject', requireModerator, (req, res) => { rejectPost(req.params.id); res.json({success:true}); });
+app.put('/api/forum/posts/:id', requireModerator, (req, res) => {
+  try {
+    updatePost(
+      req.params.id, 
+      req.body.title, 
+      req.body.content, 
+      req.body.category_id
+    );
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.delete('/api/forum/posts/:id', requireModerator, (req, res) => {
+  try {
+    deletePost(req.params.id);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Powiadomienia po zatwierdzeniu/odrzuceniu postów
+app.post('/api/forum/posts/:id/approve', requireModerator, async (req, res) => { 
+    const post = await getPostById(req.params.id);
+    approvePost(req.params.id);
+    if(post) createNotification(post.author_id, 'post_approved', 'Post zatwierdzony', `Twój post "${post.title}" został zatwierdzony.`, `/post.html?id=${post.id}`);
+    res.json({success:true}); 
+});
+app.post('/api/forum/posts/:id/reject', requireModerator, async (req, res) => { 
+    const post = await getPostById(req.params.id);
+    rejectPost(req.params.id);
+    if(post) createNotification(post.author_id, 'post_rejected', 'Post odrzucony', `Twój post "${post.title}" został odrzucony.`, `/moderator-posts.html`);
+    res.json({success:true}); 
+});
 
 app.get('/api/forum/posts/:id/comments', (req, res) => res.json(getPostComments(req.params.id, getUserByIdFromReq(req))));
 app.post('/api/forum/posts/:id/comments', requireAuth, (req, res) => { createComment(req.params.id, req.body.content, getUserByIdFromReq(req)); res.json({success:true}); });
 app.post('/api/forum/comments/:id/rate', requireAuth, (req, res) => {
     try {
-        // KONWERSJA TYPÓW - TO JEST KLUCZOWE!
         const commentId = parseInt(req.params.id, 10);
-        const userId = getUserByIdFromReq(req);
+        const userId = req.user.id; // Użycie req.user z requireAuth
         const rating = parseInt(req.body.rating, 10);
-
-        console.log(`Ocenianie: CommentID=${commentId}, UserID=${userId}, Rating=${rating}`); // Log dla debugowania
 
         if (isNaN(commentId) || isNaN(rating)) {
             return res.status(400).json({ error: "Nieprawidłowe dane (NaN)" });
@@ -221,18 +266,48 @@ app.post('/api/forum/comments/:id/rate', requireAuth, (req, res) => {
         res.status(500).json({ error: e.message });
     }
 });
+
+// Endpoint do edycji komentarza (dla moderatora)
+app.put('/api/forum/comments/:id', requireModerator, (req, res) => { 
+    updateComment(req.params.id, req.body.content); 
+    res.json({ success: true }); 
+});
+
 app.get('/api/forum/comments/pending/list', requireAuth, requireModerator, (req, res) => res.json(getPendingComments()));
-app.post('/api/forum/comments/:id/approve', requireModerator, (req, res) => { approveComment(req.params.id); res.json({success:true}); });
-app.post('/api/forum/comments/:id/reject', requireModerator, (req, res) => { rejectComment(req.params.id); res.json({success:true}); });
+
+// Powiadomienia po zatwierdzeniu/odrzuceniu komentarzy
+app.post('/api/forum/comments/:id/approve', requireModerator, async (req, res) => { 
+    const comment = await getCommentById(req.params.id);
+    approveComment(req.params.id); 
+    if(comment) createNotification(comment.author_id, 'comment_approved', 'Komentarz zatwierdzony', 'Twój komentarz został zatwierdzony.', `/post.html?id=${comment.post_id}`);
+    res.json({success:true}); 
+});
+app.post('/api/forum/comments/:id/reject', requireModerator, async (req, res) => { 
+    const comment = await getCommentById(req.params.id);
+    rejectComment(req.params.id); 
+    if(comment) createNotification(comment.author_id, 'comment_rejected', 'Komentarz odrzucony', 'Twój komentarz został odrzucony.', `/post.html?id=${comment.post_id}`);
+    res.json({success:true}); 
+});
+
+// API Powiadomień
+app.get('/api/user/notifications', requireAuth, (req, res) => res.json(getUserNotifications(req.user.id)));
+app.post('/api/user/notifications/:id/read', requireAuth, (req, res) => { markNotificationAsRead(req.params.id); res.json({success:true}); });
+app.post('/api/user/notifications/read-all', requireAuth, (req, res) => { markAllNotificationsAsRead(req.user.id); res.json({success:true}); });
+
 
 // GALLERY API
-app.post('/api/gallery/upload', requireAdmin, uploadGalleryImage.single('image'), (req, res) => {
+app.post('/api/gallery/upload', requireAdmin, uploadGalleryImage.single('image'), async (req, res) => {
     if (!req.file) return res.status(400).json({error:'No file'});
-    const sharp = import('sharp').then(({default:sharp}) => {
-        sharp(req.file.path).resize(400).toFile(path.join(galleryThumbDir, req.file.filename));
-        createGalleryImage({filename: req.file.filename, title: req.body.title, description: req.body.description, width:0, height:0});
-        res.json({success:true});
-    });
+    
+    // Użycie dynamicznego importu Sharp
+    const { default: sharp } = await import('sharp');
+    
+    sharp(req.file.path).resize(400).toFile(path.join(galleryThumbDir, req.file.filename));
+    
+    // Zmieniono, aby używać obiektu danych
+    createGalleryImage({filename: req.file.filename, title: req.body.title, description: req.body.description, width:0, height:0});
+    
+    res.json({success:true});
 });
 app.get('/api/gallery/images', (req, res) => res.json(getAllGalleryImages()));
 app.delete('/api/gallery/images/:id', requireAdmin, (req, res) => { deleteGalleryImage(req.params.id); res.json({success:true}); });
@@ -269,26 +344,3 @@ app.get('/admin-gallery-manage.html', (req, res) => res.sendFile(path.join(__dir
 
 app.use((err, req, res, next) => { console.error(err); res.status(500).json({ error: err.message }); });
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
-
-app.put('/api/forum/posts/:id', requireModerator, (req, res) => {
-  try {
-    updatePost(
-      req.params.id, 
-      req.body.title, 
-      req.body.content, 
-      req.body.category_id
-    );
-    res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-app.delete('/api/forum/posts/:id', requireModerator, (req, res) => {
-  try {
-    deletePost(req.params.id);
-    res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});

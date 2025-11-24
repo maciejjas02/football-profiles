@@ -14,6 +14,17 @@
         width: 100%;
         display: block;
     }
+    .categories-grid-admin {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 30px;
+        align-items: flex-start;
+    }
+    @media (max-width: 1000px) {
+        .categories-grid-admin {
+            grid-template-columns: 1fr;
+        }
+    }
   </style>
 </head>
 <body>
@@ -32,111 +43,65 @@
     </div>
   </header>
 
-  <div class="dashboard-container" style="max-width: 1000px;">
+  <div class="dashboard-container">
     <div class="page-header">
       <h1 class="page-title">📁 Kategorie Forum</h1>
     </div>
 
-    <div class="admin-panel" style="margin-bottom: 30px;">
-      <h2>Utwórz Kategorię</h2>
-      <div id="createCatContainer">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
-            <input type="text" id="catName" class="form-input" placeholder="Nazwa kategorii" />
-            <input type="text" id="catSlug" class="form-input" placeholder="Slug (np. dyskusje)" />
-        </div>
-        <textarea id="catDesc" class="form-textarea" rows="2" placeholder="Opis..."></textarea>
-        <button id="createCatBtn" class="btn btn-primary" style="margin-top: 10px;">Utwórz</button>
-      </div>
-    </div>
+    <div class="categories-grid-admin">
+        <div class="admin-panel">
+            <h2>Utwórz Kategorię</h2>
+            <div id="createCatContainer">
+              <div class="form-group">
+                  <label for="categoryName">Nazwa kategorii *</label>
+                  <input type="text" id="categoryName" class="form-input" placeholder="Nazwa kategorii" />
+              </div>
+              <div class="form-group">
+                  <label for="categorySlug">Slug (unikalny link) *</label>
+                  <input type="text" id="categorySlug" class="form-input" placeholder="np. dyskusje-o-lidze" />
+              </div>
+              <div class="form-group">
+                  <label for="categoryDescription">Opis</label>
+                  <textarea id="categoryDescription" class="form-textarea" rows="2" placeholder="Opis..."></textarea>
+              </div>
+              <div class="form-group">
+                  <label for="parentCategory">Kategoria nadrzędna (+0.5)</label>
+                  <select id="parentCategory" class="form-select">
+                      <option value="">Brak (główna kategoria)</option>
+                  </select>
+              </div>
+              <button id="submitCategoryBtn" class="btn btn-primary" style="margin-top: 10px;">Utwórz Kategorię</button>
+            </div>
 
-    <div class="admin-panel">
-      <h2>Lista Kategorii</h2>
-      <div id="catList">Ładowanie...</div>
+            <div class="admin-panel" style="margin-top: 30px; background: rgba(0,0,0,0.2); border: 1px solid #444; padding: 20px;">
+                <h2>Lista Kategorii</h2>
+                <div id="categoriesList">Ładowanie...</div>
+            </div>
+        </div>
+        
+        <div class="admin-panel">
+            <h2>Przypisz Moderatora</h2>
+            <div class="form-group">
+                <label for="assignCategory">Wybierz kategorię</label>
+                <select id="assignCategory" class="form-select">
+                    <option value="">Wybierz kategorię...</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="assignModerator">Wybierz moderatora</label>
+                <select id="assignModerator" class="form-select">
+                    <option value="">Wybierz moderatora...</option>
+                </select>
+            </div>
+            <button id="assignBtn" class="btn btn-primary" style="margin-top: 10px;">Przypisz</button>
+
+            <div id="assignmentsList">
+                 <p style="margin-top: 20px; color: rgba(255,255,255,0.5);">Wybierz kategorię, aby zobaczyć przypisanych moderatorów.</p>
+            </div>
+        </div>
     </div>
   </div>
 
-  <script type="module">
-    // Ze względu na historyczną implementację, JavaScript pozostawiamy inline
-    
-    // Funkcja do aktywacji aktywnej zakładki (zamiast hardkodowania)
-    function setActiveNav() {
-        const currentPath = window.location.pathname.toLowerCase();
-        document.querySelectorAll('.topbar-nav .nav-tab').forEach(link => {
-            link.classList.remove('active');
-            if (new URL(link.href).pathname.toLowerCase() === currentPath) {
-                link.classList.add('active');
-            }
-        });
-    }
-
-    async function loadCats() {
-        try {
-            const res = await fetch('/api/forum/categories');
-            if (!res.ok) throw new Error('Błąd ładowania kategorii');
-            const cats = await res.json();
-            document.getElementById('catList').innerHTML = cats.map(c => `
-                <div style="display:flex; justify-content:space-between; padding: 10px; border-bottom: 1px solid var(--border-color);">
-                    <div><strong>${c.name}</strong> <small>(${c.slug})</small></div>
-                    <div>
-                      <button onclick="window.deleteCat(${c.id})" class="btn btn-danger btn-sm" style="background:#dc3545; border:none; color:white;">🗑️</button>
-                    </div>
-                </div>
-            `).join('');
-        } catch(e) {
-             document.getElementById('catList').innerHTML = `<div class="error-state">${e.message}</div>`;
-        }
-    }
-
-    window.deleteCat = async (id) => {
-        if(!confirm('Usunąć?')) return;
-        await fetch(`/api/forum/categories/${id}`, { method: 'DELETE' });
-        loadCats();
-    }
-
-    async function init() {
-        const res = await fetch('/api/auth/me');
-        if(res.ok) {
-            const data = await res.json();
-            if(data.user.role !== 'admin') window.location.href = '/dashboard.html';
-            
-            document.getElementById('who').textContent = data.user.username;
-            document.getElementById('logoutBtn').onclick = async () => { await fetch('/api/auth/logout', {method:'POST'}); window.location.href='/'; };
-            
-            // Aktywacja linków dynamicznych
-            if (data.user.role === 'moderator' || data.user.role === 'admin') {
-                const modLink = document.getElementById('moderatorLink');
-                if(modLink) modLink.style.display = 'block';
-                const galleryManageLink = document.getElementById('galleryManageLink');
-                if(galleryManageLink) galleryManageLink.style.display = 'block';
-            }
-            if (data.user.role === 'admin') {
-                const adminLink = document.getElementById('adminLink');
-                if(adminLink) adminLink.style.display = 'block';
-            }
-        } else window.location.href = '/';
-
-        setActiveNav();
-        loadCats();
-        
-        document.getElementById('createCatBtn').onclick = async () => {
-            const name = document.getElementById('catName').value;
-            const slug = document.getElementById('catSlug').value;
-            const description = document.getElementById('catDesc').value;
-            if(!name || !slug) return alert('Nazwa i slug wymagane');
-            
-            await fetch('/api/forum/categories', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ name, slug, description })
-            });
-            loadCats();
-            document.getElementById('catName').value = '';
-            document.getElementById('catSlug').value = '';
-            document.getElementById('catDesc').value = '';
-        };
-    }
-
-    init();
-  </script>
+  <script type="module" src="admin-categories.js"></script>
 </body>
 </html>

@@ -4186,3 +4186,384 @@ label:hover::before {
     from { transform: translateX(100%); opacity: 0; }
     to { transform: translateX(0); opacity: 1; }
 }
+
+/* ... (istniejące style) ... */
+
+/* DODANO: STYLES DLA POWIADOMIEŃ */
+.topbar-actions {
+  /* ... (istniejące style) ... */
+  position: relative; /* Upewnij się, że jest relative dla dropdowna */
+}
+
+.icon-button {
+  position: relative;
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 8px;
+  transition: transform 0.2s;
+  color: #FFD700;
+  margin-right: 15px; /* Dodatkowy margines, aby nie kolidować z who/logout */
+}
+
+.icon-button:hover {
+  transform: scale(1.1);
+}
+
+.notification-badge {
+  position: absolute;
+  top: -5px;
+  right: 5px;
+  background: #ff4444;
+  color: white;
+  font-size: 11px;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+  line-height: 1.2;
+  box-shadow: 0 0 5px rgba(255, 68, 68, 0.5);
+  z-index: 10;
+}
+
+.notification-dropdown {
+  position: absolute;
+  top: 60px; /* Dostosuj wysokość */
+  right: 0;
+  width: 350px;
+  max-height: 500px;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  display: none;
+  z-index: 1000;
+  overflow: hidden;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.notification-dropdown.show {
+  display: block;
+}
+
+.notification-header {
+  padding: 15px;
+  border-bottom: 1px solid #333;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.notification-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #FFD700;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: rgba(255, 215, 0, 0.7);
+  cursor: pointer;
+  font-size: 12px;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.btn-link:hover {
+  color: #FFD700;
+}
+
+.notification-list {
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 0;
+  list-style: none;
+}
+
+.notification-item {
+  padding: 15px;
+  border-bottom: 1px solid #333;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.notification-item:hover {
+  background: rgba(255, 215, 0, 0.05);
+}
+
+.notification-item.unread {
+  background: rgba(255, 215, 0, 0.1);
+  border-left: 3px solid #FFD700;
+}
+
+.notification-title {
+  font-weight: bold;
+  margin-bottom: 5px;
+  color: #fff;
+}
+
+.notification-item.unread .notification-title {
+    color: #FFD700;
+}
+
+.notification-message {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 5px;
+}
+
+.notification-time {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.notification-empty {
+  padding: 30px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* DODANO: STYLES DLA MODERATORÓW KATEGORII */
+.moderators-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.moderator-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid #333;
+}
+
+/* ... (Nagłówek i reszta bez zmian) ... */
+
+/* =========================================
+   FIXED 3D CAROUSEL (Blur Backdrop Edition)
+   ========================================= */
+
+#galleryContainer {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-bottom: 40px;
+    overflow: hidden;
+}
+
+.carousel-stage {
+    position: relative;
+    width: 100%;
+    max-width: 1400px; /* Szeroki kontener */
+    height: 550px; /* Zwiększona wysokość dla pionowych zdjęć */
+    margin: 20px auto 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    perspective: 1200px;
+}
+
+.carousel-track {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+/* KAFELEK BAZOWY */
+.carousel-card {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    /* Zmniejszona szerokość, zwiększona wysokość (format portretowy/uniwersalny) */
+    width: 400px; 
+    height: 500px; 
+    background: #000;
+    border-radius: 16px;
+    transition: all 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+    box-shadow: 0 15px 50px rgba(0,0,0,0.8);
+    cursor: pointer;
+    overflow: hidden;
+    
+    /* Domyślnie ukryty */
+    transform: translate(-50%, -50%) scale(0.5);
+    opacity: 0;
+    z-index: 1;
+    pointer-events: none;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* TŁO ROZMYTE (Wypełnia całą kartę) */
+.card-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    filter: blur(15px) brightness(0.4); /* Rozmycie i przyciemnienie */
+    z-index: 1;
+}
+
+/* GŁÓWNE ZDJĘCIE (Na wierzchu, ostre) */
+.card-img {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* Całe zdjęcie widoczne */
+    z-index: 2;
+    display: block;
+    filter: drop-shadow(0 0 10px rgba(0,0,0,0.5)); /* Cień pod samym zdjęciem */
+}
+
+/* --- STAN: AKTYWNY (ŚRODEK) --- */
+.carousel-card.active {
+    opacity: 1;
+    z-index: 20;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(1);
+    border: 2px solid #FFD700;
+    box-shadow: 0 20px 60px rgba(218, 165, 32, 0.2);
+    pointer-events: none;
+}
+
+/* --- STAN: POPRZEDNI (LEWO) --- */
+.carousel-card.prev {
+    opacity: 0.7;
+    z-index: 10;
+    /* Przesuwamy wyraźnie w lewo */
+    left: 25%; 
+    transform: translate(-50%, -50%) scale(0.8);
+    filter: brightness(0.5); /* Tylko przyciemnienie całej karty */
+    pointer-events: auto;
+}
+
+.carousel-card.prev:hover {
+    opacity: 1;
+    filter: brightness(0.8);
+    transform: translate(-50%, -50%) scale(0.85);
+    z-index: 15;
+}
+
+/* --- STAN: NASTĘPNY (PRAWO) --- */
+.carousel-card.next {
+    opacity: 0.7;
+    z-index: 10;
+    /* Przesuwamy wyraźnie w prawo */
+    left: 75%; 
+    transform: translate(-50%, -50%) scale(0.8);
+    filter: brightness(0.5);
+    pointer-events: auto;
+}
+
+.carousel-card.next:hover {
+    opacity: 1;
+    filter: brightness(0.8);
+    transform: translate(-50%, -50%) scale(0.85);
+    z-index: 15;
+}
+
+/* STRZAŁKI */
+.nav-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0, 0, 0, 0.6);
+    border: 2px solid #FFD700;
+    color: #FFD700;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    font-size: 24px;
+    cursor: pointer;
+    z-index: 30;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-bottom: 4px;
+}
+
+.nav-arrow:hover {
+    background: #FFD700;
+    color: #000;
+    transform: scale(1.1) translateY(-45%); /* Poprawka centrowania przy skali */
+}
+
+.nav-arrow.left { left: 40px; }
+.nav-arrow.right { right: 40px; }
+
+/* OPIS */
+.caption-container {
+    width: 90%;
+    max-width: 800px;
+    text-align: center;
+    background: transparent;
+    padding: 20px;
+    margin-top: 10px;
+}
+
+.caption-container h2 {
+    color: #FFD700;
+    font-size: 32px;
+    margin-bottom: 15px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    text-shadow: 0 4px 10px rgba(0,0,0,0.8);
+}
+
+.caption-container p {
+    color: #d0d0d0;
+    font-size: 16px;
+    line-height: 1.6;
+    margin: 0 auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    max-width: 700px;
+}
+
+.dots-container {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.dot.active {
+    background: #FFD700;
+    transform: scale(1.3);
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+@media (max-width: 900px) {
+    .carousel-stage { height: 400px; }
+    .carousel-card { width: 280px; height: 350px; }
+    .carousel-card.active { width: 320px; height: 400px; }
+    .carousel-card.prev { left: 10%; transform: translate(-50%, -50%) scale(0.6); opacity: 0.4; }
+    .carousel-card.next { left: 90%; transform: translate(-50%, -50%) scale(0.6); opacity: 0.4; }
+    .nav-arrow { width: 40px; height: 40px; font-size: 18px; }
+    .nav-arrow.left { left: 10px; }
+    .nav-arrow.right { right: 10px; }
+}

@@ -24,9 +24,16 @@ async function setupAuth() {
         window.location.href = 'dashboard.html';
         return;
       }
+      
+      // DODANO: Wyświetlanie linków administracyjnych
       if (currentUser.role === 'admin') {
-          const adminLink = document.getElementById('adminLink');
-          if(adminLink) adminLink.style.display = 'block';
+          document.getElementById('adminLink').style.display = 'block';
+          document.getElementById('galleryManageLink').style.display = 'block';
+      }
+      if (currentUser.role === 'moderator') {
+          // Moderator też powinien widzieć linki do moderacji/admina
+          const moderatorLink = document.querySelector('a[href="moderator-posts.html"]');
+          if(moderatorLink) moderatorLink.style.display = 'block';
       }
       
       document.getElementById('logoutBtn').addEventListener('click', async () => {
@@ -77,7 +84,7 @@ async function loadPendingPosts() {
     list.innerHTML = posts.map(p => `
       <div class="pending-item" style="background:rgba(255,255,255,0.05); padding:15px; border-radius:8px; margin-bottom:10px; border: 1px solid var(--border-color);">
         <h3 style="margin-top:0; font-size:16px; color:#FFD700;">${p.title}</h3>
-        <div style="margin:5px 0; font-size:12px; color:#888;">Autor: ${p.author_username}</div>
+        <div style="margin:5px 0; font-size:12px; color:#888;">Autor: ${p.author_username} | Kategoria: ${p.category_name}</div>
         
         <div style="background:rgba(0,0,0,0.3); padding:10px; margin:10px 0; border-radius:4px; max-height:150px; overflow:auto; font-size:13px;">
             ${p.content}
@@ -95,19 +102,19 @@ async function loadPendingPosts() {
 
 async function loadMyPosts() {
     try {
+      // Pobieramy wszystkie zatwierdzone posty, aby umożliwić moderatorowi edycję każdego z nich.
       const res = await fetch('/api/forum/posts?limit=50&t=' + Date.now());
       const allPosts = await res.json();
-      // Pokaż wszystkie zatwierdzone posty (żeby moderator mógł edytować każdy, nie tylko swój)
-      // Jeśli chcesz tylko swoje: const myPosts = allPosts.filter(p => p.author_username === currentUser.username);
-      const myPosts = allPosts; 
 
       const list = document.getElementById('myPostsList');
       
-      if (myPosts.length === 0) {
-        list.innerHTML = '<div class="empty-state">Brak</div>';
+      if (allPosts.length === 0) {
+        list.innerHTML = '<div class="empty-state">Brak opublikowanych postów w systemie.</div>';
         return;
       }
-      list.innerHTML = myPosts.map(p => `
+      
+      // Posty są już zatwierdzone, więc status jest hardcode'owany na Approved
+      list.innerHTML = allPosts.map(p => `
         <div class="my-post-item" style="background:rgba(255,255,255,0.05); border:1px solid var(--border-color); padding:15px; border-radius:8px; margin-bottom:10px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
               <h3 style="margin:0; font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width: 200px;">${p.title}</h3>
@@ -127,7 +134,6 @@ async function loadMyPosts() {
 // Funkcja uruchamiająca tryb edycji
 window.startEdit = async (id) => {
     try {
-        // Pobierz dane posta
         const res = await fetch(`/api/forum/posts/${id}`);
         if(!res.ok) return alert("Nie można pobrać danych posta.");
         const post = await res.json();
@@ -136,7 +142,6 @@ window.startEdit = async (id) => {
         document.getElementById('postTitle').value = post.title;
         document.getElementById('postCategory').value = post.category_id;
         
-        // Wstaw treść do edytora TinyMCE
         if(tinymce.get('postContent')) {
             tinymce.get('postContent').setContent(post.content);
         } else {
@@ -148,9 +153,8 @@ window.startEdit = async (id) => {
         const submitBtn = document.getElementById('submitPostBtn');
         submitBtn.textContent = "💾 Zapisz zmiany";
         submitBtn.classList.remove('btn-primary');
-        submitBtn.classList.add('btn-success'); // Zmień kolor na zielony dla odróżnienia
+        submitBtn.classList.add('btn-success'); 
         
-        // Przewiń do góry
         window.scrollTo({ top: 0, behavior: 'smooth' });
 
     } catch(e) {
@@ -215,7 +219,6 @@ function setupEventListeners() {
     
     if (!title || !category_id || !content) return alert('Wypełnij wszystkie pola!');
     
-    // Decyzja: CREATE czy UPDATE?
     const isEdit = editingPostId !== null;
     const url = isEdit ? `/api/forum/posts/${editingPostId}` : '/api/forum/posts';
     const method = isEdit ? 'PUT' : 'POST';
@@ -230,8 +233,8 @@ function setupEventListeners() {
       if (res.ok) {
         alert(isEdit ? '✅ Post zaktualizowany!' : '✅ Post utworzony!');
         resetForm();
-        loadMyPosts();     // Odśwież listę opublikowanych
-        loadPendingPosts(); // Odśwież listę oczekujących (jeśli edytowałeś oczekujący)
+        loadMyPosts();     
+        loadPendingPosts(); 
       } else {
           const err = await res.json();
           alert('Błąd: ' + (err.error || 'Nieznany'));
@@ -256,7 +259,7 @@ window.rejectPost = async (id) => {
 
 window.deletePost = async (id) => {
     if(!confirm('Czy na pewno chcesz usunąć ten post bezpowrotnie?')) return;
-    await fetch(`/api/forum/posts/${id}`, { method: 'DELETE' }); // DELETE endpoint w server.js
+    await fetch(`/api/forum/posts/${id}`, { method: 'DELETE' }); 
     loadMyPosts();
 }
 

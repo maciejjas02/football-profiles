@@ -38,6 +38,7 @@ async function loadPendingComments() {
       return;
     }
     
+    // POPRAWIONO: Użycie nowo pobranych post_title i category_name
     list.innerHTML = comments.map(comment => `
       <div class="pending-comment-item" style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
         <div class="comment-context" style="border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 10px;">
@@ -46,9 +47,9 @@ async function loadPendingComments() {
         </div>
         <div class="comment-content-preview" style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 4px; margin-bottom: 15px;">${comment.content}</div>
         <div class="comment-moderate-actions" style="display:flex; gap:10px;">
-          <button class="btn btn-primary btn-sm" onclick="editAndApprove(${comment.id}, '${comment.content.replace(/'/g, "\\'")}')">✏️ Edytuj</button>
-          <button class="btn btn-success btn-sm" onclick="approveComment(${comment.id})" style="background:#28a745; border:none; color:white;">✅ Zatwierdź</button>
-          <button class="btn btn-danger btn-sm" onclick="rejectComment(${comment.id})" style="background:#dc3545; border:none; color:white;">❌ Odrzuć</button>
+          <button class="btn btn-primary btn-sm" onclick="editAndApprove(${comment.id}, \`${comment.content.replace(/`/g, "\\`")}\`)" style="flex:1;">✏️ Edytuj</button>
+          <button class="btn btn-success btn-sm" onclick="approveComment(${comment.id})" style="background:#28a745; border:none; color:white; flex:1;">✅ Zatwierdź</button>
+          <button class="btn btn-danger btn-sm" onclick="rejectComment(${comment.id})" style="background:#dc3545; border:none; color:white; flex:1;">❌ Odrzuć</button>
           <button class="btn btn-secondary btn-sm" onclick="window.open('post.html?id=${comment.post_id}', '_blank')">👁️ Post</button>
         </div>
       </div>
@@ -58,21 +59,37 @@ async function loadPendingComments() {
 
 window.approveComment = async (id) => {
   if (!confirm('Zatwierdzić?')) return;
-  try { await fetch(`/api/forum/comments/${id}/approve`, { method: 'POST' }); loadPendingComments(); } catch(e){}
+  try { await fetch(`/api/forum/comments/${id}/approve`, { method: 'POST' }); loadPendingComments(); } catch(e){ alert('Błąd zatwierdzania.'); }
 };
 window.rejectComment = async (id) => {
   if (!confirm('Odrzucić?')) return;
-  try { await fetch(`/api/forum/comments/${id}/reject`, { method: 'POST' }); loadPendingComments(); } catch(e){}
+  try { await fetch(`/api/forum/comments/${id}/reject`, { method: 'POST' }); loadPendingComments(); } catch(e){ alert('Błąd odrzucania.'); }
 };
+
+// POPRAWIONO: Użycie endpointu PUT do edycji treści komentarza przed zatwierdzeniem
 window.editAndApprove = async (id, oldContent) => {
   const newContent = prompt('Edytuj treść:', oldContent);
   if (!newContent) return;
+  if (newContent === oldContent) return approveComment(id); // Nic nie zmieniono, tylko zatwierdź
+  
   try {
-    await fetch(`/api/forum/comments/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: newContent }) });
+    // 1. Zapisz nową treść (PUT)
+    const res = await fetch(`/api/forum/comments/${id}`, { 
+        method: 'PUT', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ content: newContent }) 
+    });
+    
+    if(!res.ok) throw new Error('Błąd zapisu');
+    
+    // 2. Zatwierdź komentarz (POST)
     await fetch(`/api/forum/comments/${id}/approve`, { method: 'POST' });
-    alert('✅ Gotowe!');
+    
+    alert('✅ Edycja i zatwierdzenie udane!');
     loadPendingComments();
-  } catch (e) { alert('Błąd'); }
+  } catch (e) { 
+    alert('Błąd podczas edycji i zatwierdzania. Spróbuj ponownie.'); 
+  }
 };
 
 init();

@@ -85,11 +85,77 @@ async function setupAuth() {
             if(countEl) countEl.textContent = `${purchases.length} koszulek`;
         }
 
+        // WYZWALACZ POWIADOMIEŃ
+        await loadNotifications();
+
     } catch (e) {
         console.log('Nie zalogowany');
         window.location.href = '/';
     }
 }
+
+// DODANO: Logika Powiadomień (MIN REQUIREMENT)
+async function loadNotifications() {
+    const btn = document.getElementById('notificationsBtn');
+    const badge = document.getElementById('notificationBadge');
+    const dropdown = document.getElementById('notificationsDropdown');
+    const list = document.getElementById('notificationsList');
+    
+    try {
+        const res = await fetch('/api/user/notifications');
+        const notifications = await res.json();
+        
+        const unreadCount = notifications.filter(n => n.is_read === 0).length;
+        
+        if (unreadCount > 0) {
+            badge.textContent = unreadCount;
+            badge.style.display = 'block';
+        } else {
+            badge.style.display = 'none';
+        }
+
+        if(notifications.length === 0) {
+            list.innerHTML = '<div class="notification-empty">Brak powiadomień.</div>';
+            return;
+        }
+
+        list.innerHTML = notifications.map(n => `
+            <div class="notification-item ${n.is_read === 0 ? 'unread' : ''}" 
+                 onclick="window.handleNotificationClick(${n.id}, '${n.link || '#'}', ${n.is_read})"
+            >
+                <div class="notification-title">${n.title}</div>
+                <div class="notification-message">${n.message}</div>
+                <div class="notification-time">${new Date(n.created_at).toLocaleDateString()}</div>
+            </div>
+        `).join('');
+
+        // Obsługa otwierania/zamykania dropdown
+        btn.onclick = () => {
+            dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+        };
+
+        // Oznacz wszystkie jako przeczytane
+        document.getElementById('markAllReadBtn').onclick = async () => {
+            await fetch('/api/user/notifications/read-all', { method: 'POST' });
+            loadNotifications();
+        };
+
+    } catch (e) {
+        console.error('Błąd ładowania powiadomień:', e);
+        badge.style.display = 'none';
+    }
+}
+
+// Obsługa kliknięcia powiadomienia
+window.handleNotificationClick = async (id, link, isRead) => {
+    if (isRead === 0) {
+        await fetch(`/api/user/notifications/${id}/read`, { method: 'POST' });
+        loadNotifications();
+    }
+    if (link && link !== '#') {
+        window.location.href = link;
+    }
+};
 
 async function showPlayers(category, title) {
     // ... (pozostała logika showPlayers)
@@ -148,6 +214,13 @@ document.addEventListener('click', (e) => {
         else if(action === 'new-talents') showPlayers('new-talents', 'Talenty');
         else if(action === 'goalkeepers') showPlayers('goalkeepers', 'Bramkarze');
         else if(action === 'legends') showPlayers('legends', 'Legendy');
+    }
+    
+    // Ukryj dropdown powiadomień po kliknięciu poza nim
+    const dropdown = document.getElementById('notificationsDropdown');
+    const btn = document.getElementById('notificationsBtn');
+    if (dropdown && dropdown.style.display === 'block' && !dropdown.contains(e.target) && !btn.contains(e.target)) {
+        dropdown.style.display = 'none';
     }
 });
 

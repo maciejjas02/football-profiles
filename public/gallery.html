@@ -15,7 +15,7 @@
       </div>
         <nav class="topbar-nav">
         <a href="dashboard.html" class="nav-tab">Panel</a>
-        <a href="gallery.html" class="nav-tab">Galeria</a>
+        <a href="gallery.html" class="nav-tab active">Galeria</a>
         <a href="forum.html" class="nav-tab">Forum</a>
         <a href="moderator-posts.html" class="nav-tab" id="moderatorLink" style="display:none;">Moderacja</a>
         <a href="admin-categories.html" class="nav-tab" id="adminLink" style="display:none;">Admin</a>
@@ -33,18 +33,33 @@
   <main class="gallery-view">
     <h1 id="gallery-title">🏆 Galeria</h1>
 
-    <div class="gallery-slider">
-        <div id="loadingState" class="loading-state" style="height: 500px; width: 100%; display: flex; justify-content: center; align-items: center;">
-            <div class="spinner"></div>
-            <p>Ładowanie galerii...</p>
-        </div>
-        <div id="sliderContent" style="display: none; width: 100%; justify-content: center; align-items: center; gap: 20px;">
-            <div id="carouselWrapper" class="images-grid">
+    <div id="loadingState" class="loading-state" style="height: 400px; display: flex; justify-content: center; align-items: center;">
+        <div class="spinner"></div>
+        <p>Ładowanie galerii...</p>
+    </div>
+
+    <div id="galleryContainer" style="display: none;">
+        
+        <div class="carousel-stage">
+            <button id="prevBtn" class="nav-arrow left">❮</button>
+            
+            <div id="carouselTrack" class="carousel-track">
                 </div>
+            
+            <button id="nextBtn" class="nav-arrow right">❯</button>
         </div>
-        <div id="emptyState" class="empty-state" style="display: none; padding: 100px;">
-             Brak aktywnej galerii. Skontaktuj się z administratorem.
+
+        <div class="caption-container">
+            <h2 id="imageTitle">Tytuł zdjęcia</h2>
+            <p id="imageDescription">Opis zdjęcia...</p>
+            
+            <div id="dotsContainer" class="dots-container"></div>
         </div>
+
+    </div>
+
+    <div id="emptyState" class="empty-state" style="display: none; padding: 100px;">
+        Brak aktywnej galerii. Skontaktuj się z administratorem.
     </div>
 
   </main>

@@ -48,6 +48,7 @@ export async function ensureSchema() {
         name VARCHAR(255),
         avatar_url TEXT,
         role VARCHAR(50) DEFAULT 'user',
+        reputation INTEGER DEFAULT 0,
         provider VARCHAR(50),
         provider_id VARCHAR(255),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -76,6 +77,7 @@ export async function ensureSchema() {
         team_logo TEXT,
         national_flag TEXT,
         category VARCHAR(100),
+        deceased BOOLEAN DEFAULT false,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
@@ -113,9 +115,28 @@ export async function ensureSchema() {
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
         player_id VARCHAR(100) REFERENCES players(id) ON DELETE CASCADE,
         jersey_price INTEGER NOT NULL,
+        status VARCHAR(50) DEFAULT 'pending',
         purchase_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // DODANO: Tabele Forum
+    await query(`
+        CREATE TABLE IF NOT EXISTS categories (id SERIAL PRIMARY KEY, name VARCHAR(255), slug VARCHAR(255) UNIQUE, description TEXT, parent_id INTEGER);
+        CREATE TABLE IF NOT EXISTS moderator_categories (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, category_id INTEGER, UNIQUE(user_id, category_id));
+        CREATE TABLE IF NOT EXISTS posts (id SERIAL PRIMARY KEY, title TEXT, content TEXT, category_id INTEGER, author_id INTEGER, status VARCHAR(50) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+        CREATE TABLE IF NOT EXISTS post_comments (id SERIAL PRIMARY KEY, post_id INTEGER, author_id INTEGER, content TEXT, status VARCHAR(50) DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+        CREATE TABLE IF NOT EXISTS comment_ratings (id SERIAL PRIMARY KEY, comment_id INTEGER, user_id INTEGER, rating INTEGER, UNIQUE(comment_id, user_id));
+        CREATE TABLE IF NOT EXISTS notifications (id SERIAL PRIMARY KEY, user_id INTEGER, type VARCHAR(50), title TEXT, message TEXT, link TEXT, is_read INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+    `);
+
+    // DODANO: Tabele Galerii
+     await query(`
+        CREATE TABLE IF NOT EXISTS gallery_images (id SERIAL PRIMARY KEY, filename TEXT NOT NULL, title TEXT NOT NULL, description TEXT, width INTEGER, height INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+        CREATE TABLE IF NOT EXISTS gallery_collections (id SERIAL PRIMARY KEY, name TEXT NOT NULL, description TEXT, is_active INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+        CREATE TABLE IF NOT EXISTS gallery_items (id SERIAL PRIMARY KEY, collection_id INTEGER NOT NULL REFERENCES gallery_collections (id) ON DELETE CASCADE, image_id INTEGER NOT NULL REFERENCES gallery_images (id) ON DELETE CASCADE, position INTEGER NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+    `);
+
 
     console.log('PostgreSQL schema created successfully');
   } catch (error) {
@@ -209,17 +230,21 @@ export async function ensureSeedAdmin() {
     const bcrypt = (await import('bcrypt')).default;
     const hash = await bcrypt.hash('admin1234', 10);
     
-    const result = await query(`
+    await query(`
       INSERT INTO users (email, username, password_hash, name, role, provider) 
       VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING *
     `, ['admin@example.com', 'admin', hash, 'Admin', 'admin', 'local']);
-    
-    console.log('Seeded admin user: admin@example.com / admin1234');
-    return result.rows[0];
   }
   
-  return existing;
+  const modExisting = await getUserByEmail('moderator@example.com');
+  if (!modExisting) {
+      const bcrypt = (await import('bcrypt')).default;
+      const hash = await bcrypt.hash('moderator1234', 10);
+      await query(`
+        INSERT INTO users (email, username, password_hash, name, role, provider) 
+        VALUES ($1, $2, $3, $4, $5, $6)
+      `, ['moderator@example.com', 'moderator', hash, 'Moderator', 'moderator', 'local']);
+  }
 }
 
 /* ---------- PLAYERS FUNCTIONS ---------- */
@@ -268,7 +293,6 @@ export async function getPlayersByCategory(category) {
   
   switch(category) {
     case 'gwiazdy':
-      // Wysokie wartości rynkowe (100M+ EUR)
       whereClause = `WHERE CAST(REPLACE(REPLACE(market_value, 'M €', ''), ',', '.') AS NUMERIC) >= 100 ORDER BY market_value DESC`;
       break;
     case 'ligi':
@@ -294,7 +318,6 @@ export async function getPlayersByCategory(category) {
   const result = await query(`SELECT * FROM players ${whereClause}`, params);
   const players = result.rows;
   
-  // Dla każdego piłkarza dodaj pełne dane
   const playersWithDetails = await Promise.all(players.map(async (player) => {
     const statsResult = await query('SELECT * FROM player_stats WHERE player_id = $1', [player.id]);
     const stats = statsResult.rows[0] || { goals: 0, assists: 0, matches: 0, trophies: 0 };
@@ -409,158 +432,287 @@ export async function getUserPurchases(userId) {
   return result.rows;
 }
 
-// Seed piłkarzy
-export async function ensureSeedPlayers() {
-  const existingResult = await query('SELECT COUNT(*) as count FROM players');
-  const existingCount = parseInt(existingResult.rows[0].count);
-  
-  if (existingCount > 0) return; // Piłkarze już istnieją
+export async function updatePurchaseStatus(id, s) { 
+  await query('UPDATE purchases SET status=$1 WHERE id=$2', [s, id]);
+  return { changes: 1 };
+}
 
-  console.log('Seeding players...');
+// DODANO: Funkcje Forum
+export async function getAllCategories() {
+    const result = await query(`
+        SELECT c.*, 
+        (SELECT COUNT(*) FROM posts p WHERE p.category_id = c.id) as post_count 
+        FROM categories c
+    `); 
+    return result.rows;
+}
+export async function createCategory(n, s, d, p) { 
+    const result = await query('INSERT INTO categories (name, slug, description, parent_id) VALUES ($1, $2, $3, $4) RETURNING id', [n, s, d, p]); 
+    return result.rows[0];
+}
+export async function updateCategory(id, n, s, d) { 
+    await query('UPDATE categories SET name=$1, slug=$2, description=$3 WHERE id=$4', [n, s, d, id]); 
+    return { changes: 1 };
+}
+export async function deleteCategory(id) { 
+    await query('DELETE FROM posts WHERE category_id=$1', [id]);
+    await query('DELETE FROM categories WHERE id=$1', [id]);
+    return { changes: 1 };
+}
 
-  const players = [
-    {
-      id: 'lionel-messi',
-      name: 'Lionel Messi',
-      fullName: 'Lionel Andrés Messi',
-      team: 'Inter Miami CF',
-      position: 'Napastnik',
-      nationality: 'Argentyna',
-      age: 36,
-      height: '1.70m',
-      weight: '67kg',
-      marketValue: '25M €',
-      biography: 'Lionel Messi, urodzony 24 czerwca 1987 roku w Rosario w Argentynie, to jeden z najlepszych piłkarzy w historii futbolu. Od młodości wykazywał niezwykły talent, który doprowadził go do FC Barcelony, gdzie spędził większość swojej kariery.',
-      jerseyPrice: 299,
-      jerseyAvailable: true,
-      jerseyImageUrl: 'https://shop.intermiamicf.com/cdn/shop/files/7048MMPIMJSP24_P1.jpg?v=1706810024&width=600',
-      imageUrl: '/images/players/lionel-messi.jpg',
-      teamLogo: '/images/teams/inter-miami.png',
-      nationalFlag: '/images/flags/argentina.png',
-      category: 'top-players',
-      stats: { goals: 808, assists: 374, matches: 1003, trophies: 44 },
-      achievements: ['8x Złota Piłka', 'Mistrz Świata 2022', '4x Liga Mistrzów', '10x La Liga', 'Copa América 2021']
-    },
-    {
-      id: 'cristiano-ronaldo',
-      name: 'Cristiano Ronaldo',
-      fullName: 'Cristiano Ronaldo dos Santos Aveiro',
-      team: 'Al Nassr FC',
-      position: 'Napastnik',
-      nationality: 'Portugalia',
-      age: 39,
-      height: '1.87m',
-      weight: '84kg',
-      marketValue: '15M €',
-      biography: 'Cristiano Ronaldo, urodzony 5 lutego 1985 roku na Maderze, to portugalski piłkarz uważany za jednego z najlepszych w historii. Znany ze swojej dedykacji, atletyzmu i niesamowitej skuteczności bramkowej.',
-      jerseyPrice: 279,
-      jerseyAvailable: true,
-      jerseyImageUrl: 'https://www.alnassrstore.com/cdn/shop/files/CR7_HOME_SHIRT_24_25_1_600x.jpg?v=1720012374',
-      imageUrl: '/images/players/cristiano-ronaldo.jpg',
-      teamLogo: '/images/teams/al-nassr.png',
-      nationalFlag: '/images/flags/portugal.png',
-      category: 'top-players',
-      stats: { goals: 895, assists: 245, matches: 1198, trophies: 34 },
-      achievements: ['5x Złota Piłka', '5x Liga Mistrzów', 'Euro 2016', '3x Premier League', '2x Serie A']
-    },
-    {
-      id: 'kylian-mbappe',
-      name: 'Kylian Mbappé',
-      fullName: 'Kylian Mbappé Lottin',
-      team: 'Real Madrid',
-      position: 'Napastnik',
-      nationality: 'Francja',
-      age: 25,
-      height: '1.78m',
-      weight: '73kg',
-      marketValue: '180M €',
-      biography: 'Kylian Mbappé, urodzony 20 grudnia 1998 roku w Paryżu, to francuski napastnik znany ze swojej niesamowitej szybkości i skuteczności. Uważany za następcę Messi i Ronaldo.',
-      jerseyPrice: 259,
-      jerseyAvailable: true,
-      jerseyImageUrl: 'https://store.realmadrid.com/cdn/shop/files/DZ0344_101_ECOM.jpg?v=1720013764&width=600',
-      imageUrl: '/images/players/kylian-mbappe.jpg',
-      teamLogo: '/images/teams/real-madrid.png',
-      nationalFlag: '/images/flags/france.png',
-      category: 'top-players',
-      stats: { goals: 300, assists: 120, matches: 380, trophies: 8 },
-      achievements: ['Mistrz Świata 2018', '7x Ligue 1', 'Liga Narodów 2021', 'Złoty But Ligue 1', 'Król strzelców MŚ 2022']
-    },
-    {
-      id: 'erling-haaland',
-      name: 'Erling Haaland',
-      fullName: 'Erling Braut Haaland',
-      team: 'Manchester City',
-      position: 'Napastnik',
-      nationality: 'Norwegia',
-      age: 24,
-      height: '1.95m',
-      weight: '88kg',
-      marketValue: '170M €',
-      biography: 'Erling Haaland, urodzony 21 lipca 2000 roku w Leeds, to norweski napastnik znany ze swojej siły fizycznej i niesamowitej skuteczności bramkowej. Uważany za przyszłość światowego futbolu.',
-      jerseyPrice: 239,
-      jerseyAvailable: true,
-      jerseyImageUrl: 'https://shop.mancity.com/dw/image/v2/BDWJ_PRD/on/demandware.static/-/Sites-master-catalog-MAN/default/dwc8b67e7a/images/large/701225359002_pp_01_mcfc.jpg',
-      imageUrl: '/images/players/erling-haaland.jpg',
-      teamLogo: '/images/teams/manchester-city.png',
-      nationalFlag: '/images/flags/norway.png',
-      category: 'top-players',
-      stats: { goals: 250, assists: 45, matches: 280, trophies: 5 },
-      achievements: ['Premier League 2023', 'Liga Mistrzów 2023', 'Złoty But Premier League', 'Młody Piłkarz Roku UEFA', 'Król strzelców LM 2023']
-    },
-    {
-      id: 'kevin-de-bruyne',
-      name: 'Kevin De Bruyne',
-      fullName: 'Kevin De Bruyne',
-      team: 'SSC Napoli',
-      position: 'Pomocnik',
-      nationality: 'Belgia',
-      age: 34,
-      height: '1.81m',
-      weight: '68kg',
-      marketValue: '20M €',
-      biography: 'Kevin De Bruyne, urodzony 28 czerwca 1991 roku w Drongen, to belgijski pomocnik znany ze swojej wizji gry, precyzyjnych podań i umiejętności strzeleckich. Uważany za jednego z najlepszych rozgrywających na świecie.',
-      jerseyPrice: 219,
-      jerseyAvailable: true,
-      jerseyImageUrl: 'https://img4.dhresource.com/webp/m/0x0/f3/albu/ys/o/25/06405338-62fe-4ae3-991f-ad9b4acb4110.jpg',
-      imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/b/bf/De_Bruyne_%28cropped%29.jpg',
-      teamLogo: 'https://tmssl.akamaized.net//images/wappen/head/6195.png?lm=1753167643',
-      nationalFlag: 'https://upload.wikimedia.org/wikipedia/commons/6/65/Flag_of_Belgium.svg',
-      category: 'leagues',
-      stats: { goals: 95, assists: 180, matches: 485, trophies: 15 },
-      achievements: ['6x Premier League', 'Liga Mistrzów 2023', '2x Piłkarz Roku PFA', 'Najlepszy Pomocnik UEFA', 'Mistrz Europy U21']
-    },
-    {
-      id: 'jude-bellingham',
-      name: 'Jude Bellingham',
-      fullName: 'Jude Victor William Bellingham',
-      team: 'Real Madrid',
-      position: 'Pomocnik',
-      nationality: 'Anglia',
-      age: 21,
-      height: '1.86m',
-      weight: '75kg',
-      marketValue: '150M €',
-      biography: 'Jude Bellingham, urodzony 29 czerwca 2003 roku w Stourbridge, to angielski pomocnik uważany za jeden z najlepszych młodych talentów na świecie. Jego dojrzałość na boisku i umiejętności techniczne robią ogromne wrażenie.',
-      jerseyPrice: 209,
-      jerseyAvailable: true,
-      jerseyImageUrl: 'https://store.realmadrid.com/cdn/shop/files/DZ0344_101_ECOM.jpg?v=1720013764&width=600',
-      imageUrl: '/images/players/jude-bellingham.jpg',
-      teamLogo: '/images/teams/real-madrid.png',
-      nationalFlag: '/images/flags/england.png',
-      category: 'new-talents',
-      stats: { goals: 85, assists: 55, matches: 180, trophies: 3 },
-      achievements: ['Złoty Chłopak 2023', 'La Liga 2024', 'Liga Mistrzów 2024', 'Młody Piłkarz Roku UEFA', 'Mistrz Europy U21']
+export async function getCategoryModerators(id) { 
+    const result = await query(`
+        SELECT u.id, u.username, u.name, u.email
+        FROM moderator_categories mc
+        JOIN users u ON mc.user_id = u.id
+        WHERE mc.category_id = $1
+    `, [id]);
+    return result.rows;
+}
+export async function assignModeratorToCategory(u, c) {
+    try {
+        const result = await query('INSERT INTO moderator_categories (user_id, category_id) VALUES ($1, $2) RETURNING id', [u, c]);
+        return result.rows[0];
+    } catch(e) {
+        if (e.code === '23505') return { changes: 0 }; // Unique violation
+        throw e;
     }
-  ];
+}
+export async function removeModeratorFromCategory(u, c) {
+    await query('DELETE FROM moderator_categories WHERE user_id=$1 AND category_id=$2', [u, c]);
+    return { changes: 1 };
+}
 
-  for (const player of players) {
-    const { stats, achievements, ...playerData } = player;
-    await createPlayer(playerData);
-    await createPlayerStats(player.id, stats);
-    for (const achievement of achievements) {
-      await addPlayerAchievement(player.id, achievement);
+export async function getAllPosts(limit, offset) {
+    const result = await query(`
+        SELECT p.*, u.username as author_username, c.name as category_name, 
+        (SELECT COUNT(*) FROM post_comments WHERE post_id=p.id AND status='approved') as comment_count
+        FROM posts p 
+        LEFT JOIN users u ON p.author_id = u.id 
+        LEFT JOIN categories c ON p.category_id = c.id 
+        WHERE p.status = 'approved' 
+        ORDER BY p.created_at DESC 
+        LIMIT $1 OFFSET $2
+    `, [limit, offset]);
+    return result.rows;
+}
+
+export async function getPostsByCategory(catId, limit, offset) {
+    const result = await query(`
+        SELECT p.*, u.username as author_username, c.name as category_name,
+        (SELECT COUNT(*) FROM post_comments WHERE post_id=p.id AND status='approved') as comment_count
+        FROM posts p 
+        LEFT JOIN users u ON p.author_id = u.id 
+        LEFT JOIN categories c ON p.category_id = c.id 
+        WHERE p.category_id = $1 AND p.status = 'approved' 
+        ORDER BY p.created_at DESC 
+        LIMIT $2 OFFSET $3
+    `, [catId, limit, offset]);
+    return result.rows;
+}
+
+export async function getPostById(id) {
+    const result = await query(`
+        SELECT p.*, u.username as author_username, c.name as category_name 
+        FROM posts p 
+        LEFT JOIN users u ON p.author_id = u.id 
+        LEFT JOIN categories c ON p.category_id = c.id 
+        WHERE p.id = $1
+    `, [id]);
+    return result.rows[0];
+}
+
+export async function createPost(t, c, cat, aut, stat) { 
+    const result = await query('INSERT INTO posts (title, content, category_id, author_id, status) VALUES ($1, $2, $3, $4, $5) RETURNING id', [t, c, cat, aut, stat]); 
+    return result.rows[0];
+}
+export async function updatePost(id, t, c, cat) { 
+    await query('UPDATE posts SET title=$1, content=$2, category_id=$3 WHERE id=$4', [t, c, cat, id]); 
+    return { changes: 1 };
+}
+export async function approvePost(id) { await query("UPDATE posts SET status='approved' WHERE id=$1", [id]); return { changes: 1 }; }
+export async function rejectPost(id) { await query("UPDATE posts SET status='rejected' WHERE id=$1", [id]); return { changes: 1 }; }
+export async function deletePost(id) { await query("DELETE FROM posts WHERE id=$1", [id]); return { changes: 1 }; }
+export async function getPendingPosts() { 
+    const result = await query("SELECT p.*, c.name as category_name, u.username as author_username FROM posts p LEFT JOIN categories c ON p.category_id=c.id LEFT JOIN users u ON p.author_id=u.id WHERE p.status='pending' ORDER BY p.created_at DESC"); 
+    return result.rows;
+}
+
+export async function getPostComments(pid, userId) { 
+    const result = await query(`
+        SELECT pc.*, u.username as author_username, 
+        (SELECT COUNT(*) FROM comment_ratings WHERE comment_id = pc.id AND rating = 1) as likes,
+        (SELECT COUNT(*) FROM comment_ratings WHERE comment_id = pc.id AND rating = -1) as dislikes,
+        (SELECT rating FROM comment_ratings WHERE comment_id = pc.id AND user_id = $1) as user_vote
+        FROM post_comments pc 
+        LEFT JOIN users u ON pc.author_id=u.id 
+        WHERE post_id=$2 AND status='approved'
+        ORDER BY pc.created_at DESC
+    `, [userId || -1, pid]); 
+    return result.rows;
+}
+export async function createComment(pid, c, aid) { 
+    const user = await getUserById(aid);
+    const status = (user.role === 'admin' || user.role === 'moderator') ? 'approved' : 'pending';
+    const result = await query("INSERT INTO post_comments (post_id, content, author_id, status) VALUES ($1, $2, $3, $4) RETURNING id", [pid, c, aid, status]); 
+    return result.rows[0];
+}
+export async function getCommentById(id) { 
+    const result = await query("SELECT * FROM post_comments WHERE id=$1", [id]); 
+    return result.rows[0];
+}
+
+export async function updateComment(id, content) { 
+    await query("UPDATE post_comments SET content=$1 WHERE id=$2", [content, id]); 
+    return { changes: 1 };
+}
+export async function approveComment(id) { await query("UPDATE post_comments SET status='approved' WHERE id=$1", [id]); return { changes: 1 }; }
+export async function rejectComment(id) { await query("UPDATE post_comments SET status='rejected' WHERE id=$1", [id]); return { changes: 1 }; }
+export async function deleteComment(id) { await query("DELETE FROM post_comments WHERE id=$1", [id]); return { changes: 1 }; }
+
+export async function getPendingComments() { 
+    const result = await query(`
+        SELECT pc.*, u.username as author_username, p.title as post_title, c.name as category_name
+        FROM post_comments pc 
+        LEFT JOIN users u ON pc.author_id=u.id
+        LEFT JOIN posts p ON pc.post_id=p.id
+        LEFT JOIN categories c ON p.category_id=c.id
+        WHERE pc.status='pending'
+        ORDER BY pc.created_at DESC
+    `); 
+    return result.rows;
+}
+
+export async function rateComment(cid, uid, r) {
+    const existing = await query("SELECT rating FROM comment_ratings WHERE comment_id=$1 AND user_id=$2", [cid, uid]);
+    if (existing.rows.length > 0) {
+        if (existing.rows[0].rating === r) {
+            await query("DELETE FROM comment_ratings WHERE comment_id=$1 AND user_id=$2", [cid, uid]);
+        } else {
+            await query("UPDATE comment_ratings SET rating=$1 WHERE comment_id=$2 AND user_id=$3", [r, cid, uid]);
+        }
+    } else {
+        await query("INSERT INTO comment_ratings (comment_id, user_id, rating) VALUES ($1, $2, $3)", [cid, uid, r]);
     }
-  }
+}
 
-  console.log(`Seeded ${players.length} players`);
+// DODANO: Funkcje Powiadomień
+export async function createNotification(userId, type, title, message, link) {
+    if (userId === null) return;
+    await query('INSERT INTO notifications (user_id, type, title, message, link) VALUES ($1, $2, $3, $4, $5)', [userId, type, title, message, link]);
+}
+
+export async function getUserNotifications(userId) { 
+    const result = await query('SELECT * FROM notifications WHERE user_id=$1 ORDER BY created_at DESC LIMIT 50', [userId]);
+    return result.rows;
+}
+export async function markNotificationAsRead(id) { 
+    await query('UPDATE notifications SET is_read=1 WHERE id=$1', [id]); 
+    return { changes: 1 };
+}
+export async function markAllNotificationsAsRead(userId) { 
+    await query('UPDATE notifications SET is_read=1 WHERE user_id=$1', [userId]);
+    return { changes: 1 };
+}
+
+// DODANO: Funkcje Galerii
+export async function createGalleryImage(d) {
+    const result = await query(`
+      INSERT INTO gallery_images (filename, title, description, width, height) 
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING id
+    `, [d.filename, d.title, d.description, d.width, d.height]);
+    return result.rows[0].id;
+}
+
+export async function getAllGalleryImages() {
+    const result = await query('SELECT * FROM gallery_images ORDER BY created_at DESC');
+    return result.rows;
+}
+
+export async function getGalleryImageById(id) {
+    const result = await query('SELECT * FROM gallery_images WHERE id = $1', [id]);
+    return result.rows[0] || null;
+}
+
+export async function deleteGalleryImage(id) {
+    await query('DELETE FROM gallery_items WHERE image_id = $1', [id]);
+    await query('DELETE FROM gallery_images WHERE id = $1', [id]);
+    return { changes: 1 };
+}
+
+export async function createGalleryCollection(d) {
+    const result = await query(`
+      INSERT INTO gallery_collections (name, description) 
+      VALUES ($1, $2)
+      RETURNING id
+    `, [d.name, d.description]);
+    return result.rows[0].id;
+}
+
+export async function getAllGalleryCollections() {
+    const result = await query('SELECT * FROM gallery_collections ORDER BY created_at DESC');
+    return result.rows;
+}
+
+export async function getGalleryCollectionById(id) {
+    const result = await query('SELECT * FROM gallery_collections WHERE id = $1', [id]);
+    return result.rows[0] || null;
+}
+
+export async function getActiveGalleryCollection() {
+    const result = await query('SELECT * FROM gallery_collections WHERE is_active = 1', []);
+    return result.rows[0] || null;
+}
+
+export async function setActiveGalleryCollection(id) {
+    await query('UPDATE gallery_collections SET is_active = 0', []);
+    await query('UPDATE gallery_collections SET is_active = 1 WHERE id = $1', [id]);
+}
+
+export async function deleteGalleryCollection(id) {
+    await query('DELETE FROM gallery_items WHERE collection_id = $1', [id]);
+    await query('DELETE FROM gallery_collections WHERE id = $1', [id]);
+    return { changes: 1 };
+}
+
+export async function addImageToCollection(d) {
+    const result = await query(`
+        INSERT INTO gallery_items (collection_id, image_id, position) 
+        VALUES ($1, $2, $3)
+        RETURNING id
+    `, [d.collection_id, d.image_id, d.position]);
+    return result.rows[0].id;
+}
+
+export async function getCollectionItems(id) {
+    const result = await query(`
+        SELECT gi.*, i.filename, i.title, i.description
+        FROM gallery_items gi 
+        JOIN gallery_images i ON gi.image_id = i.id 
+        WHERE collection_id = $1
+        ORDER BY position
+    `, [id]);
+    return result.rows;
+}
+
+export async function removeImageFromCollection(id) {
+    await query('DELETE FROM gallery_items WHERE id = $1', [id]);
+    return { changes: 1 };
+}
+
+export async function reorderCollectionItems(collectionId, items) {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        for (const item of items) {
+            await client.query('UPDATE gallery_items SET position = $1 WHERE id = $2 AND collection_id = $3', [item.position, item.itemId, collectionId]);
+        }
+        await client.query('COMMIT');
+    } catch (e) {
+        await client.query('ROLLBACK');
+        throw e;
+    } finally {
+        client.release();
+    }
 }

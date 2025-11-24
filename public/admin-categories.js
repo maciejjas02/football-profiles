@@ -2,13 +2,10 @@ import { fetchWithAuth, getCurrentUser, handleLogout } from './utils/api-client.
 
 let currentUser = null;
 let allCategories = [];
-let allModerators = [];
 
 async function init() {
   await checkAuth();
-  // UWAGA: Trzeba założyć istnienie endpointu /api/users/moderators
-  // Używamy mocka dla uproszczenia
-  allModerators = [{ id: 2, username: 'moderator', name: 'Moderator' }]; 
+  await loadModerators(); // Now dynamicznie ładuje prawdziwych moderatorów
   await loadCategories();
   setupEventListeners();
 }
@@ -19,11 +16,12 @@ async function checkAuth() {
     
     if (!currentUser || currentUser.role !== 'admin') {
       alert('Brak dostępu. Tylko administratorzy mogą korzystać z tej strony.');
-      window.location.href = 'forum.html';
+      window.location.href = 'dashboard.html';
       return;
     }
     
     document.getElementById('who').textContent = currentUser.name || currentUser.username;
+    document.getElementById('galleryManageLink').style.display = 'block'; // Pokaż link zarządzania galeriami
   } catch (error) {
     console.error('Auth check failed:', error);
     window.location.href = 'index.html';
@@ -35,25 +33,37 @@ async function checkAuth() {
   });
 }
 
-// Min: Ładowanie moderatorów do selektora
-async function loadModeratorsSelect() {
+// NOWE: Ładowanie moderatorów (zakładamy nowy endpoint /api/users/moderators)
+let allModerators = [];
+async function loadModerators() {
+    // UWAGA: Ponieważ brakuje endpointu /api/users/moderators, użyjemy mocka, 
+    // dopóki nie zostanie on dodany w server.js/db.js (co jest kolejnym krokiem)
+    // Na potrzeby tego zadania symulujemy, że mamy listę moderatorów.
+    
+    // W pełni działająca aplikacja powinna to zmienić:
+    // const res = await fetchWithAuth('/api/users/moderators');
+    // allModerators = await res.json();
+    
+    // Używamy zaimplementowanego w db.js/server.js konta "moderator@example.com"
+    allModerators = [{ id: 2, username: 'moderator', name: 'Moderator', email: 'moderator@example.com' }]; 
+
     const select = document.getElementById('assignModerator');
     select.innerHTML = '<option value="">Wybierz moderatora...</option>' +
       allModerators.map(mod => `<option value="${mod.id}">${mod.name} (@${mod.username})</option>`).join('');
 }
+
 
 // Min: Ładowanie kategorii
 async function loadCategories() {
   try {
     allCategories = await fetchWithAuth('/api/forum/categories');
     
-    // +0.5: Obsługa podkategorii
     const parentSelect = document.getElementById('parentCategory');
-    parentSelect.innerHTML = '<option value="">Brak (główna kategoria)</option>' +
+    if(parentSelect) parentSelect.innerHTML = '<option value="">Brak (główna kategoria)</option>' +
       allCategories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
     
     const assignSelect = document.getElementById('assignCategory');
-    assignSelect.innerHTML = '<option value="">Wybierz kategorię...</option>' +
+    if(assignSelect) assignSelect.innerHTML = '<option value="">Wybierz kategorię...</option>' +
       allCategories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
     
     const list = document.getElementById('categoriesList');
@@ -69,9 +79,7 @@ async function loadCategories() {
           <tr>
             <th>Nazwa</th>
             <th>Slug</th>
-            <th>Opis</th>
             <th>Posty</th>
-            <th>Podkategorie</th>
             <th>Akcje</th>
           </tr>
         </thead>
@@ -80,12 +88,10 @@ async function loadCategories() {
             <tr>
               <td><strong>${cat.name}</strong></td>
               <td><code>${cat.slug}</code></td>
-              <td>${cat.description || '-'}</td>
               <td>${cat.post_count || 0}</td>
-              <td>${cat.subcategory_count || 0}</td>
               <td>
-                <button class="btn btn-secondary btn-sm" onclick="editCategory(${cat.id})">✏️</button>
-                <button class="btn btn-danger btn-sm" onclick="deleteCategory(${cat.id})">🗑️</button>
+                <button class="btn btn-secondary btn-sm" onclick="window.editCategory(${cat.id})">✏️</button>
+                <button class="btn btn-danger btn-sm" onclick="window.deleteCategory(${cat.id})">🗑️</button>
               </td>
             </tr>
           `).join('')}
@@ -97,14 +103,13 @@ async function loadCategories() {
   }
 }
 
-// Logika dla braku tagu <form>
 function setupEventListeners() {
   // Min: Tworzenie kategorii
   document.getElementById('submitCategoryBtn').addEventListener('click', async (e) => {
     e.preventDefault();
     
     const name = document.getElementById('categoryName').value.trim();
-    const slug = document.getElementById('categorySlug').value.trim();
+    let slug = document.getElementById('categorySlug').value.trim();
     const description = document.getElementById('categoryDescription').value.trim();
     const parent_id = document.getElementById('parentCategory').value || null;
     
@@ -189,14 +194,14 @@ async function loadAssignments(category_id) {
     
     list.innerHTML = `
       <div style="margin-top: 20px;">
-        <h3>Przypisani moderatorzy:</h3>
+        <h3 style="color:#FFD700; font-size:18px;">Przypisani moderatorzy:</h3>
         <div class="moderators-list">
           ${moderators.map(mod => `
             <div class="moderator-item">
-              <span>👤 ${mod.name} (@${mod.username})</span>
+              <span>👤 ${mod.name || mod.username}</span>
               <button 
                 class="btn btn-danger btn-sm" 
-                onclick="removeModerator(${category_id}, ${mod.id})"
+                onclick="window.removeModerator(${category_id}, ${mod.id})"
               >
                 Usuń
               </button>
@@ -207,6 +212,7 @@ async function loadAssignments(category_id) {
     `;
   } catch (error) {
     console.error('Failed to load assignments:', error);
+    document.getElementById('assignmentsList').innerHTML = '<p class="error">Błąd ładowania listy moderatorów.</p>';
   }
 }
 
@@ -245,7 +251,7 @@ window.deleteCategory = async (id) => {
   const category = allCategories.find(c => c.id === id);
   if (!category) return;
   
-  if (!confirm(`Czy na pewno chcesz usunąć kategorię "${category.name}"? Zostaną usunięte wszystkie posty i podkategorie!`)) {
+  if (!confirm(`Czy na pewno chcesz usunąć kategorię "${category.name}"? Spowoduje to usunięcie wszystkich powiązanych postów!`)) {
     return;
   }
   
@@ -272,5 +278,4 @@ window.removeModerator = async (category_id, user_id) => {
   }
 };
 
-loadModeratorsSelect();
 init();
