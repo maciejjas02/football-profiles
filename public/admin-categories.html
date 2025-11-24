@@ -3,137 +3,96 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Zarządzanie Kategoriami - Admin</title>
+  <title>Zarządzanie Kategoriami</title>
   <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-  <div class="topbar">
+  <header class="topbar">
     <div class="topbar-content">
-      <div class="logo-section">
-        <img src="/images/logo.png" alt="Football Profiles" class="topbar-logo" />
-        <span class="site-title">Football Profiles</span>
-      </div>
+      <div class="logo-section"><img src="/images/logo.png" class="topbar-logo" /><span class="site-title">Football Profiles</span></div>
       <nav class="topbar-nav">
         <a href="dashboard.html" class="nav-tab">Panel</a>
         <a href="gallery.html" class="nav-tab">Galeria</a>
         <a href="forum.html" class="nav-tab">Forum</a>
-        <a href="moderator-posts.html" class="nav-tab" id="moderatorLink" style="display:none;">Moderacja</a>
+        <a href="moderator-posts.html" class="nav-tab">Moderacja</a>
         <a href="admin-categories.html" class="nav-tab active">Admin</a>
       </nav>
-      <div class="topbar-actions">
-        <button id="notificationsBtn" class="icon-button" style="display:none;">
-          <span>🔔</span>
-          <span id="notificationBadge" class="notification-badge" style="display:none;">0</span>
-        </button>
-        <div id="notificationsDropdown" class="notifications-dropdown" style="display:none;">
-          <div class="notifications-header">
-            <h3>Powiadomienia</h3>
-            <button id="markAllReadBtn" class="mark-read-btn">Oznacz wszystkie jako przeczytane</button>
-          </div>
-          <div id="notificationsList" class="notifications-list"></div>
-        </div>
-        <div id="authBar" class="authbar">
-          <span id="who">Ładowanie...</span>
-          <button id="logoutBtn" class="btn btn-ghost">Wyloguj</button>
-        </div>
-      </div>
+      <div class="topbar-actions"><div id="authBar" class="authbar"><span id="who">...</span><button id="logoutBtn" class="btn btn-ghost">Wyloguj</button></div></div>
     </div>
-  </div>
+  </header>
 
-  <div class="admin-container">
+  <div class="container" style="margin-top: 80px; max-width: 1000px; align-items: stretch;">
     <div class="page-header">
-      <h1 class="page-title">📁 Zarządzanie Kategoriami Forum</h1>
-      <div class="sub-nav">
-        <a href="admin-categories.html" class="sub-nav-link active">Kategorie Forum</a>
-        <a href="admin-gallery-upload.html" class="sub-nav-link">Upload Galerii</a>
-        <a href="admin-gallery-manage.html" class="sub-nav-link">Zarządzaj Galerią</a>
+      <h1 class="page-title">📁 Kategorie Forum</h1>
+    </div>
+
+    <div class="admin-panel" style="margin-bottom: 30px;">
+      <h2>Utwórz Kategorię</h2>
+      <div id="createCatContainer">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+            <input type="text" id="catName" class="form-input" placeholder="Nazwa kategorii" />
+            <input type="text" id="catSlug" class="form-input" placeholder="Slug (np. dyskusje)" />
+        </div>
+        <textarea id="catDesc" class="form-textarea" rows="2" placeholder="Opis..."></textarea>
+        <button id="createCatBtn" class="btn btn-primary" style="margin-top: 10px;">Utwórz</button>
       </div>
     </div>
 
-    <!-- Create Category -->
     <div class="admin-panel">
-      <h2>Utwórz nową kategorię</h2>
-      <form id="createCategoryForm">
-        <div class="form-row">
-          <div class="form-group">
-            <label for="categoryName">Nazwa *</label>
-            <input 
-              type="text" 
-              id="categoryName" 
-              class="form-input" 
-              placeholder="np. Dyskusje o piłce"
-              required
-            />
-          </div>
-          
-          <div class="form-group">
-            <label for="categorySlug">Slug (URL) *</label>
-            <input 
-              type="text" 
-              id="categorySlug" 
-              class="form-input" 
-              placeholder="np. dyskusje"
-              required
-            />
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="categoryDescription">Opis</label>
-          <textarea 
-            id="categoryDescription" 
-            class="form-textarea" 
-            rows="3"
-            placeholder="Krótki opis kategorii..."
-          ></textarea>
-        </div>
-
-        <div class="form-group">
-          <label for="parentCategory">Kategoria nadrzędna (opcjonalnie)</label>
-          <select id="parentCategory" class="form-select">
-            <option value="">Brak (główna kategoria)</option>
-          </select>
-        </div>
-
-        <button type="submit" class="btn btn-primary">Utwórz kategorię</button>
-      </form>
-    </div>
-
-    <!-- Categories List -->
-    <div class="admin-panel">
-      <h2>Lista kategorii</h2>
-      <div class="categories-table" id="categoriesList">
-        <div class="loading">Ładowanie kategorii...</div>
-      </div>
-    </div>
-
-    <!-- Moderator Assignment -->
-    <div class="admin-panel">
-      <h2>Przypisz moderatorów do kategorii</h2>
-      <div class="form-row">
-        <div class="form-group">
-          <label for="assignCategory">Kategoria</label>
-          <select id="assignCategory" class="form-select">
-            <option value="">Wybierz kategorię...</option>
-          </select>
-        </div>
-        
-        <div class="form-group">
-          <label for="assignModerator">Moderator</label>
-          <select id="assignModerator" class="form-select">
-            <option value="">Wybierz moderatora...</option>
-          </select>
-        </div>
-      </div>
-      
-      <button id="assignBtn" class="btn btn-primary">Przypisz moderatora</button>
-      
-      <div class="assignments-list" id="assignmentsList">
-        <!-- Filled by JS -->
-      </div>
+      <h2>Lista Kategorii</h2>
+      <div id="catList">Ładowanie...</div>
     </div>
   </div>
 
-  <script type="module" src="admin-categories.js"></script>
+  <script type="module">
+    import { handleLogout } from './utils/api-client.js'; // Tutaj import nie zadziała bo plik usunięty, użyjemy fetch wprost
+    
+    async function init() {
+        const res = await fetch('/api/auth/me');
+        if(res.ok) {
+            const data = await res.json();
+            if(data.user.role !== 'admin') window.location.href = '/dashboard.html';
+            document.getElementById('who').textContent = data.user.username;
+            document.getElementById('logoutBtn').onclick = async () => { await fetch('/api/auth/logout', {method:'POST'}); window.location.href='/'; };
+        } else window.location.href = '/';
+
+        loadCats();
+        
+        document.getElementById('createCatBtn').onclick = async () => {
+            const name = document.getElementById('catName').value;
+            const slug = document.getElementById('catSlug').value;
+            const description = document.getElementById('catDesc').value;
+            if(!name || !slug) return alert('Nazwa i slug wymagane');
+            
+            await fetch('/api/forum/categories', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ name, slug, description })
+            });
+            loadCats();
+            document.getElementById('catName').value = '';
+        };
+    }
+
+    async function loadCats() {
+        const res = await fetch('/api/forum/categories');
+        const cats = await res.json();
+        document.getElementById('catList').innerHTML = cats.map(c => `
+            <div style="display:flex; justify-content:space-between; padding: 10px; border-bottom: 1px solid var(--border-color);">
+                <div><strong>${c.name}</strong> <small>(${c.slug})</small></div>
+                <button onclick="deleteCat(${c.id})" class="btn btn-danger btn-sm" style="background:#dc3545; border:none; color:white;">Usuń</button>
+            </div>
+        `).join('');
+    }
+
+    window.deleteCat = async (id) => {
+        if(!confirm('Usunąć?')) return;
+        await fetch(`/api/forum/categories/${id}`, { method: 'DELETE' });
+        loadCats();
+    }
+
+    init();
+  </script>
 </body>
 </html>

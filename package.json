@@ -1,5 +1,5 @@
 {
-  "name": "football-profiles",
+  "name": "football-profiles-reimplement",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -8,11 +8,8 @@
     "dev:postgres": "cross-env USE_POSTGRESQL=true node server/server.js",
     "start": "cross-env NODE_ENV=production node server/server.js",
     "start:postgres": "cross-env NODE_ENV=production USE_POSTGRESQL=true node server/server.js",
-    "migrate": "node server/migrate.js",
     "test": "echo \"No tests yet\"",
-    "lint": "echo \"No linting configured\"",
-    "clean": "echo \"Cleaning temporary files...\"",
-    "prepare": "echo \"No build step yet\""
+    "clean": "echo \"Cleaning temporary files...\""
   },
   "dependencies": {
     "bcrypt": "^5.1.1",

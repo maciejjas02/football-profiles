@@ -11,7 +11,6 @@
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
-  <!-- Pasek górny -->
   <header class="topbar">
     <div class="brand-mini">
       <strong>Football Profiles</strong>
@@ -22,20 +21,14 @@
     </div>
   </header>
 
-  <!-- Baner systemowy -->
   <div id="banner" class="banner" role="status" aria-live="polite" hidden></div>
 
-  <!-- Tło -->
-  <div class="bg"></div>
-
   <main class="container">
-    <!-- Loading state -->
     <div id="loading" class="loading-state">
       <div class="spinner"></div>
       <p>Ładowanie profilu piłkarza...</p>
     </div>
 
-    <!-- Error state -->
     <div id="error-state" class="error-state hidden">
       <div class="error-icon">⚠️</div>
       <h2>Nie znaleziono piłkarza</h2>
@@ -43,9 +36,7 @@
       <button id="error-dashboard-btn" class="btn btn-primary">← Dashboard</button>
     </div>
 
-    <!-- Player profile content -->
     <div id="player-content" class="player-profile hidden">
-      <!-- Navigation -->
       <div class="profile-nav">
         <button id="dashboard-btn" class="btn btn-secondary">← Dashboard</button>
         <div class="profile-breadcrumbs">
@@ -53,7 +44,6 @@
         </div>
       </div>
 
-      <!-- Player header -->
       <div class="profile-header">
         <div class="player-main-info">
           <div class="player-photo">
@@ -90,38 +80,11 @@
           </div>
         </div>
 
-        <!-- Player Rating Bar -->
-        <div class="player-rating-section">
-          <h3>Ocena Społeczności</h3>
-          <div class="rating-controls">
-            <button class="rating-btn like-btn" id="player-like-btn">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
-              </svg>
-              <span id="player-likes-count">0</span>
-            </button>
-            <button class="rating-btn dislike-btn" id="player-dislike-btn">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path>
-              </svg>
-              <span id="player-dislikes-count">0</span>
-            </button>
-          </div>
-          <div class="rating-bar">
-            <div class="rating-bar-positive" id="player-rating-bar"></div>
-            <div class="rating-percentage">
-              <span class="positive-percent" id="positive-percent">0%</span>
-              <span class="negative-percent" id="negative-percent">0%</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Purchase section -->
         <div class="purchase-section">
           <div class="jersey-preview">
             <div class="jersey-card">
               <div class="jersey-image">
-                <img id="jersey-image" src="https://via.placeholder.com/400x400/0066cc/ffffff?text=TEST" alt="Koszulka" style="display: block !important; width: 100% !important; height: 100% !important;" />
+                <img id="jersey-image" src="" alt="Koszulka" style="display: block !important; width: 100% !important; height: 100% !important;" />
               </div>
               <div class="jersey-info">
                 <h3>Oficjalna koszulka</h3>
@@ -139,9 +102,7 @@
         </div>
       </div>
 
-      <!-- Player content sections -->
       <div class="profile-content">
-        <!-- Stats section -->
         <div class="stats-section">
           <h2>📊 Statystyki</h2>
           <div class="stats-grid">
@@ -164,49 +125,15 @@
           </div>
         </div>
 
-        <!-- Achievements section -->
         <div class="achievements-section">
           <h2>🏆 Osiągnięcia</h2>
-          <div id="achievements-list" class="achievements-list">
-            <!-- Dynamically loaded achievements -->
-          </div>
+          <div id="achievements-list" class="achievements-list"></div>
         </div>
 
-        <!-- Biography section -->
         <div class="biography-section">
           <h2>📖 Biografia</h2>
           <div class="biography-content">
             <p id="player-biography"></p>
-          </div>
-        </div>
-
-        <!-- Comments section -->
-        <div class="comments-section">
-          <h2>💬 Komentarze (<span id="comments-count">0</span>)</h2>
-          
-          <!-- Add comment form -->
-          <div class="add-comment-form">
-            <textarea 
-              id="comment-input" 
-              placeholder="Podziel się swoją opinią o tym zawodniku..."
-              maxlength="500"
-              rows="3"
-            ></textarea>
-            <div class="comment-form-actions">
-              <span id="char-counter" class="char-counter">0/500</span>
-              <button id="submit-comment-btn" class="btn btn-primary">Dodaj komentarz</button>
-            </div>
-          </div>
-
-          <!-- Comments list -->
-          <div id="comments-list" class="comments-list">
-            <!-- Dynamically loaded comments -->
-          </div>
-
-          <!-- Empty state -->
-          <div id="comments-empty" class="comments-empty hidden">
-            <div class="empty-icon">💭</div>
-            <p>Brak komentarzy. Bądź pierwszy!</p>
           </div>
         </div>
       </div>

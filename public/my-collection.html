@@ -1,14 +1,13 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Galeria | Football Profiles</title>
-  <link rel="stylesheet" href="/styles.css"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Moja Kolekcja - Football Profiles</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <!-- Topbar -->
-  <header class="topbar">
+  <div class="topbar">
     <div class="topbar-content">
       <div class="logo-section">
         <img src="/images/logo.png" alt="Football Profiles" class="topbar-logo" />
@@ -16,7 +15,7 @@
       </div>
       <nav class="topbar-nav">
         <a href="dashboard.html" class="nav-tab">Panel</a>
-        <a href="gallery.html" class="nav-tab active">Galeria</a>
+        <a href="gallery.html" class="nav-tab">Galeria</a>
         <a href="forum.html" class="nav-tab">Forum</a>
         <a href="moderator-posts.html" class="nav-tab" id="moderatorLink" style="display:none;">Moderacja</a>
         <a href="admin-categories.html" class="nav-tab" id="adminLink" style="display:none;">Admin</a>
@@ -34,34 +33,36 @@
           <div id="notificationsList" class="notifications-list"></div>
         </div>
         <div id="authBar" class="authbar">
-          <span id="userDisplay">Ładowanie...</span>
+          <span id="who">Ładowanie...</span>
           <button id="logoutBtn" class="btn btn-ghost">Wyloguj</button>
         </div>
       </div>
     </div>
-  </header>
+  </div>
 
-  <main class="gallery-view">
-    <h1> Galeria Football Profiles</h1>
-    <p style="text-align: center; color: rgba(255,255,255,0.7); margin-bottom: 40px;">
-      Odkryj najlepsze momenty i zdjęcia z historii piłki nożnej
-    </p>
-
-    <!-- Responsive Grid Slider (MIN: 1/2/3 columns) -->
-    <div id="gallerySlider" class="gallery-slider">
-      <div class="loading" style="grid-column: 1/-1; text-align: center; padding: 60px;">
-        Ładowanie galerii...
+  <div class="container" style="margin-top: 100px; max-width: 1000px;">
+    <div class="page-header">
+      <h1 class="page-title">💎 Moja Kolekcja Koszulek</h1>
+    </div>
+    
+    <div class="admin-panel">
+      <h2>Historia Zakupów (Zamówienia)</h2>
+      <div id="purchasesList" class="my-posts-list">
+        <div class="loading">Ładowanie zamówień...</div>
       </div>
     </div>
-
-    <!-- Slider Navigation -->
-    <div class="slider-nav">
-      <button id="prevBtn" aria-label="Previous">‹</button>
-      <div class="slider-dots" id="sliderDots"></div>
-      <button id="nextBtn" aria-label="Next">›</button>
+    
+    <div class="admin-panel">
+      <h2>Stan Koszyka (Wymagania Bonusowe)</h2>
+      <p class="hint">Pełna implementacja koszyka (z kumulacją produktów i sandboxem płatności) zostanie wdrożona w kolejnych krokach, aby spełnić wszystkie wymagania bonusowe.</p>
+      <div id="cartStatus" class="empty-state">Koszyk jest pusty lub ta funkcja jest obecnie uproszczona.</div>
     </div>
-  </main>
+    
+    <div class="post-actions">
+      <a href="dashboard.html" class="btn btn-secondary">← Powrót do Panelu</a>
+    </div>
+  </div>
 
-  <script type="module" src="/gallery.js"></script>
+  <script type="module" src="my-collection.js"></script>
 </body>
 </html>

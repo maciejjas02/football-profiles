@@ -11,11 +11,10 @@
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
-  <!-- Pasek górny -->
   <header class="topbar">
     <div class="topbar-content">
       <div class="logo-section">
-        <img src="/images/logo.png" alt="Football Profiles" class="topbar-logo" />
+        <img src="/images/logo.png" alt="Logo" class="topbar-logo" />
         <span class="site-title">Football Profiles</span>
       </div>
       <nav class="topbar-nav">
@@ -26,17 +25,6 @@
         <a href="admin-categories.html" class="nav-tab" id="adminLink" style="display:none;">Admin</a>
       </nav>
       <div class="topbar-actions">
-        <button id="notificationsBtn" class="icon-button" style="display:none;">
-          <span>🔔</span>
-          <span id="notificationBadge" class="notification-badge" style="display:none;">0</span>
-        </button>
-        <div id="notificationsDropdown" class="notifications-dropdown" style="display:none;">
-          <div class="notifications-header">
-            <h3>Powiadomienia</h3>
-            <button id="markAllReadBtn" class="mark-read-btn">Oznacz wszystkie jako przeczytane</button>
-          </div>
-          <div id="notificationsList" class="notifications-list"></div>
-        </div>
         <div id="authBar" class="authbar">
           <span id="who">Ładowanie...</span>
           <button id="logoutBtn" class="btn btn-ghost">Wyloguj</button>
@@ -45,229 +33,50 @@
     </div>
   </header>
 
-  <!-- Baner systemowy -->
-  <div id="banner" class="banner" role="status" aria-live="polite" hidden></div>
-
-  <!-- Tło -->
-  <div class="bg">
-    <div class="blob b1"></div>
-    <div class="blob b2"></div>
-    <div class="grid"></div>
-  </div>
-
   <main class="container">
-    <!-- Główna zawartość -->
     <div class="dashboard-content">
-      
-      <!-- Slider informacyjny -->
       <div class="info-slider">
-        <button class="slider-arrow slider-arrow-left" aria-label="Poprzedni slajd">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="15 18 9 12 15 6"></polyline>
-          </svg>
-        </button>
-        
+        <button class="slider-arrow slider-arrow-left">‹</button>
         <div class="slider-container">
           <div class="slider-track">
-            <div class="slide active">
-              <div class="slide-icon">⚽</div>
-              <h2>Witaj w Football Profiles!</h2>
-              <p>Odkryj profile najlepszych piłkarzy świata i poznaj ich historie</p>
-            </div>
-            
-            <div class="slide">
-              <div class="slide-icon">🏆</div>
-              <h2>Top 5 Lig Europejskich</h2>
-              <p>Premier League, La Liga, Bundesliga, Serie A i Ligue 1 czekają na Ciebie!</p>
-            </div>
-            
-            <div class="slide">
-              <div class="slide-icon">⭐</div>
-              <h2>Legendy Futbolu</h2>
-              <p>Poznaj największe gwiazdy - Messi, Ronaldo, Lewandowski i wielu innych</p>
-            </div>
-            
-            <div class="slide">
-              <div class="slide-icon">💎</div>
-              <h2>Kolekcjonuj Koszulki</h2>
-              <p>Zbieraj unikalne koszulki swoich ulubionych zawodników</p>
-            </div>
+            <div class="slide active"><div class="slide-icon">⚽</div><h2>Witaj!</h2><p>Profile najlepszych piłkarzy</p></div>
+            <div class="slide"><div class="slide-icon">🏆</div><h2>Ligi</h2><p>Top 5 Lig Europejskich</p></div>
+            <div class="slide"><div class="slide-icon">💎</div><h2>Kolekcja</h2><p>Zbieraj koszulki</p></div>
           </div>
         </div>
-        
-        <button class="slider-arrow slider-arrow-right" aria-label="Następny slajd">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="9 18 15 12 9 6"></polyline>
-          </svg>
-        </button>
-        
-        <div class="slider-dots">
-          <button class="dot active" data-slide="0" aria-label="Slajd 1"></button>
-          <button class="dot" data-slide="1" aria-label="Slajd 2"></button>
-          <button class="dot" data-slide="2" aria-label="Slajd 3"></button>
-          <button class="dot" data-slide="3" aria-label="Slajd 4"></button>
-        </div>
+        <button class="slider-arrow slider-arrow-right">›</button>
       </div>
-      
-      <!-- Główne panele nawigacyjne -->
+
       <div class="main-panels">
-        <div class="panel-card" data-action="leagues">
-          <div class="panel-icon">🏆</div>
-          <h3>Najlepsze Ligi</h3>
-          <p>Top 5 lig piłkarskich świata</p>
-          <div class="panel-stats">
-            <span>Premier League • La Liga • Bundesliga • Serie A • Ligue 1</span>
-          </div>
-        </div>
-
-        <div class="panel-card" data-action="top-players">
-          <div class="panel-icon">⭐</div>
-          <h3>Gwiazdy Futbolu</h3>
-          <p>Najlepsi piłkarze wszech czasów</p>
-          <div class="panel-stats">
-            <span>Messi • Ronaldo • Mbappé • Haaland • Lewandowski • Dembélé</span>
-          </div>
-        </div>
-
-        <div class="panel-card" data-action="new-talents">
-          <div class="panel-icon">🚀</div>
-          <h3>Młode Talenty</h3>
-          <p>Przyszłe gwiazdy piłki nożnej</p>
-          <div class="panel-stats">
-            <span>Nowe odkrycia • Młodzi zawodnicy</span>
-          </div>
-        </div>
-
-        <div class="panel-card" data-action="goalkeepers">
-          <div class="panel-icon">🥅</div>
-          <h3>Bramkarze</h3>
-          <p>Najlepsi strażnicy bramek</p>
-          <div class="panel-stats">
-            <span>Legendy między słupkami</span>
-          </div>
-        </div>
-
-        <div class="panel-card" data-action="legends">
-          <div class="panel-icon">👑</div>
-          <h3>Legendy</h3>
-          <p>Ikony piłki nożnej</p>
-          <div class="panel-stats">
-            <span>Pelé • Maradona • Cruyff • Beckham</span>
-          </div>
-        </div>
-
+        <div class="panel-card" data-action="leagues"><div class="panel-icon">🏆</div><h3>Ligi</h3></div>
+        <div class="panel-card" data-action="top-players"><div class="panel-icon">⭐</div><h3>Gwiazdy</h3></div>
+        <div class="panel-card" data-action="new-talents"><div class="panel-icon">🚀</div><h3>Talenty</h3></div>
+        <div class="panel-card" data-action="goalkeepers"><div class="panel-icon">🥅</div><h3>Bramkarze</h3></div>
+        <div class="panel-card" data-action="legends"><div class="panel-icon">👑</div><h3>Legendy</h3></div>
         <div class="panel-card" data-action="my-collection">
-          <div class="panel-icon">💎</div>
-          <h3>Moja Kolekcja</h3>
-          <p>Twoje zakupione koszulki</p>
-          <div class="panel-stats">
-            <span id="collection-count">0 koszulek</span>
-          </div>
+            <div class="panel-icon">💎</div>
+            <h3>Moja Kolekcja</h3>
+            <div class="panel-stats"><span id="collection-count">0 koszulek</span></div>
         </div>
       </div>
 
-      <!-- Sekcja lig (ukryta na początku) -->
       <div id="leagues-section" class="players-section hidden">
-        <div class="section-header">
-          <button id="leagues-back-btn" class="btn btn-secondary">← Powrót</button>
-          <h2>Najlepsze Ligi Świata</h2>
-        </div>
+        <div class="section-header"><button id="leagues-back-btn" class="btn btn-secondary">Powrót</button><h2>Ligi</h2></div>
         <div class="leagues-grid">
-          <div class="league-card" data-league="premier-league">
-            <div class="league-logo">
-              <img src="https://tmssl.akamaized.net//images/logo/header/gb1.png?lm=1521104656" alt="Premier League" />
-            </div>
-            <div class="league-info">
-              <h3>Premier League</h3>
-              <p>Anglia</p>
-              <div class="league-stats">
-                <span>20 drużyn • Liverpool, Manchester City</span>
-              </div>
-            </div>
-          </div>
-          
-          <div class="league-card" data-league="la-liga">
-            <div class="league-logo">
-              <img src="https://tmssl.akamaized.net//images/logo/header/es1.png?lm=1725974302" alt="La Liga" />
-            </div>
-            <div class="league-info">
-              <h3>La Liga</h3>
-              <p>Hiszpania</p>
-              <div class="league-stats">
-                <span>20 drużyn • Real Madryt, FC Barcelona</span>
-              </div>
-            </div>
-          </div>
-          
-          <div class="league-card" data-league="bundesliga">
-            <div class="league-logo">
-              <img src="https://tmssl.akamaized.net//images/logo/header/l1.png?lm=1525905518" alt="Bundesliga" />
-            </div>
-            <div class="league-info">
-              <h3>Bundesliga</h3>
-              <p>Niemcy</p>
-              <div class="league-stats">
-                <span>18 drużyn • Bayern, BVB</span>
-              </div>
-            </div>
-          </div>
-          
-          <div class="league-card" data-league="serie-a">
-            <div class="league-logo">
-              <img src="https://tmssl.akamaized.net//images/logo/header/it1.png?lm=1656073460" alt="Serie A" />
-            </div>
-            <div class="league-info">
-              <h3>Serie A</h3>
-              <p>Włochy</p>
-              <div class="league-stats">
-                <span>20 drużyn • Juventus, AC Milan, Inter</span>
-              </div>
-            </div>
-          </div>
-          
-          <div class="league-card" data-league="ligue-1">
-            <div class="league-logo">
-              <img src="https://tmssl.akamaized.net//images/logo/header/fr1.png?lm=1732280518" alt="Ligue 1" />
-            </div>
-            <div class="league-info">
-              <h3>Ligue 1</h3>
-              <p>Francja</p>
-              <div class="league-stats">
-                <span>20 drużyn • PSG, Monaco, Marseille</span>
-              </div>
-            </div>
-          </div>
+            <div class="league-card"><h3>Premier League</h3><p>Anglia</p></div>
+            <div class="league-card"><h3>La Liga</h3><p>Hiszpania</p></div>
+            <div class="league-card"><h3>Bundesliga</h3><p>Niemcy</p></div>
+            <div class="league-card"><h3>Serie A</h3><p>Włochy</p></div>
+            <div class="league-card"><h3>Ligue 1</h3><p>Francja</p></div>
         </div>
       </div>
 
-      <!-- Sekcja zawodników (ukryta na początku) -->
       <div id="players-section" class="players-section hidden">
-        <div class="section-header">
-          <button id="back-btn" class="btn btn-secondary">← Powrót</button>
-          <h2 id="section-title">Zawodnicy</h2>
-        </div>
-        <div id="players-grid" class="players-grid">
-          <!-- Zawodnicy będą ładowani dynamicznie -->
-        </div>
+        <div class="section-header"><button id="back-btn" class="btn btn-secondary">Powrót</button><h2 id="section-title"></h2></div>
+        <div id="players-grid" class="players-grid"></div>
       </div>
-
-      <!-- Sekcja informacji o użytkowniku (kompaktowa) -->
-      <div class="user-info-compact">
-        <div class="user-card">
-          <div class="user-avatar">👤</div>
-          <div class="user-details">
-            <div id="user-name">Ładowanie...</div>
-            <div id="user-stats" class="user-stats">
-              <span id="user-purchases">0 zakupów</span>
-              <span id="user-role">Użytkownik</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
     </div>
   </main>
-
   <script src="/dashboard.js" type="module"></script>
 </body>
 </html>

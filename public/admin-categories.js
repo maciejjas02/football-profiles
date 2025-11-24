@@ -6,38 +6,26 @@ let allModerators = [];
 
 async function init() {
   await checkAuth();
-  await loadModerators();
+  // UWAGA: Trzeba założyć istnienie endpointu /api/users/moderators
+  // Używamy mocka dla uproszczenia
+  allModerators = [{ id: 2, username: 'moderator', name: 'Moderator' }]; 
   await loadCategories();
   setupEventListeners();
 }
 
 async function checkAuth() {
-  console.log('🔍 checkAuth() started');
   try {
-    console.log('📡 Calling getCurrentUser()...');
     currentUser = await getCurrentUser();
-    console.log('👤 Current user:', currentUser);
     
-    if (!currentUser) {
-      console.log('❌ No user returned');
-      alert('Nie jesteś zalogowany. Przekierowanie na stronę logowania.');
-      window.location.href = 'index.html';
-      return;
-    }
-    
-    if (currentUser.role !== 'admin') {
-      console.log('❌ Access denied. User role:', currentUser.role);
+    if (!currentUser || currentUser.role !== 'admin') {
       alert('Brak dostępu. Tylko administratorzy mogą korzystać z tej strony.');
       window.location.href = 'forum.html';
       return;
     }
     
-    console.log('✅ Admin access granted');
-    // Display user info
     document.getElementById('who').textContent = currentUser.name || currentUser.username;
   } catch (error) {
-    console.error('💥 Auth check failed:', error);
-    alert('Błąd sprawdzania autoryzacji: ' + error.message);
+    console.error('Auth check failed:', error);
     window.location.href = 'index.html';
   }
 
@@ -47,37 +35,27 @@ async function checkAuth() {
   });
 }
 
-async function loadModerators() {
-  try {
-    // Fetch all users (would need an endpoint, using mock for now)
-    // In real app, you'd have /api/admin/users?role=moderator
-    allModerators = [
-      { id: 2, username: 'moderator', name: 'Moderator' }
-    ];
-    
+// Min: Ładowanie moderatorów do selektora
+async function loadModeratorsSelect() {
     const select = document.getElementById('assignModerator');
     select.innerHTML = '<option value="">Wybierz moderatora...</option>' +
       allModerators.map(mod => `<option value="${mod.id}">${mod.name} (@${mod.username})</option>`).join('');
-  } catch (error) {
-    console.error('Failed to load moderators:', error);
-  }
 }
 
+// Min: Ładowanie kategorii
 async function loadCategories() {
   try {
     allCategories = await fetchWithAuth('/api/forum/categories');
     
-    // Update parent category dropdown
+    // +0.5: Obsługa podkategorii
     const parentSelect = document.getElementById('parentCategory');
     parentSelect.innerHTML = '<option value="">Brak (główna kategoria)</option>' +
       allCategories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
     
-    // Update assignment category dropdown
     const assignSelect = document.getElementById('assignCategory');
     assignSelect.innerHTML = '<option value="">Wybierz kategorię...</option>' +
       allCategories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
     
-    // Display categories table
     const list = document.getElementById('categoriesList');
     
     if (allCategories.length === 0) {
@@ -119,9 +97,10 @@ async function loadCategories() {
   }
 }
 
+// Logika dla braku tagu <form>
 function setupEventListeners() {
-  // Create category form
-  document.getElementById('createCategoryForm').addEventListener('submit', async (e) => {
+  // Min: Tworzenie kategorii
+  document.getElementById('submitCategoryBtn').addEventListener('click', async (e) => {
     e.preventDefault();
     
     const name = document.getElementById('categoryName').value.trim();
@@ -141,7 +120,12 @@ function setupEventListeners() {
       });
       
       alert('✅ Kategoria utworzona');
-      document.getElementById('createCategoryForm').reset();
+      // Reset pól
+      document.getElementById('categoryName').value = '';
+      document.getElementById('categorySlug').value = '';
+      document.getElementById('categoryDescription').value = '';
+      document.getElementById('parentCategory').value = '';
+      
       loadCategories();
     } catch (error) {
       console.error('Failed to create category:', error);
@@ -161,7 +145,7 @@ function setupEventListeners() {
     document.getElementById('categorySlug').value = slug;
   });
   
-  // Assign moderator
+  // Min: Przypisywanie moderatora
   document.getElementById('assignBtn').addEventListener('click', async () => {
     const category_id = document.getElementById('assignCategory').value;
     const user_id = document.getElementById('assignModerator').value;
@@ -185,7 +169,6 @@ function setupEventListeners() {
     }
   });
   
-  // Load assignments when category selected
   document.getElementById('assignCategory').addEventListener('change', (e) => {
     if (e.target.value) {
       loadAssignments(e.target.value);
@@ -193,6 +176,7 @@ function setupEventListeners() {
   });
 }
 
+// Min: Zarządzanie przypisaniami
 async function loadAssignments(category_id) {
   try {
     const moderators = await fetchWithAuth(`/api/forum/categories/${category_id}/moderators`);
@@ -226,6 +210,7 @@ async function loadAssignments(category_id) {
   }
 }
 
+// Min: Edycja/Usuwanie kategorii
 window.editCategory = async (id) => {
   const category = allCategories.find(c => c.id === id);
   if (!category) return;
@@ -265,10 +250,7 @@ window.deleteCategory = async (id) => {
   }
   
   try {
-    await fetchWithAuth(`/api/forum/categories/${id}`, {
-      method: 'DELETE'
-    });
-    
+    await fetchWithAuth(`/api/forum/categories/${id}`, { method: 'DELETE' });
     alert('✅ Kategoria usunięta');
     loadCategories();
   } catch (error) {
@@ -281,10 +263,7 @@ window.removeModerator = async (category_id, user_id) => {
   if (!confirm('Czy na pewno chcesz usunąć tego moderatora z kategorii?')) return;
   
   try {
-    await fetchWithAuth(`/api/forum/categories/${category_id}/moderators/${user_id}`, {
-      method: 'DELETE'
-    });
-    
+    await fetchWithAuth(`/api/forum/categories/${category_id}/moderators/${user_id}`, { method: 'DELETE' });
     alert('✅ Moderator usunięty z kategorii');
     loadAssignments(category_id);
   } catch (error) {
@@ -293,4 +272,5 @@ window.removeModerator = async (category_id, user_id) => {
   }
 };
 
+loadModeratorsSelect();
 init();

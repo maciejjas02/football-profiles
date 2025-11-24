@@ -1,356 +1,202 @@
-// --- ELEMENTY WSPÓLNE ---
+// DOM Elements
 const banner = document.getElementById('banner');
 const authStatus = document.getElementById('authStatus');
 const logoutBtn = document.getElementById('logoutBtn');
-const oauthBox = document.getElementById('oauthBox');
-const goDash = document.getElementById('goDash');
 
-// --- LOGOWANIE ---
-const form = document.getElementById('loginForm');
+// Formularze
+const loginForm = document.getElementById('loginForm');
+const regForm = document.getElementById('registerForm');
+
+// Pola logowania
 const loginInput = document.getElementById('login');
 const pwInput = document.getElementById('password');
-const remember = document.getElementById('remember');
-const errorEl = document.getElementById('error');
-const togglePw = document.getElementById('togglePw');
-const checkMe = document.getElementById('checkMe');
+const loginErrorEl = document.getElementById('error');
 
-// --- REJESTRACJA ---
-const regForm = document.getElementById('registerForm');
+// Pola rejestracji
 const regEmail = document.getElementById('reg_email');
 const regUsername = document.getElementById('reg_username');
 const regName = document.getElementById('reg_name');
 const regPw = document.getElementById('reg_password');
-const regPw2 = document.getElementById('reg_password2');
-const regError = document.getElementById('reg_error');
+const regPwConfirm = document.getElementById('reg_password2'); // ID z HTML
+const regErrorEl = document.getElementById('reg_error');
+const passwordStrengthBar = document.getElementById('password-strength-bar');
 
-// --- TOGGLE PASSWORD BUTTONS ---
-const toggleRegPw = document.getElementById('toggleRegPw');
-const toggleRegPw2 = document.getElementById('toggleRegPw2');
-
-// --- TABS ---
+// Zakładki
 const tabLogin = document.getElementById('tabLogin');
 const tabRegister = document.getElementById('tabRegister');
 const viewLogin = document.getElementById('viewLogin');
 const viewRegister = document.getElementById('viewRegister');
 
-// --- PASSWORD STRENGTH ---
-const passwordStrengthBar = document.getElementById('password-strength-bar');
-const reqLength = document.getElementById('req-length');
-const reqUppercase = document.getElementById('req-uppercase');
-const reqNumber = document.getElementById('req-number');
-
-function activateTab(which) {
-  const isLogin = which === 'login';
-  tabLogin?.classList.toggle('active', isLogin);
-  tabRegister?.classList.toggle('active', !isLogin);
-  if (viewLogin) viewLogin.style.display = isLogin ? '' : 'none';
-  if (viewRegister) viewRegister.style.display = isLogin ? 'none' : '';
+// --- UI HELPERS ---
+function showBanner(msg, success) {
+    if (!banner) return;
+    banner.textContent = msg;
+    banner.className = 'banner';
+    banner.classList.add(success ? 'banner--ok' : 'banner--err');
+    banner.hidden = false;
+    setTimeout(() => { banner.hidden = true; }, 3000);
 }
-tabLogin?.addEventListener('click', () => activateTab('login'));
-tabRegister?.addEventListener('click', () => activateTab('register'));
 
-// --- PASSWORD STRENGTH CHECKER ---
-function checkPasswordStrength(password) {
-  const hasLength = password.length >= 6;
-  const hasUppercase = /[A-Z]/.test(password);
-  const hasNumber = /[0-9]/.test(password);
-  
-  // Update requirements
-  if (reqLength) reqLength.classList.toggle('met', hasLength);
-  if (reqUppercase) reqUppercase.classList.toggle('met', hasUppercase);
-  if (reqNumber) reqNumber.classList.toggle('met', hasNumber);
-  
-  // Calculate strength
-  let strength = 0;
-  if (hasLength) strength++;
-  if (hasUppercase) strength++;
-  if (hasNumber) strength++;
-  if (password.length >= 10) strength++;
-  if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) strength++;
-  
-  // Update strength bar
-  if (passwordStrengthBar) {
-    passwordStrengthBar.className = 'password-strength-bar';
-    if (strength <= 2) {
-      passwordStrengthBar.classList.add('weak');
-    } else if (strength <= 3) {
-      passwordStrengthBar.classList.add('medium');
-    } else {
-      passwordStrengthBar.classList.add('strong');
+// --- FUNKCJA POMOCNICZA: OBSŁUGA "OCZKA" ---
+function setupPasswordToggle(btnId, inputId) {
+    const btn = document.getElementById(btnId);
+    const input = document.getElementById(inputId);
+    if (btn && input) {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault(); // Zapobiegaj wysłaniu formularza
+            const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
+            input.setAttribute('type', type);
+            btn.textContent = type === 'password' ? '👁️' : '🔒';
+        });
     }
-  }
-  
-  return { hasLength, hasUppercase, hasNumber, strength };
 }
 
-// Password strength on input
-regPw?.addEventListener('input', () => {
-  const password = regPw.value;
-  const result = checkPasswordStrength(password);
-  
-  // Visual feedback
-  if (password.length === 0) {
-    regPw.classList.remove('valid', 'invalid');
-  } else if (result.hasLength && result.hasUppercase && result.hasNumber) {
-    regPw.classList.add('valid');
-    regPw.classList.remove('invalid');
-  } else {
-    regPw.classList.add('invalid');
-    regPw.classList.remove('valid');
-  }
-});
+// Konfiguracja oczek
+setupPasswordToggle('togglePw', 'password');           // Logowanie
+setupPasswordToggle('toggleRegPw', 'reg_password');    // Rejestracja - hasło 1
+setupPasswordToggle('toggleRegPw2', 'reg_password2');  // Rejestracja - powtórz hasło
 
-// Password match checker
-regPw2?.addEventListener('input', () => {
-  const password = regPw?.value || '';
-  const password2 = regPw2.value;
-  
-  if (password2.length === 0) {
-    regPw2.classList.remove('valid', 'invalid');
-  } else if (password === password2) {
-    regPw2.classList.add('valid');
-    regPw2.classList.remove('invalid');
-  } else {
-    regPw2.classList.add('invalid');
-    regPw2.classList.remove('valid');
-  }
-});
-
-// Email validation
-regEmail?.addEventListener('input', () => {
-  const email = regEmail.value.trim();
-  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  
-  if (email.length === 0) {
-    regEmail.classList.remove('valid', 'invalid');
-  } else if (emailRe.test(email)) {
-    regEmail.classList.add('valid');
-    regEmail.classList.remove('invalid');
-  } else {
-    regEmail.classList.add('invalid');
-    regEmail.classList.remove('valid');
-  }
-});
-
-// Username validation
-regUsername?.addEventListener('input', () => {
-  const username = regUsername.value.trim();
-  
-  if (username.length === 0) {
-    regUsername.classList.remove('valid', 'invalid');
-  } else if (username.length >= 3) {
-    regUsername.classList.add('valid');
-    regUsername.classList.remove('invalid');
-  } else {
-    regUsername.classList.add('invalid');
-    regUsername.classList.remove('valid');
-  }
-});
-
-// --- CSRF ---
-let csrfToken = null;
-try {
-  const r = await fetch('/api/auth/csrf-token', { credentials: 'include' });
-  const j = await r.json();
-  csrfToken = j.csrfToken;
-} catch (e) {
-  alert('Nie udało się pobrać CSRF tokenu. Odśwież stronę (Ctrl+F5).');
+// --- WSKAŹNIK SIŁY HASŁA ---
+function updateRequirement(id, valid) {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('met', valid);
 }
 
-// --- Przywrócenie loginu ---
-const savedLogin = localStorage.getItem('login');
-if (savedLogin && loginInput) loginInput.value = savedLogin;
+if (regPw && passwordStrengthBar) {
+    regPw.addEventListener('input', () => {
+        const val = regPw.value;
+        let strength = 0;
+        if (val.length >= 6) strength++;
+        if (/[A-Z]/.test(val)) strength++;
+        if (/[0-9]/.test(val)) strength++;
 
-// --- Przywrócenie pól rejestracji ---
-const savedRegEmail = localStorage.getItem('reg_email');
-const savedRegUsername = localStorage.getItem('reg_username');
-const savedRegName = localStorage.getItem('reg_name');
-if (savedRegEmail && regEmail) regEmail.value = savedRegEmail;
-if (savedRegUsername && regUsername) regUsername.value = savedRegUsername;
-if (savedRegName && regName) regName.value = savedRegName;
+        passwordStrengthBar.className = 'password-strength-bar';
+        if (val.length === 0) {
+             passwordStrengthBar.style.width = '0%';
+        } else if (strength <= 1) {
+            passwordStrengthBar.classList.add('weak');
+            passwordStrengthBar.style.width = '33%';
+        } else if (strength === 2) {
+            passwordStrengthBar.classList.add('medium');
+            passwordStrengthBar.style.width = '66%';
+        } else {
+            passwordStrengthBar.classList.add('strong');
+            passwordStrengthBar.style.width = '100%';
+        }
 
-// --- Auto-save formularza rejestracji ---
-regEmail?.addEventListener('input', () => {
-  localStorage.setItem('reg_email', regEmail.value);
-});
-regUsername?.addEventListener('input', () => {
-  localStorage.setItem('reg_username', regUsername.value);
-});
-regName?.addEventListener('input', () => {
-  localStorage.setItem('reg_name', regName.value);
-});
-
-// --- Remember me ---
-loginInput?.addEventListener('input', () => {
-  if (remember?.checked) localStorage.setItem('login', loginInput.value);
-});
-remember?.addEventListener('change', () => {
-  if (!remember.checked) localStorage.removeItem('login');
-  else localStorage.setItem('login', loginInput?.value || '');
-});
-togglePw?.addEventListener('click', () => {
-  if (!pwInput) return;
-  pwInput.type = pwInput.type === 'password' ? 'text' : 'password';
-});
-
-// Toggle password visibility for registration
-toggleRegPw?.addEventListener('click', () => {
-  if (!regPw) return;
-  regPw.type = regPw.type === 'password' ? 'text' : 'password';
-});
-
-toggleRegPw2?.addEventListener('click', () => {
-  if (!regPw2) return;
-  regPw2.type = regPw2.type === 'password' ? 'text' : 'password';
-});
-
-// --- UI helpers ---
-function showBanner(msg, ok = true) {
-  if (!banner) return;
-  banner.textContent = msg;
-  banner.classList.toggle('banner--ok', ok);
-  banner.classList.toggle('banner--err', !ok);
-  banner.hidden = false;
-  setTimeout(() => { banner.hidden = true; }, 3000);
-}
-function setLoggedInUI(user) {
-  const fallbackFromEmail = (user?.email || '').split('@')[0] || 'Użytkownik';
-  const name = user?.display_name || user?.username || user?.name || fallbackFromEmail;
-
-  if (authStatus) authStatus.textContent = `Zalogowany jako ${name}`;
-  if (logoutBtn) logoutBtn.hidden = false;
-  if (oauthBox) oauthBox.style.display = 'none';
-  if (goDash) goDash.hidden = false;
+        updateRequirement('req-length', val.length >= 6);
+        updateRequirement('req-uppercase', /[A-Z]/.test(val));
+        updateRequirement('req-number', /[0-9]/.test(val));
+    });
 }
 
-function setLoggedOutUI() {
-  if (authStatus) authStatus.textContent = 'Nie zalogowany';
-  if (logoutBtn) logoutBtn.hidden = true;
-  if (oauthBox) oauthBox.style.display = '';
-  if (goDash) goDash.hidden = true;
-}
+// --- PRZEŁĄCZANIE ZAKŁADEK ---
+if (tabLogin && tabRegister) {
+    tabLogin.addEventListener('click', () => {
+        tabLogin.classList.add('active');
+        tabRegister.classList.remove('active');
+        viewLogin.style.display = 'block';
+        viewRegister.style.display = 'none';
+    });
 
-// --- Sprawdzenie stanu na starcie ---
-await (async function onLoad() {
-  try {
-    const res = await fetch('/api/auth/me', { credentials: 'include' });
-    if (!res.ok) throw new Error();
-    const data = await res.json();
-    setLoggedInUI(data.user);
-  } catch { setLoggedOutUI(); }
-})();
+    tabRegister.addEventListener('click', () => {
+        tabRegister.classList.add('active');
+        tabLogin.classList.remove('active');
+        viewLogin.style.display = 'none';
+        viewRegister.style.display = 'block';
+    });
+}
 
 // --- LOGOWANIE ---
-form?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  if (!loginInput || !pwInput || !errorEl) return;
-  errorEl.textContent = '';
+if (loginForm) {
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const login = loginInput.value.trim();
+        const password = pwInput.value;
+        loginErrorEl.textContent = "";
 
-  const payload = { login: (loginInput.value || '').trim(), password: pwInput.value || '' };
-  if (!payload.login || !payload.password) { errorEl.textContent = 'Wypełnij oba pola.'; return; }
-  if (payload.login.length < 3) { errorEl.textContent = 'Login za krótki.'; return; }
-  if (payload.password.length < 6) { errorEl.textContent = 'Hasło za krótkie.'; return; }
+        try {
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ login, password })
+            });
+            const data = await res.json();
 
-  const submitBtn = form.querySelector('button[type="submit"]');
-  submitBtn?.classList.add('loading');
-  
-  try {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken || '' },
-      credentials: 'include',
-      body: JSON.stringify(payload)
+            if (res.ok) {
+                showBanner('Zalogowano pomyślnie!', true);
+                setTimeout(() => window.location.href = '/dashboard.html', 500);
+            } else {
+                loginErrorEl.textContent = data.error || "Błąd logowania";
+                loginErrorEl.style.color = "red";
+            }
+        } catch (err) {
+            loginErrorEl.textContent = "Błąd serwera";
+        }
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Błąd logowania');
-
-    if (remember?.checked) localStorage.setItem('login', payload.login);
-    errorEl.style.color = '#0ad39a';
-    errorEl.textContent = 'Zalogowano pomyślnie!';
-    setLoggedInUI(data.user);
-    showBanner('Jesteś zalogowany ✅', true);
-    setTimeout(() => window.location.href = '/dashboard.html', 600);
-  } catch (err) {
-    errorEl.style.color = '#d33';
-    errorEl.textContent = err.message;
-    showBanner('Nie udało się zalogować', false);
-  } finally {
-    submitBtn?.classList.remove('loading');
-  }
-});
+}
 
 // --- REJESTRACJA ---
-regForm?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  if (!regEmail || !regUsername || !regPw || !regPw2 || !regError) return;
-  regError.textContent = '';
+if (regForm) {
+    regForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const email = regEmail.value.trim();
+        const username = regUsername.value.trim();
+        const name = regName ? regName.value.trim() : '';
+        const password = regPw.value;
+        const passwordConfirm = regPwConfirm.value;
+        
+        regErrorEl.textContent = "";
+        regErrorEl.style.color = "red";
 
-  const email = (regEmail.value || '').trim();
-  const username = (regUsername.value || '').trim();
-  const name = (regName?.value || '').trim();
-  const password = regPw.value || '';
-  const password2 = regPw2.value || '';
+        // Walidacja
+        if (!email || !username || !password) {
+            regErrorEl.textContent = "Wypełnij wymagane pola.";
+            return;
+        }
+        if (password.length < 6) {
+            regErrorEl.textContent = "Hasło za krótkie (min. 6 znaków).";
+            return;
+        }
+        if (password !== passwordConfirm) {
+            regErrorEl.textContent = "Hasła nie są identyczne.";
+            return;
+        }
 
-  if (!email || !username || !password || !password2) {
-    regError.textContent = 'Wypełnij wszystkie wymagane pola.'; return;
-  }
-  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRe.test(email)) { regError.textContent = 'Nieprawidłowy email.'; return; }
-  if (username.length < 3) { regError.textContent = 'Nazwa użytkownika za krótka (min 3).'; return; }
-  if (password.length < 6) { regError.textContent = 'Hasło za krótkie (min 6).'; return; }
-  if (password !== password2) { regError.textContent = 'Hasła się nie zgadzają.'; return; }
+        const submitBtn = regForm.querySelector('button[type="submit"]');
+        const originalText = submitBtn.textContent;
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Rejestracja...";
 
-  const submitBtn = regForm.querySelector('button[type="submit"]');
-  submitBtn?.classList.add('loading');
-
-  try {
-    const res = await fetch('/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken || '' },
-      credentials: 'include',
-      body: JSON.stringify({ email, username, name, password })
+        try {
+            const res = await fetch('/api/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, username, password, name })
+            });
+            const data = await res.json();
+            
+            if (res.ok) {
+                showBanner('Konto utworzone! Logowanie...', true);
+                setTimeout(() => window.location.href = '/dashboard.html', 1000);
+            } else {
+                regErrorEl.textContent = data.error || "Błąd rejestracji";
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            }
+        } catch (err) {
+            regErrorEl.textContent = "Błąd połączenia z serwerem";
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+        }
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Błąd rejestracji');
+}
 
-    // Wyczyść zapisane pola po udanej rejestracji
-    localStorage.removeItem('reg_email');
-    localStorage.removeItem('reg_username');
-    localStorage.removeItem('reg_name');
-
-    showBanner('Konto utworzone. Zalogowano ✅', true);
-    setLoggedInUI(data.user);
-    setTimeout(() => window.location.href = '/dashboard.html', 600);
-  } catch (err) {
-    regError.textContent = err.message;
-    showBanner(err.message, false);
-  } finally {
-    submitBtn?.classList.remove('loading');
-  }
-});
-
-// --- WYLOGOWANIE ---
-logoutBtn?.addEventListener('click', async () => {
-  try {
-    const res = await fetch('/api/auth/logout', {
-      method: 'POST',
-      headers: { 'X-CSRF-Token': csrfToken || '' },
-      credentials: 'include'
-    });
-    if (!res.ok) throw new Error('Błąd wylogowania');
-    setLoggedOutUI();
-    showBanner('Wylogowano pomyślnie 👋', true);
-  } catch {
-    showBanner('Błąd wylogowania', false);
-  }
-});
-
-// --- Ręczny check ---
-checkMe?.addEventListener('click', async (e) => {
-  e.preventDefault();
-  try {
-    const res = await fetch('/api/auth/me', { credentials: 'include' });
-    const data = await res.json();
-    alert(res.ok ? `Jesteś zalogowany jako ${data.user?.email || data.user?.username}` : 'Nie jesteś zalogowany');
-  } catch { alert('Błąd sprawdzania sesji'); }
-});
+// --- AUTO REDIRECT ---
+(async () => {
+    try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok) window.location.href = '/dashboard.html';
+    } catch (e) {}
+})();
