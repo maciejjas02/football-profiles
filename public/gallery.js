@@ -28,6 +28,10 @@ async function setupAuth() {
                     window.location.href = '/';
                 });
             }
+            if (currentUser.role === 'admin' || currentUser.role === 'moderator') {
+                const ordersLink = document.getElementById('ordersLink');
+                if (ordersLink) ordersLink.style.display = 'block';
+            }
 
             // Odkrywanie linków w nawigacji
             if (currentUser.role === 'moderator' || currentUser.role === 'admin') {

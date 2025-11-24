@@ -68,6 +68,10 @@ async function setupAuth() {
         if (currentUser.role === 'admin') {
             document.getElementById('adminLink').style.display = 'block';
         }
+        if (currentUser.role === 'admin' || currentUser.role === 'moderator') {
+            const ordersLink = document.getElementById('ordersLink');
+            if (ordersLink) ordersLink.style.display = 'block';
+        }
 
         // LOGOUT HANDLER
         if (logoutBtn) {

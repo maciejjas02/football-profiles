@@ -25,6 +25,10 @@ async function setupAuth() {
         window.location.href = 'dashboard.html';
         return;
       }
+      if (currentUser.role === 'admin' || currentUser.role === 'moderator') {
+        const ordersLink = document.getElementById('ordersLink');
+        if (ordersLink) ordersLink.style.display = 'block';
+      }
 
       // Logika odkrywania linków w menu dla Admina
       if (currentUser.role === 'admin') {

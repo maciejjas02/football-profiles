@@ -28,6 +28,10 @@ async function setupAuth() {
             window.location.href = 'dashboard.html';
             return;
         }
+        if (currentUser.role === 'admin' || currentUser.role === 'moderator') {
+            const ordersLink = document.getElementById('ordersLink');
+            if (ordersLink) ordersLink.style.display = 'block';
+        }
 
         document.getElementById('who').textContent = currentUser.display_name || currentUser.username;
 

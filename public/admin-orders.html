@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pl">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Zarządzanie Zamówieniami</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <header class="topbar">
+        <div class="topbar-content">
+            <div class="logo-section"><img src="/images/logo.png" class="topbar-logo" /><span
+                    class="site-title">Football Profiles</span></div>
+            <nav class="topbar-nav">
+                <a href="dashboard.html" class="nav-tab">Panel</a>
+                <a href="admin-orders.html" class="nav-tab active" id="ordersLink" style="display:none;">Zamówienia</a>
+                <a href="moderator-posts.html" class="nav-tab">Moderacja</a>
+            </nav>
+            <div class="topbar-actions"><button id="logoutBtn" class="btn btn-ghost">Wyloguj</button></div>
+        </div>
+    </header>
+
+    <div class="dashboard-container">
+        <div class="page-header">
+            <h1 class="page-title">📦 Zarządzanie Zamówieniami</h1>
+        </div>
+
+        <div class="admin-panel">
+            <div id="ordersList">Ładowanie...</div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { fetchWithAuth } from './utils/api-client.js';
+
+        async function loadOrders() {
+            try {
+                const orders = await fetchWithAuth('/api/admin/orders');
+                const list = document.getElementById('ordersList');
+
+                if (orders.length === 0) {
+                    list.innerHTML = '<div class="empty-state">Brak zamówień.</div>';
+                    return;
+                }
+
+                list.innerHTML = `
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Użytkownik</th>
+                <th>Produkt</th>
+                <th>Cena</th>
+                <th>Data</th>
+                <th>Status</th>
+                <th>Akcja</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${orders.map(o => `
+                <tr>
+                  <td>#${o.id}</td>
+                  <td>${o.username}<br><small>${o.email}</small></td>
+                  <td>${o.player_name} (${o.team})</td>
+                  <td>${o.jersey_price} zł</td>
+                  <td>${new Date(o.purchase_date).toLocaleDateString()}</td>
+                  <td>
+                    <span class="status-badge ${o.status === 'completed' ? 'status-completed' : 'status-pending'}">
+                        ${o.status}
+                    </span>
+                  </td>
+                  <td>
+                    <select onchange="window.updateStatus(${o.id}, this.value)" class="form-select" style="padding:5px; font-size:12px;">
+                        <option value="pending" ${o.status === 'pending' ? 'selected' : ''}>Oczekujące</option>
+                        <option value="completed" ${o.status === 'completed' ? 'selected' : ''}>Opłacone</option>
+                        <option value="shipped" ${o.status === 'shipped' ? 'selected' : ''}>Wysłane</option>
+                        <option value="cancelled" ${o.status === 'cancelled' ? 'selected' : ''}>Anulowane</option>
+                    </select>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+            } catch (e) {
+                console.error(e);
+                document.getElementById('ordersList').innerHTML = 'Brak uprawnień.';
+            }
+        }
+
+        window.updateStatus = async (id, status) => {
+            if (!confirm(`Zmienić status na ${status}?`)) return;
+            await fetchWithAuth(`/api/admin/orders/${id}/status`, {
+                method: 'PUT',
+                body: JSON.stringify({ status })
+            });
+            loadOrders(); // Odśwież
+        };
+
+        document.getElementById('logoutBtn').onclick = async () => {
+            await fetch('/api/auth/logout', { method: 'POST' });
+            window.location.href = '/';
+        };
+
+        loadOrders();
+    </script>
+</body>
+
+</html>

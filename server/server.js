@@ -1,3 +1,4 @@
+// server/server.js
 import 'dotenv/config';
 import express from 'express';
 import compression from 'compression';
@@ -13,7 +14,6 @@ import passport from 'passport';
 import multer from 'multer';
 import fs from 'fs';
 import './passport.js';
-
 
 const isProd = process.env.NODE_ENV === 'production';
 const usePostgreSQL = process.env.USE_POSTGRESQL === 'true';
@@ -31,16 +31,16 @@ const {
   ensureSchema, ensureSeedAdmin, ensureSeedClubs, ensureSeedPlayers, ensureSeedCategories,
   findUserByLogin, getUserById, createOrUpdateUserFromProvider, existsUserByEmail, existsUserByUsername, createLocalUser,
   getPlayerById, getPlayersByCategory, getAllClubs, getClubById,
-  createPurchase, getUserPurchases, updatePurchaseStatus,
-  // --- NOWE IMPORTY KOSZYKA ---
+  createPurchase, getUserPurchases, updatePurchaseStatus, getAllPurchases, // <--- DODANO TUTAJ
+  // --- KOSZYK ---
   getCartItems, addToCart, removeFromCart, checkoutCart,
-  // ---------------------------
+  // --- FORUM ---
   getAllCategories, getCategoryBySlug, getSubcategories, createCategory, updateCategory, deleteCategory,
   getCategoryModerators, assignModeratorToCategory, removeModeratorFromCategory,
   getAllPosts, getPostsByCategory, getPostById, createPost, updatePost, approvePost, rejectPost, deletePost, getPendingPosts,
   getPostComments, createComment, getCommentById, updateComment, approveComment, rejectComment, deleteComment, getPendingComments,
   rateComment, getUserCommentRating, createNotification, getUserNotifications, markNotificationAsRead, markAllNotificationsAsRead,
-  createDiscussion, getDiscussionMessages,
+  createDiscussion, getDiscussionMessages, getDiscussionUsers,
   createGalleryImage, getAllGalleryImages, getGalleryImageById, deleteGalleryImage,
   createGalleryCollection, getAllGalleryCollections, getGalleryCollectionById, getActiveGalleryCollection, setActiveGalleryCollection, deleteGalleryCollection,
   addImageToCollection, getCollectionItems, removeImageFromCollection, reorderCollectionItems
@@ -143,7 +143,20 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-// AUTH
+// --- AUTH ---
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { email, username, password, name } = req.body;
+    if (!email || !username || !password) return res.status(400).json({ error: 'Wymagane pola' });
+    if (await existsUserByEmail(email)) return res.status(400).json({ error: 'Email zajęty' });
+    if (await existsUserByUsername(username)) return res.status(400).json({ error: 'Login zajęty' });
+    const newUser = await createLocalUser({ email, username, password, name });
+    req.session.userId = newUser.id;
+    setAuthCookies(res, issueJwt(newUser));
+    res.json({ success: true, user: newUser });
+  } catch (e) { res.status(500).json({ error: 'Błąd serwera' }); }
+});
+
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { login, password } = req.body;
@@ -164,7 +177,7 @@ app.get('/api/auth/me', (req, res) => {
   res.json({ user });
 });
 
-// DATA
+// --- DATA ---
 app.get('/api/player/:id', (req, res) => { const p = getPlayerById(req.params.id); p ? res.json(p) : res.status(404).send(); });
 app.get('/api/players/category/:cat', (req, res) => res.json(getPlayersByCategory(req.params.cat)));
 
@@ -173,62 +186,40 @@ app.post('/api/purchase', requireAuth, (req, res) => { createPurchase(getUserByI
 app.get('/api/user/purchases', requireAuth, (req, res) => res.json(getUserPurchases(getUserByIdFromReq(req))));
 app.post('/api/purchases/:id/pay', requireAuth, (req, res) => { updatePurchaseStatus(req.params.id, 'completed'); res.json({ success: true }); });
 
-// --- CART API (KOSZYK - NOWE) ---
-app.get('/api/cart', requireAuth, (req, res) => {
-  res.json(getCartItems(getUserByIdFromReq(req)));
+// --- CART API ---
+app.get('/api/cart', requireAuth, (req, res) => { res.json(getCartItems(getUserByIdFromReq(req))); });
+app.post('/api/cart', requireAuth, (req, res) => { addToCart(getUserByIdFromReq(req), req.body.playerId); res.json({ success: true, message: "Dodano do koszyka" }); });
+app.delete('/api/cart/:id', requireAuth, (req, res) => { removeFromCart(getUserByIdFromReq(req), req.params.id); res.json({ success: true }); });
+app.post('/api/cart/checkout', requireAuth, (req, res) => {
+  try { checkoutCart(getUserByIdFromReq(req)); res.json({ success: true, message: "Zamówienie złożone!" }); }
+  catch (e) { res.status(400).json({ error: e.message }); }
 });
 
-app.post('/api/cart', requireAuth, (req, res) => {
-  addToCart(getUserByIdFromReq(req), req.body.playerId);
-  res.json({ success: true, message: "Dodano do koszyka" });
+// --- ADMIN ORDERS ---
+app.get('/api/admin/orders', requireModerator, (req, res) => {
+  const orders = getAllPurchases();
+  res.json(orders);
 });
-
-app.delete('/api/cart/:id', requireAuth, (req, res) => {
-  removeFromCart(getUserByIdFromReq(req), req.params.id);
+app.put('/api/admin/orders/:id/status', requireModerator, (req, res) => {
+  const { status } = req.body;
+  updatePurchaseStatus(req.params.id, status);
+  console.log(`[EMAIL MOCK] Do: User (ID: ${req.params.id}) - Status zmieniony na: ${status}`);
   res.json({ success: true });
 });
 
-app.post('/api/cart/checkout', requireAuth, (req, res) => {
-  try {
-    checkoutCart(getUserByIdFromReq(req));
-    res.json({ success: true, message: "Zamówienie złożone!" });
-  } catch (e) {
-    res.status(400).json({ error: e.message });
-  }
-});
-// --------------------------------
-
-// FORUM
+// --- FORUM ---
 app.post('/api/forum/upload', requireModerator, uploadPostImage.single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
   res.json({ location: `/uploads/posts/${req.file.filename}` });
 });
 app.get('/api/forum/categories', (req, res) => res.json(getAllCategories()));
-
-app.get('/api/forum/categories/:id/subcategories', async (req, res) => {
-  const subs = await getSubcategories(req.params.id);
-  res.json(subs);
-});
-
-app.post('/api/forum/categories', requireAdmin, (req, res) => {
-  createCategory(req.body.name, req.body.slug, req.body.description, req.body.parent_id || null);
-  res.json({ success: true });
-});
-
+app.get('/api/forum/categories/:id/subcategories', async (req, res) => { res.json(await getSubcategories(req.params.id)); });
+app.post('/api/forum/categories', requireAdmin, (req, res) => { createCategory(req.body.name, req.body.slug, req.body.description, req.body.parent_id || null); res.json({ success: true }); });
 app.put('/api/forum/categories/:id', requireAdmin, (req, res) => { updateCategory(req.params.id, req.body.name, req.body.slug, req.body.description); res.json({ success: true }); });
 app.delete('/api/forum/categories/:id', requireAdmin, (req, res) => { deleteCategory(req.params.id); res.json({ success: true }); });
-
-app.get('/api/forum/categories/:id/moderators', requireAdmin, (req, res) => {
-  res.json(getCategoryModerators(req.params.id));
-});
-app.post('/api/forum/categories/:id/moderators', requireAdmin, (req, res) => {
-  assignModeratorToCategory(req.body.user_id, req.params.id);
-  res.json({ success: true });
-});
-app.delete('/api/forum/categories/:catId/moderators/:userId', requireAdmin, (req, res) => {
-  removeModeratorFromCategory(req.params.userId, req.params.catId);
-  res.json({ success: true });
-});
+app.get('/api/forum/categories/:id/moderators', requireAdmin, (req, res) => { res.json(getCategoryModerators(req.params.id)); });
+app.post('/api/forum/categories/:id/moderators', requireAdmin, (req, res) => { assignModeratorToCategory(req.body.user_id, req.params.id); res.json({ success: true }); });
+app.delete('/api/forum/categories/:catId/moderators/:userId', requireAdmin, (req, res) => { removeModeratorFromCategory(req.params.userId, req.params.catId); res.json({ success: true }); });
 
 app.get('/api/forum/posts', (req, res) => {
   const limit = parseInt(req.query.limit) || 20;
@@ -237,10 +228,7 @@ app.get('/api/forum/posts', (req, res) => {
   else res.json(getAllPosts(limit, offset));
 });
 app.get('/api/forum/posts/pending/list', requireAuth, requireModerator, (req, res) => res.json(getPendingPosts()));
-app.get('/api/forum/posts/:id', (req, res) => {
-  const p = getPostById(req.params.id);
-  p ? res.json(p) : res.status(404).json({ error: 'Not found' });
-});
+app.get('/api/forum/posts/:id', (req, res) => { const p = getPostById(req.params.id); p ? res.json(p) : res.status(404).json({ error: 'Not found' }); });
 app.post('/api/forum/posts', requireModerator, (req, res) => {
   const id = getUserByIdFromReq(req);
   const user = getUserById(id);
@@ -248,28 +236,8 @@ app.post('/api/forum/posts', requireModerator, (req, res) => {
   const result = createPost(req.body.title, req.body.content || '', req.body.category_id, id, status);
   res.json({ success: true, id: result.lastInsertRowid });
 });
-app.put('/api/forum/posts/:id', requireModerator, (req, res) => {
-  try {
-    updatePost(
-      req.params.id,
-      req.body.title,
-      req.body.content,
-      req.body.category_id
-    );
-    res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-app.delete('/api/forum/posts/:id', requireModerator, (req, res) => {
-  try {
-    deletePost(req.params.id);
-    res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
+app.put('/api/forum/posts/:id', requireModerator, (req, res) => { updatePost(req.params.id, req.body.title, req.body.content, req.body.category_id); res.json({ success: true }); });
+app.delete('/api/forum/posts/:id', requireModerator, (req, res) => { deletePost(req.params.id); res.json({ success: true }); });
 app.post('/api/forum/posts/:id/approve', requireModerator, async (req, res) => {
   const post = await getPostById(req.params.id);
   approvePost(req.params.id);
@@ -285,31 +253,17 @@ app.post('/api/forum/posts/:id/reject', requireModerator, async (req, res) => {
 
 app.get('/api/forum/posts/:id/comments', (req, res) => res.json(getPostComments(req.params.id, getUserByIdFromReq(req))));
 app.post('/api/forum/posts/:id/comments', requireAuth, (req, res) => { createComment(req.params.id, req.body.content, getUserByIdFromReq(req)); res.json({ success: true }); });
-app.post('/api/forum/comments/:id/rate', requireAuth, (req, res) => {
-  try {
-    const commentId = parseInt(req.params.id, 10);
-    const userId = req.user.id;
-    const rating = parseInt(req.body.rating, 10);
-
-    if (isNaN(commentId) || isNaN(rating)) {
-      return res.status(400).json({ error: "Nieprawidłowe dane (NaN)" });
-    }
-
-    rateComment(commentId, userId, rating);
-    res.json({ success: true });
-  } catch (e) {
-    console.error("Błąd oceniania:", e);
-    res.status(500).json({ error: e.message });
-  }
-});
-
-app.put('/api/forum/comments/:id', requireModerator, (req, res) => {
+app.post('/api/forum/comments/:id/rate', requireAuth, (req, res) => { rateComment(parseInt(req.params.id), req.user.id, parseInt(req.body.rating)); res.json({ success: true }); });
+app.put('/api/forum/comments/:id', requireModerator, (req, res) => { updateComment(req.params.id, req.body.content); res.json({ success: true }); });
+app.put('/api/forum/comments/:id/user-edit', requireAuth, async (req, res) => {
+  const comment = await getCommentById(req.params.id);
+  if (!comment) return res.status(404).json({ error: 'Komentarz nie istnieje' });
+  if (comment.author_id !== req.user.id) return res.status(403).json({ error: 'Brak uprawnień' });
+  if (comment.status !== 'pending') return res.status(400).json({ error: 'Można edytować tylko oczekujące komentarze' });
   updateComment(req.params.id, req.body.content);
   res.json({ success: true });
 });
-
 app.get('/api/forum/comments/pending/list', requireAuth, requireModerator, (req, res) => res.json(getPendingComments()));
-
 app.post('/api/forum/comments/:id/approve', requireModerator, async (req, res) => {
   const comment = await getCommentById(req.params.id);
   approveComment(req.params.id);
@@ -323,19 +277,36 @@ app.post('/api/forum/comments/:id/reject', requireModerator, async (req, res) =>
   res.json({ success: true });
 });
 
-app.get('/api/user/notifications', requireAuth, (req, res) => res.json(getUserNotifications(req.user.id)));
+// --- DYSKUSJE ---
+app.get('/api/discussion/:postId/my', requireAuth, (req, res) => { res.json(getDiscussionMessages(req.params.postId, req.user.id)); });
+app.post('/api/discussion/:postId', requireAuth, (req, res) => {
+  createDiscussion(req.params.postId, req.user.id, req.body.message, 'user');
+  createNotification(1, 'report', 'Nowe zgłoszenie', `Użytkownik ${req.user.username} napisał w sprawie posta ${req.params.postId}`, `/post.html?id=${req.params.postId}`);
+  res.json({ success: true });
+});
+app.get('/api/discussion/:postId/users', requireModerator, (req, res) => { res.json(getDiscussionUsers(req.params.postId)); });
+app.get('/api/discussion/:postId/user/:userId', requireModerator, (req, res) => { res.json(getDiscussionMessages(req.params.postId, req.params.userId)); });
+app.post('/api/discussion/:postId/reply/:userId', requireModerator, (req, res) => {
+  createDiscussion(req.params.postId, req.params.userId, req.body.message, 'moderator');
+  createNotification(req.params.userId, 'reply', 'Odpowiedź moderatora', 'Moderator odpowiedział na Twoje zgłoszenie.', `/post.html?id=${req.params.postId}`);
+  res.json({ success: true });
+});
+
+// --- NOTIFICATIONS ---
+app.get('/api/user/notifications', requireAuth, (req, res) => {
+  const limit = parseInt(req.query.limit) || 10;
+  const offset = parseInt(req.query.offset) || 0;
+  res.json(getUserNotifications(req.user.id, limit, offset));
+});
 app.post('/api/user/notifications/:id/read', requireAuth, (req, res) => { markNotificationAsRead(req.params.id); res.json({ success: true }); });
 app.post('/api/user/notifications/read-all', requireAuth, (req, res) => { markAllNotificationsAsRead(req.user.id); res.json({ success: true }); });
 
+// --- GALERIA ---
 app.post('/api/gallery/upload', requireAdmin, uploadGalleryImage.single('image'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
-
   const { default: sharp } = await import('sharp');
-
   sharp(req.file.path).resize(400).toFile(path.join(galleryThumbDir, req.file.filename));
-
   createGalleryImage({ filename: req.file.filename, title: req.body.title, description: req.body.description, width: 0, height: 0 });
-
   res.json({ success: true });
 });
 app.get('/api/gallery/images', (req, res) => res.json(getAllGalleryImages()));
@@ -358,6 +329,7 @@ app.get('/api/gallery/active', (req, res) => {
   res.json({ items: getCollectionItems(c.id) });
 });
 
+// STATIC & FALLBACK
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'index.html')));
 app.get('/dashboard.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'dashboard.html')));
 app.get('/player.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'player.html')));
@@ -370,6 +342,8 @@ app.get('/admin-categories.html', (req, res) => res.sendFile(path.join(__dirname
 app.get('/gallery.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'gallery.html')));
 app.get('/admin-gallery-upload.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'admin-gallery-upload.html')));
 app.get('/admin-gallery-manage.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'admin-gallery-manage.html')));
+// Nowa strona zamówień
+app.get('/admin-orders.html', requireModerator, (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'admin-orders.html')));
 
 app.use((err, req, res, next) => { console.error(err); res.status(500).json({ error: err.message }); });
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));

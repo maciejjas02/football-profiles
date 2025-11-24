@@ -22,6 +22,10 @@ async function setupAuth() {
       const data = await res.json();
       currentUser = data.user;
       document.getElementById('who').textContent = currentUser.display_name || currentUser.username;
+      if (currentUser.role === 'admin' || currentUser.role === 'moderator') {
+        const ordersLink = document.getElementById('ordersLink');
+        if (ordersLink) ordersLink.style.display = 'block';
+      }
 
       if (currentUser.role === 'moderator' || currentUser.role === 'admin') {
         const modLink = document.getElementById('moderatorLink');

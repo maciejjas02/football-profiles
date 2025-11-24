@@ -1,3 +1,4 @@
+// server/db.js
 import Database from 'better-sqlite3';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -31,9 +32,8 @@ export function ensureSchema() {
     CREATE TABLE IF NOT EXISTS post_comments (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER, author_id INTEGER, content TEXT, status TEXT DEFAULT 'pending', created_at TEXT DEFAULT (datetime('now')));
     CREATE TABLE IF NOT EXISTS comment_ratings (id INTEGER PRIMARY KEY AUTOINCREMENT, comment_id INTEGER, user_id INTEGER, rating INTEGER, UNIQUE(comment_id, user_id));
     CREATE TABLE IF NOT EXISTS notifications (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, type TEXT, title TEXT, message TEXT, link TEXT, is_read INTEGER DEFAULT 0, created_at TEXT DEFAULT (datetime('now')));
-    CREATE TABLE IF NOT EXISTS user_discussions (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER, user_id INTEGER, moderator_id INTEGER, message TEXT, sender_type TEXT, created_at TEXT DEFAULT (datetime('now')));
+    CREATE TABLE IF NOT EXISTS user_discussions (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER, user_id INTEGER, message TEXT, sender_type TEXT, created_at TEXT DEFAULT (datetime('now')));
     
-    -- Tabela koszyka (wymóg MIN + kumulacja)
     CREATE TABLE IF NOT EXISTS cart_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT, 
         user_id INTEGER, 
@@ -89,7 +89,6 @@ export function ensureSeedClubs() {
 }
 
 export function ensureSeedPlayers() {
-    // --- POPRAWKA: Dodano jersey_image_url do zapytania ---
     const insertPlayer = db.prepare(`INSERT OR IGNORE INTO players (id, name, full_name, club_id, team, position, nationality, age, height, weight, market_value, biography, jersey_price, jersey_available, jersey_image_url, category, image_url, team_logo, national_flag) VALUES (@id, @name, @full_name, @club_id, @team, @position, @nationality, @age, @height, @weight, @market_value, @biography, @jersey_price, @jersey_available, @jersey_image_url, @category, @image_url, @team_logo, @national_flag)`);
     const insertStats = db.prepare(`INSERT OR REPLACE INTO player_stats (player_id, goals, assists, matches, trophies) VALUES (@player_id, @goals, @assists, @matches, @trophies)`);
 
@@ -317,21 +316,14 @@ export function ensureSeedPlayers() {
         }
     ];
 
+
     players.forEach(p => {
         const { goals, assists, matches, trophies, ...rest } = p;
-
-        // --- POPRAWKA: Upewniamy się, że dane są kompletne ---
-        const playerData = {
-            ...rest,
-            jersey_image_url: p.jersey_image_url || null
-        };
-
+        const playerData = { ...rest, jersey_image_url: p.jersey_image_url || null };
         try {
             insertPlayer.run(playerData);
             insertStats.run({ player_id: p.id, goals, assists, matches, trophies });
-        } catch (error) {
-            console.error("Błąd przy dodawaniu piłkarza:", p.name, error);
-        }
+        } catch (error) { console.error("Błąd przy dodawaniu piłkarza:", p.name, error); }
     });
 }
 
@@ -348,242 +340,130 @@ export function existsUserByEmail(e) { return !!db.prepare('SELECT 1 FROM users 
 export function existsUserByUsername(u) { return !!db.prepare('SELECT 1 FROM users WHERE username=?').get(u); }
 
 // --- DATA ---
-
 export function getPlayerById(id) {
     const p = db.prepare('SELECT * FROM players WHERE id=?').get(id);
     if (!p) return null;
-
     const stats = db.prepare('SELECT * FROM player_stats WHERE player_id=?').get(id) || {};
     const achievements = db.prepare('SELECT achievement FROM player_achievements WHERE player_id=?').all(id).map(x => x.achievement);
-
-    return {
-        id: p.id,
-        name: p.name,
-        fullName: p.full_name,
-        team: p.team,
-        position: p.position,
-        nationality: p.nationality,
-        age: p.age,
-        height: p.height,
-        weight: p.weight,
-        marketValue: p.market_value,
-        biography: p.biography,
-        jerseyPrice: p.jersey_price,
-        jerseyAvailable: p.jersey_available,
-        imageUrl: p.image_url,
-        jerseyImageUrl: p.jersey_image_url,
-        teamLogo: p.team_logo,
-        nationalFlag: p.national_flag,
-        category: p.category,
-        stats: stats,
-        achievements: achievements
-    };
+    return { ...p, imageUrl: p.image_url, jerseyImageUrl: p.jersey_image_url, teamLogo: p.team_logo, nationalFlag: p.national_flag, marketValue: p.market_value, jerseyPrice: p.jersey_price, jerseyAvailable: p.jersey_available, fullName: p.full_name, stats, achievements };
 }
 
 export function getPlayersByCategory(cat) {
     let rows = [];
-    if (cat === 'top-players') {
-        rows = db.prepare("SELECT * FROM players WHERE (CAST(REPLACE(REPLACE(market_value, 'M €', ''), '€', '') AS INTEGER) >= 100) OR category='top-players' ORDER BY market_value DESC").all();
-        if (rows.length === 0) rows = db.prepare("SELECT * FROM players WHERE category='top-players'").all();
-    } else if (cat === 'new-talents') {
-        rows = db.prepare("SELECT * FROM players WHERE age <= 23 ORDER BY age ASC").all();
-    } else if (cat === 'legends') {
-        rows = db.prepare("SELECT * FROM players WHERE age >= 34 OR category='legends' ORDER BY age DESC").all();
-    } else if (cat === 'goalkeepers') {
-        rows = db.prepare("SELECT * FROM players WHERE position = 'Bramkarz'").all();
-    } else {
-        rows = db.prepare('SELECT * FROM players WHERE category=?').all(cat);
-    }
-
-    const uniqueRows = [...new Map(rows.map(item => [item['id'], item])).values()];
-    return uniqueRows.map(p => getPlayerById(p.id));
+    if (cat === 'top-players') rows = db.prepare("SELECT * FROM players WHERE (CAST(REPLACE(REPLACE(market_value, 'M €', ''), '€', '') AS INTEGER) >= 100) OR category='top-players' ORDER BY market_value DESC").all();
+    else if (cat === 'new-talents') rows = db.prepare("SELECT * FROM players WHERE age <= 23 ORDER BY age ASC").all();
+    else if (cat === 'legends') rows = db.prepare("SELECT * FROM players WHERE age >= 34 OR category='legends' ORDER BY age DESC").all();
+    else if (cat === 'goalkeepers') rows = db.prepare("SELECT * FROM players WHERE position = 'Bramkarz'").all();
+    else rows = db.prepare('SELECT * FROM players WHERE category=?').all(cat);
+    return [...new Map(rows.map(item => [item['id'], item])).values()].map(p => getPlayerById(p.id));
 }
 
 export function getAllClubs() { return db.prepare('SELECT * FROM clubs').all(); }
 export function getClubById(id) { return db.prepare('SELECT * FROM clubs WHERE id=?').get(id); }
 export function createPurchase(u, p, j) { return db.prepare('INSERT INTO purchases (user_id, player_id, jersey_price) VALUES (?,?,?)').run(u, p, j); }
-
-// --- POPRAWKA: Dodano jersey_image_url do SELECT ---
 export function getUserPurchases(id) {
-    return db.prepare(`
-        SELECT p.*, 
-               pl.name as player_name, 
-               pl.team, 
-               pl.image_url as player_image,
-               pl.jersey_image_url
-        FROM purchases p 
-        JOIN players pl ON p.player_id = pl.id 
-        WHERE user_id=? 
-        ORDER BY purchase_date DESC
-    `).all(id);
+    return db.prepare(`SELECT p.*, pl.name as player_name, pl.team, pl.image_url as player_image, pl.jersey_image_url FROM purchases p JOIN players pl ON p.player_id = pl.id WHERE user_id=? ORDER BY purchase_date DESC`).all(id);
 }
 export function updatePurchaseStatus(id, s) { return db.prepare('UPDATE purchases SET status=? WHERE id=?').run(s, id); }
 
-// --- FORUM ---
-export function getAllCategories() {
-    return db.prepare(`
-        SELECT c.*, 
-        (
-            SELECT COUNT(*) FROM posts p 
-            WHERE p.category_id = c.id 
-            OR p.category_id IN (SELECT sub.id FROM categories sub WHERE sub.parent_id = c.id)
-        ) as post_count 
-        FROM categories c
-    `).all();
-}
+// --- FORUM & MODERACJA ---
+export function getAllCategories() { return db.prepare(`SELECT c.*, (SELECT COUNT(*) FROM posts p WHERE p.category_id = c.id OR p.category_id IN (SELECT sub.id FROM categories sub WHERE sub.parent_id = c.id)) as post_count FROM categories c`).all(); }
 export function getCategoryBySlug(s) { return db.prepare('SELECT * FROM categories WHERE slug=?').get(s); }
-
-export function getSubcategories(id) {
-    return db.prepare(`
-        SELECT c.*, 
-        (SELECT COUNT(*) FROM posts p WHERE p.category_id = c.id) as post_count 
-        FROM categories c 
-        WHERE parent_id = ?
-    `).all(id);
-}
-
+export function getSubcategories(id) { return db.prepare(`SELECT c.*, (SELECT COUNT(*) FROM posts p WHERE p.category_id = c.id) as post_count FROM categories c WHERE parent_id = ?`).all(id); }
 export function createCategory(n, s, d, p) { return db.prepare('INSERT INTO categories (name, slug, description, parent_id) VALUES (?,?,?,?)').run(n, s, d, p); }
 export function updateCategory(id, n, s, d) { return db.prepare('UPDATE categories SET name=?, slug=?, description=? WHERE id=?').run(n, s, d, id); }
-export function deleteCategory(id) {
-    db.prepare('DELETE FROM posts WHERE category_id=?').run(id);
-    db.prepare('DELETE FROM categories WHERE id=?').run(id);
-}
+export function deleteCategory(id) { db.prepare('DELETE FROM posts WHERE category_id=?').run(id); db.prepare('DELETE FROM categories WHERE id=?').run(id); }
+export function getCategoryModerators(id) { return db.prepare(`SELECT u.id, u.username, u.name, u.email FROM moderator_categories mc JOIN users u ON mc.user_id = u.id WHERE mc.category_id = ?`).all(id); }
+export function assignModeratorToCategory(u, c) { try { return db.prepare('INSERT INTO moderator_categories (user_id, category_id) VALUES (?,?)').run(u, c); } catch (e) { return { changes: 0 }; } }
+export function removeModeratorFromCategory(u, c) { return db.prepare('DELETE FROM moderator_categories WHERE user_id=? AND category_id=?').run(u, c); }
 
-export function getCategoryModerators(id) {
-    return db.prepare(`
-        SELECT u.id, u.username, u.name, u.email
-        FROM moderator_categories mc
-        JOIN users u ON mc.user_id = u.id
-        WHERE mc.category_id = ?
-    `).all(id);
-}
-export function assignModeratorToCategory(u, c) {
-    try {
-        return db.prepare('INSERT INTO moderator_categories (user_id, category_id) VALUES (?,?)').run(u, c);
-    } catch (e) {
-        if (e.code === 'SQLITE_CONSTRAINT_UNIQUE') return { changes: 0 };
-        throw e;
-    }
-}
-export function removeModeratorFromCategory(u, c) {
-    return db.prepare('DELETE FROM moderator_categories WHERE user_id=? AND category_id=?').run(u, c);
-}
-
-// --- POSTS ---
 export function getAllPosts(limit, offset) {
-    return db.prepare(`
-        SELECT p.*, u.username as author_username, c.name as category_name, 
-        (SELECT COUNT(*) FROM post_comments WHERE post_id=p.id AND status='approved') as comment_count
-        FROM posts p 
-        LEFT JOIN users u ON p.author_id = u.id 
-        LEFT JOIN categories c ON p.category_id = c.id 
-        WHERE p.status = 'approved' 
-        ORDER BY p.created_at DESC 
-        LIMIT ? OFFSET ?
-    `).all(limit, offset);
+    return db.prepare(`SELECT p.*, u.username as author_username, c.name as category_name, (SELECT COUNT(*) FROM post_comments WHERE post_id=p.id AND status='approved') as comment_count FROM posts p LEFT JOIN users u ON p.author_id = u.id LEFT JOIN categories c ON p.category_id = c.id WHERE p.status = 'approved' ORDER BY p.created_at DESC LIMIT ? OFFSET ?`).all(limit, offset);
 }
-
 export function getPostsByCategory(catId, limit, offset) {
-    return db.prepare(`
-        SELECT p.*, u.username as author_username, c.name as category_name,
-        (SELECT COUNT(*) FROM post_comments WHERE post_id=p.id AND status='approved') as comment_count
-        FROM posts p 
-        LEFT JOIN users u ON p.author_id = u.id 
-        LEFT JOIN categories c ON p.category_id = c.id 
-        WHERE p.category_id = ? AND p.status = 'approved' 
-        ORDER BY p.created_at DESC 
-        LIMIT ? OFFSET ?
-    `).all(catId, limit, offset);
+    return db.prepare(`SELECT p.*, u.username as author_username, c.name as category_name, (SELECT COUNT(*) FROM post_comments WHERE post_id=p.id AND status='approved') as comment_count FROM posts p LEFT JOIN users u ON p.author_id = u.id LEFT JOIN categories c ON p.category_id = c.id WHERE p.category_id = ? AND p.status = 'approved' ORDER BY p.created_at DESC LIMIT ? OFFSET ?`).all(catId, limit, offset);
 }
-
-export function getPostById(id) {
-    const p = db.prepare(`
-        SELECT p.*, u.username as author_username, c.name as category_name 
-        FROM posts p 
-        LEFT JOIN users u ON p.author_id = u.id 
-        LEFT JOIN categories c ON p.category_id = c.id 
-        WHERE p.id = ?
-    `).get(id);
-    return p;
-}
-
-export function createPost(t, c, cat, aut, stat) {
-    return db.prepare('INSERT INTO posts (title, content, category_id, author_id, status) VALUES (?,?,?,?,?)').run(t, c, cat, aut, stat);
-}
-export function updatePost(id, t, c, cat) {
-    return db.prepare('UPDATE posts SET title=?, content=?, category_id=? WHERE id=?').run(t, c, cat, id);
-}
+export function getPostById(id) { return db.prepare(`SELECT p.*, u.username as author_username, c.name as category_name FROM posts p LEFT JOIN users u ON p.author_id = u.id LEFT JOIN categories c ON p.category_id = c.id WHERE p.id = ?`).get(id); }
+export function createPost(t, c, cat, aut, stat) { return db.prepare('INSERT INTO posts (title, content, category_id, author_id, status) VALUES (?,?,?,?,?)').run(t, c, cat, aut, stat); }
+export function updatePost(id, t, c, cat) { return db.prepare('UPDATE posts SET title=?, content=?, category_id=? WHERE id=?').run(t, c, cat, id); }
 export function approvePost(id) { return db.prepare("UPDATE posts SET status='approved' WHERE id=?").run(id); }
 export function rejectPost(id) { return db.prepare("UPDATE posts SET status='rejected' WHERE id=?").run(id); }
 export function deletePost(id) { return db.prepare("DELETE FROM posts WHERE id=?").run(id); }
-export function getPendingPosts() {
-    return db.prepare("SELECT p.*, c.name as category_name, u.username as author_username FROM posts p LEFT JOIN categories c ON p.category_id=c.id LEFT JOIN users u ON p.author_id=u.id WHERE p.status='pending' ORDER BY p.created_at DESC").all();
-}
+export function getPendingPosts() { return db.prepare("SELECT p.*, c.name as category_name, u.username as author_username FROM posts p LEFT JOIN categories c ON p.category_id=c.id LEFT JOIN users u ON p.author_id=u.id WHERE p.status='pending' ORDER BY p.created_at DESC").all(); }
 
-// COMMENTS
+// --- COMMENTS (Z AKTUALIZACJĄ REPUTACJI I PENDING) ---
 export function getPostComments(pid, userId) {
+    const uid = userId || -1;
     return db.prepare(`
-        SELECT pc.*, u.username as author_username, 
+        SELECT pc.*, u.username as author_username, u.reputation as author_reputation,
         (SELECT COUNT(*) FROM comment_ratings WHERE comment_id = pc.id AND rating = 1) as likes,
         (SELECT COUNT(*) FROM comment_ratings WHERE comment_id = pc.id AND rating = -1) as dislikes,
         (SELECT rating FROM comment_ratings WHERE comment_id = pc.id AND user_id = ?) as user_vote
         FROM post_comments pc 
         LEFT JOIN users u ON pc.author_id=u.id 
-        WHERE post_id=? AND status='approved'
+        WHERE pc.post_id=? 
+        AND (pc.status='approved' OR (pc.status='pending' AND pc.author_id=?))
         ORDER BY pc.created_at DESC
-    `).all(userId || -1, pid);
-}
-export function createComment(pid, c, aid) {
-    const user = getUserById(aid);
-    const status = (user.role === 'admin' || user.role === 'moderator') ? 'approved' : 'pending';
-    return db.prepare("INSERT INTO post_comments (post_id, content, author_id, status) VALUES (?,?,?,?)").run(pid, c, aid, status);
-}
-export function getCommentById(id) { return db.prepare("SELECT * FROM post_comments WHERE id=?").get(id); }
-
-export function updateComment(id, content) {
-    return db.prepare("UPDATE post_comments SET content=? WHERE id=?").run(content, id);
-}
-export function approveComment(id) { return db.prepare("UPDATE post_comments SET status='approved' WHERE id=?").run(id); }
-export function rejectComment(id) { return db.prepare("UPDATE post_comments SET status='rejected' WHERE id=?").run(id); }
-export function deleteComment(id) { return db.prepare("DELETE FROM post_comments WHERE id=?").run(id); }
-
-export function getPendingComments() {
-    return db.prepare(`
-        SELECT pc.*, u.username as author_username, p.title as post_title, c.name as category_name
-        FROM post_comments pc 
-        LEFT JOIN users u ON pc.author_id=u.id
-        LEFT JOIN posts p ON pc.post_id=p.id
-        LEFT JOIN categories c ON p.category_id=c.id
-        WHERE pc.status='pending'
-        ORDER BY pc.created_at DESC
-    `).all();
+    `).all(uid, pid, uid);
 }
 
 export function rateComment(cid, uid, r) {
-    const e = db.prepare("SELECT rating FROM comment_ratings WHERE comment_id=? AND user_id=?").get(cid, uid);
-    if (e) {
-        if (e.rating === r) db.prepare("DELETE FROM comment_ratings WHERE comment_id=? AND user_id=?").run(cid, uid);
-        else db.prepare("UPDATE comment_ratings SET rating=? WHERE comment_id=? AND user_id=?").run(r, cid, uid);
-    } else db.prepare("INSERT INTO comment_ratings (comment_id, user_id, rating) VALUES (?,?,?)").run(cid, uid, r);
+    const comment = db.prepare("SELECT author_id FROM post_comments WHERE id=?").get(cid);
+    if (!comment) return;
+    const authorId = comment.author_id;
+    if (authorId === uid) return; // Nie oceniaj siebie
+
+    const transaction = db.transaction(() => {
+        const existing = db.prepare("SELECT rating FROM comment_ratings WHERE comment_id=? AND user_id=?").get(cid, uid);
+        let repChange = 0;
+        if (existing) {
+            if (existing.rating === r) {
+                db.prepare("DELETE FROM comment_ratings WHERE comment_id=? AND user_id=?").run(cid, uid);
+                repChange = -r;
+            } else {
+                db.prepare("UPDATE comment_ratings SET rating=? WHERE comment_id=? AND user_id=?").run(r, cid, uid);
+                repChange = r - existing.rating;
+            }
+        } else {
+            db.prepare("INSERT INTO comment_ratings (comment_id, user_id, rating) VALUES (?,?,?)").run(cid, uid, r);
+            repChange = r;
+        }
+        if (repChange !== 0) {
+            db.prepare("UPDATE users SET reputation = reputation + ? WHERE id=?").run(repChange, authorId);
+        }
+    });
+    transaction();
 }
 
-// --- NOTIFICATIONS ---
-export function createNotification(userId, type, title, message, link) {
-    if (userId === null) return;
-    return db.prepare('INSERT INTO notifications (user_id, type, title, message, link) VALUES (?,?,?,?,?)').run(userId, type, title, message, link);
+export function createComment(pid, c, aid) { const user = getUserById(aid); const status = (user.role === 'admin' || user.role === 'moderator') ? 'approved' : 'pending'; return db.prepare("INSERT INTO post_comments (post_id, content, author_id, status) VALUES (?,?,?,?)").run(pid, c, aid, status); }
+export function getCommentById(id) { return db.prepare("SELECT * FROM post_comments WHERE id=?").get(id); }
+export function updateComment(id, content) { return db.prepare("UPDATE post_comments SET content=? WHERE id=?").run(content, id); }
+export function approveComment(id) { return db.prepare("UPDATE post_comments SET status='approved' WHERE id=?").run(id); }
+export function rejectComment(id) { return db.prepare("UPDATE post_comments SET status='rejected' WHERE id=?").run(id); }
+export function deleteComment(id) { return db.prepare("DELETE FROM post_comments WHERE id=?").run(id); }
+export function getPendingComments() { return db.prepare(`SELECT pc.*, u.username as author_username, p.title as post_title, c.name as category_name FROM post_comments pc LEFT JOIN users u ON pc.author_id=u.id LEFT JOIN posts p ON pc.post_id=p.id LEFT JOIN categories c ON p.category_id=c.id WHERE pc.status='pending' ORDER BY pc.created_at DESC`).all(); }
+export function getUserCommentRating() { }
+
+// --- DYSKUSJE I ZGŁOSZENIA (NOWE) ---
+export function createDiscussion(postId, userId, message, senderType) {
+    return db.prepare(`INSERT INTO user_discussions (post_id, user_id, message, sender_type) VALUES (?, ?, ?, ?)`).run(postId, userId, message, senderType);
+}
+export function getDiscussionMessages(postId, userId) {
+    return db.prepare(`SELECT * FROM user_discussions WHERE post_id = ? AND user_id = ? ORDER BY created_at ASC`).all(postId, userId);
+}
+export function getDiscussionUsers(postId) {
+    return db.prepare(`SELECT DISTINCT u.id, u.username FROM user_discussions ud JOIN users u ON ud.user_id = u.id WHERE ud.post_id = ?`).all(postId);
 }
 
-export function getUserNotifications(userId) {
-    return db.prepare('SELECT * FROM notifications WHERE user_id=? ORDER BY created_at DESC LIMIT 50').all(userId);
+// --- POWIADOMIENIA (Z PAGINACJĄ) ---
+export function createNotification(userId, type, title, message, link) { if (userId === null) return; return db.prepare('INSERT INTO notifications (user_id, type, title, message, link) VALUES (?,?,?,?,?)').run(userId, type, title, message, link); }
+export function getUserNotifications(userId, limit = 10, offset = 0) {
+    return db.prepare(`SELECT * FROM notifications WHERE user_id=? ORDER BY created_at DESC LIMIT ? OFFSET ?`).all(userId, limit, offset);
 }
-export function markNotificationAsRead(id) {
-    return db.prepare('UPDATE notifications SET is_read=1 WHERE id=?').run(id);
-}
-export function markAllNotificationsAsRead(userId) {
-    return db.prepare('UPDATE notifications SET is_read=1 WHERE user_id=?').run(userId);
-}
+export function markNotificationAsRead(id) { return db.prepare('UPDATE notifications SET is_read=1 WHERE id=?').run(id); }
+export function markAllNotificationsAsRead(userId) { return db.prepare('UPDATE notifications SET is_read=1 WHERE user_id=?').run(userId); }
 
-// --- GALLERY ---
+// --- GALERIA ---
 export function createGalleryImage(d) { return db.prepare("INSERT INTO gallery_images (filename, title, description, width, height) VALUES (@filename, @title, @description, @width, @height)").run(d).lastInsertRowid; }
 export function getAllGalleryImages() { return db.prepare("SELECT * FROM gallery_images").all(); }
 export function getGalleryImageById(id) { return db.prepare("SELECT * FROM gallery_images WHERE id=?").get(id); }
@@ -597,67 +477,26 @@ export function deleteGalleryCollection(id) { return db.prepare("DELETE FROM gal
 export function addImageToCollection(d) { return db.prepare("INSERT INTO gallery_items (collection_id, image_id, position) VALUES (@collection_id, @image_id, @position)").run(d).lastInsertRowid; }
 export function getCollectionItems(id) { return db.prepare("SELECT gi.*, i.filename, i.title, i.description FROM gallery_items gi JOIN gallery_images i ON gi.image_id=i.id WHERE collection_id=? ORDER BY position").all(id); }
 export function removeImageFromCollection(id) { return db.prepare("DELETE FROM gallery_items WHERE id=?").run(id); }
-export function reorderCollectionItems(collectionId, items) {
-    const update = db.prepare('UPDATE gallery_items SET position = ? WHERE id = ? AND collection_id = ?');
-    const transaction = db.transaction((items) => {
-        for (const item of items) {
-            update.run(item.position, item.itemId, collectionId);
-        }
-    });
-    return transaction(items);
-}
+export function reorderCollectionItems(collectionId, items) { const update = db.prepare('UPDATE gallery_items SET position = ? WHERE id = ? AND collection_id = ?'); const transaction = db.transaction((items) => { for (const item of items) { update.run(item.position, item.itemId, collectionId); } }); return transaction(items); }
 
-export function getUserCommentRating() { }
-export function createDiscussion() { }
-export function getDiscussionMessages() { return []; }
-
-// --- CART (KOSZYK - NOWE FUNKCJE) ---
-export function getCartItems(userId) {
-    return db.prepare(`
-        SELECT ci.*, p.name, p.team, p.jersey_price, p.jersey_image_url, p.image_url as player_image
-        FROM cart_items ci
-        JOIN players p ON ci.player_id = p.id
-        WHERE ci.user_id = ?
-    `).all(userId);
-}
-
-export function addToCart(userId, playerId) {
-    // Używamy UPSERT - jeśli wiersz istnieje, zwiększamy ilość (quantity)
-    return db.prepare(`
-        INSERT INTO cart_items (user_id, player_id, quantity) 
-        VALUES (?, ?, 1)
-        ON CONFLICT(user_id, player_id) 
-        DO UPDATE SET quantity = quantity + 1
-    `).run(userId, playerId);
-}
-
-export function removeFromCart(userId, itemId) {
-    return db.prepare('DELETE FROM cart_items WHERE id = ? AND user_id = ?').run(itemId, userId);
-}
-
-export function clearCart(userId) {
-    return db.prepare('DELETE FROM cart_items WHERE user_id = ?').run(userId);
-}
-
+// --- KOSZYK ---
+export function getCartItems(userId) { return db.prepare(`SELECT ci.*, p.name, p.team, p.jersey_price, p.jersey_image_url, p.image_url as player_image FROM cart_items ci JOIN players p ON ci.player_id = p.id WHERE ci.user_id = ?`).all(userId); }
+export function addToCart(userId, playerId) { return db.prepare(`INSERT INTO cart_items (user_id, player_id, quantity) VALUES (?, ?, 1) ON CONFLICT(user_id, player_id) DO UPDATE SET quantity = quantity + 1`).run(userId, playerId); }
+export function removeFromCart(userId, itemId) { return db.prepare('DELETE FROM cart_items WHERE id = ? AND user_id = ?').run(itemId, userId); }
+export function clearCart(userId) { return db.prepare('DELETE FROM cart_items WHERE user_id = ?').run(userId); }
 export function checkoutCart(userId) {
-    // 1. Pobierz produkty z koszyka
-    const items = getCartItems(userId);
-    if (items.length === 0) throw new Error("Koszyk jest pusty");
-
-    // 2. Przenieś do purchases (zamówienia)
+    const items = getCartItems(userId); if (items.length === 0) throw new Error("Koszyk jest pusty");
     const insertPurchase = db.prepare('INSERT INTO purchases (user_id, player_id, jersey_price, status) VALUES (?, ?, ?, ?)');
+    const transaction = db.transaction(() => { for (const item of items) { for (let i = 0; i < item.quantity; i++) { insertPurchase.run(userId, item.player_id, item.jersey_price, 'pending'); } } db.prepare('DELETE FROM cart_items WHERE user_id = ?').run(userId); });
+    transaction(); return items.length;
+}
 
-    const transaction = db.transaction(() => {
-        for (const item of items) {
-            // Dodajemy tyle wpisów, ile wynosi ilość
-            for (let i = 0; i < item.quantity; i++) {
-                insertPurchase.run(userId, item.player_id, item.jersey_price, 'pending');
-            }
-        }
-        // 3. Wyczyść koszyk
-        db.prepare('DELETE FROM cart_items WHERE user_id = ?').run(userId);
-    });
-
-    transaction();
-    return items.length;
+export function getAllPurchases() {
+    return db.prepare(`
+        SELECT p.*, u.username, u.email, pl.name as player_name, pl.team 
+        FROM purchases p 
+        JOIN users u ON p.user_id = u.id 
+        JOIN players pl ON p.player_id = pl.id 
+        ORDER BY p.purchase_date DESC
+    `).all();
 }
