@@ -430,16 +430,18 @@ export async function createPurchase(userId, playerId, jerseyPrice) {
   return result.rows[0].id;
 }
 
-export async function getUserPurchases(userId) {
-  const result = await query(`
-    SELECT p.*, pl.name as player_name, pl.team, pl.image_url as player_image
-    FROM purchases p
-    JOIN players pl ON p.player_id = pl.id
-    WHERE p.user_id = $1
-    ORDER BY p.purchase_date DESC
-  `, [userId]);
-
-  return result.rows;
+export function getUserPurchases(id) {
+  return db.prepare(`
+        SELECT p.*, 
+               pl.name as player_name, 
+               pl.team, 
+               pl.image_url as player_image,
+               pl.jersey_image_url -- <--- Tego brakowało!
+        FROM purchases p 
+        JOIN players pl ON p.player_id = pl.id 
+        WHERE user_id=? 
+        ORDER BY purchase_date DESC
+    `).all(id);
 }
 
 export async function updatePurchaseStatus(id, s) {

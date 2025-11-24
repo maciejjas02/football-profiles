@@ -33,6 +33,16 @@ export function ensureSchema() {
     CREATE TABLE IF NOT EXISTS notifications (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, type TEXT, title TEXT, message TEXT, link TEXT, is_read INTEGER DEFAULT 0, created_at TEXT DEFAULT (datetime('now')));
     CREATE TABLE IF NOT EXISTS user_discussions (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER, user_id INTEGER, moderator_id INTEGER, message TEXT, sender_type TEXT, created_at TEXT DEFAULT (datetime('now')));
     
+    -- Tabela koszyka (wymóg MIN + kumulacja)
+    CREATE TABLE IF NOT EXISTS cart_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, 
+        user_id INTEGER, 
+        player_id TEXT, 
+        quantity INTEGER DEFAULT 1, 
+        created_at TEXT DEFAULT (datetime('now')),
+        UNIQUE(user_id, player_id)
+    );
+
     CREATE TABLE IF NOT EXISTS gallery_images (id INTEGER PRIMARY KEY AUTOINCREMENT, filename TEXT NOT NULL, title TEXT NOT NULL, description TEXT, width INTEGER, height INTEGER, created_at TEXT DEFAULT (datetime('now')));
     CREATE TABLE IF NOT EXISTS gallery_collections (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, description TEXT, is_active INTEGER DEFAULT 0, created_at TEXT DEFAULT (datetime('now')));
     CREATE TABLE IF NOT EXISTS gallery_items (id INTEGER PRIMARY KEY AUTOINCREMENT, collection_id INTEGER NOT NULL, image_id INTEGER NOT NULL, position INTEGER NOT NULL, created_at TEXT DEFAULT (datetime('now')), FOREIGN KEY (collection_id) REFERENCES gallery_collections (id) ON DELETE CASCADE, FOREIGN KEY (image_id) REFERENCES gallery_images (id) ON DELETE CASCADE);
@@ -72,13 +82,15 @@ export function ensureSeedClubs() {
         { id: 'al-nassr', name: 'Al Nassr', full_name: 'Al Nassr FC', country: 'Arabia Saudyjska', league: 'Saudi Pro League', founded: 1955, stadium: 'Al-Awwal', logo_url: 'https://upload.wikimedia.org/wikipedia/en/e/e8/Al_Nassr_FC_Logo.svg', primary_color: '#FFD700', secondary_color: '#000' },
         { id: 'fc-barcelona', name: 'FC Barcelona', full_name: 'Futbol Club Barcelona', country: 'Hiszpania', league: 'La Liga', founded: 1899, stadium: 'Camp Nou', logo_url: 'https://upload.wikimedia.org/wikipedia/en/4/47/FC_Barcelona_%28crest%29.svg', primary_color: '#A50044', secondary_color: '#004D98' },
         { id: 'bayern-monachium', name: 'Bayern Monachium', full_name: 'FC Bayern München', country: 'Niemcy', league: 'Bundesliga', founded: 1900, stadium: 'Allianz Arena', logo_url: 'https://upload.wikimedia.org/wikipedia/commons/1/1b/FC_Bayern_München_logo_%282017%29.svg', primary_color: '#DC052D', secondary_color: '#FFF' },
-        { id: 'sevilla', name: 'Sevilla FC', full_name: 'Sevilla Fútbol Club', country: 'Hiszpania', league: 'La Liga', founded: 1890, stadium: 'Ramón Sánchez Pizjuán', logo_url: 'https://upload.wikimedia.org/wikipedia/en/3/3b/Sevilla_FC_logo.svg', primary_color: '#FFFFFF', secondary_color: '#F43333' }
+        { id: 'sevilla', name: 'Sevilla FC', full_name: 'Sevilla Fútbol Club', country: 'Hiszpania', league: 'La Liga', founded: 1890, stadium: 'Ramón Sánchez Pizjuán', logo_url: 'https://upload.wikimedia.org/wikipedia/en/3/3b/Sevilla_FC_logo.svg', primary_color: '#FFFFFF', secondary_color: '#F43333' },
+        { id: 'monterrey', name: 'Monterrey FC', full_name: 'Monterrey Fútbol Club', country: 'Meksyk', league: 'Liga MX', founded: 1926, stadium: 'Estadio Azteca', logo_url: 'https://upload.wikimedia.org/wikipedia/en/3/3b/Sevilla_FC_logo.svg', primary_color: '#FFFFFF', secondary_color: '#F43333' },
     ];
     clubsData.forEach(club => insert.run(club));
 }
 
 export function ensureSeedPlayers() {
-    const insertPlayer = db.prepare(`INSERT OR IGNORE INTO players (id, name, full_name, club_id, team, position, nationality, age, height, weight, market_value, biography, jersey_price, jersey_available, category, image_url, team_logo, national_flag) VALUES (@id, @name, @full_name, @club_id, @team, @position, @nationality, @age, @height, @weight, @market_value, @biography, @jersey_price, @jersey_available, @category, @image_url, @team_logo, @national_flag)`);
+    // --- POPRAWKA: Dodano jersey_image_url do zapytania ---
+    const insertPlayer = db.prepare(`INSERT OR IGNORE INTO players (id, name, full_name, club_id, team, position, nationality, age, height, weight, market_value, biography, jersey_price, jersey_available, jersey_image_url, category, image_url, team_logo, national_flag) VALUES (@id, @name, @full_name, @club_id, @team, @position, @nationality, @age, @height, @weight, @market_value, @biography, @jersey_price, @jersey_available, @jersey_image_url, @category, @image_url, @team_logo, @national_flag)`);
     const insertStats = db.prepare(`INSERT OR REPLACE INTO player_stats (player_id, goals, assists, matches, trophies) VALUES (@player_id, @goals, @assists, @matches, @trophies)`);
 
     const players = [
@@ -97,6 +109,7 @@ export function ensureSeedPlayers() {
             biography: 'Argentyński piłkarz, kapitan reprezentacji Argentyny. Uważany za jednego z najlepszych piłkarzy w historii.',
             jersey_price: 499,
             jersey_available: 100,
+            jersey_image_url: 'https://m.media-amazon.com/images/I/51PJkLI+fFL._AC_UY1000_.jpg',
             category: 'top-players',
             image_url: 'https://img.a.transfermarkt.technology/portrait/big/28003-1740766555.jpg?lm=1',
             team_logo: 'https://upload.wikimedia.org/wikipedia/en/5/5c/Inter_Miami_CF_logo.svg',
@@ -118,9 +131,10 @@ export function ensureSeedPlayers() {
             biography: 'Portugalski piłkarz występujący na pozycji napastnika, kapitan reprezentacji Portugalii. Legenda Realu Madryt i Manchesteru United.',
             jersey_price: 459,
             jersey_available: 100,
+            jersey_image_url: 'https://assets.adidas.com/images/w_600,f_auto,q_auto/92103a27abea4abbb23ccc98cbbd2c4c_9366/Koszulka_Al_Nassr_FC_24-25_Ronaldo_Home_Zolty_JP0459_02_laydown.jpg',
             category: 'legends',
             image_url: 'https://b.fssta.com/uploads/application/soccer/headshots/885.vresize.350.350.medium.14.png',
-            team_logo: 'https://upload.wikimedia.org/wikipedia/en/e/e8/Al_Nassr_FC_Logo.svg',
+            team_logo: 'https://tmssl.akamaized.net//images/wappen/head/18544.png?lm=1750928656',
             national_flag: 'https://upload.wikimedia.org/wikipedia/commons/5/5c/Flag_of_Portugal.svg',
             goals: 873, assists: 249, matches: 1204, trophies: 35
         },
@@ -139,6 +153,7 @@ export function ensureSeedPlayers() {
             biography: 'Jeden z najszybszych i najbardziej utalentowanych napastników na świecie. Mistrz Świata 2018.',
             jersey_price: 599,
             jersey_available: 100,
+            jersey_image_url: 'https://us.shop.realmadrid.com/_next/image?url=https%3A%2F%2Flegends.broadleafcloud.com%2Fapi%2Fasset%2Fcontent%2FSBP26%2FRMCFMZ0899-Mens-Home-Shirt-25-26-White-mbappe-9.jpg%3FcontextRequest%3D%257B%2522forceCatalogForFetch%2522%3Afalse%2C%2522forceFilterByCatalogIncludeInheritance%2522%3Afalse%2C%2522forceFilterByCatalogExcludeInheritance%2522%3Afalse%2C%2522applicationId%2522%3A%252201H4RD9NXMKQBQ1WVKM1181VD8%2522%2C%2522tenantId%2522%3A%2522REAL_MADRID%2522%257D&w=3840&q=50',
             category: 'top-players',
             image_url: 'https://img.a.transfermarkt.technology/portrait/big/342229-1682683695.jpg?lm=1',
             team_logo: 'https://upload.wikimedia.org/wikipedia/en/5/56/Real_Madrid_CF.svg',
@@ -160,6 +175,7 @@ export function ensureSeedPlayers() {
             biography: 'Norweska maszyna do strzelania bramek. Znany z siły, szybkości i wykończenia.',
             jersey_price: 549,
             jersey_available: 100,
+            jersey_image_url: 'https://shop.mancity.com/dw/image/v2/BDWJ_PRD/on/demandware.static/-/Sites-master-catalog-MAN/default/dwf8790839/images/large/701237128BW001_pp_01_mcfc.png?sw=1600&sh=1600&sm=fit',
             category: 'top-players',
             image_url: 'https://img.a.transfermarkt.technology/portrait/big/418560-1709108116.png?lm=1',
             team_logo: 'https://upload.wikimedia.org/wikipedia/en/e/eb/Manchester_City_FC_badge.svg',
@@ -181,6 +197,7 @@ export function ensureSeedPlayers() {
             biography: 'Fenomenalny młody pomocnik, który podbił serca kibiców Realu Madryt w swoim debiutanckim sezonie.',
             jersey_price: 529,
             jersey_available: 100,
+            jersey_image_url: 'https://us.shop.realmadrid.com/_next/image?url=https%3A%2F%2Flegends.broadleafcloud.com%2Fapi%2Fasset%2Fcontent%2FSBP26%2FRMCFMZ0899-Mens-Home-Shirt-25-26-White-bellingham-5.jpg%3FcontextRequest%3D%257B%2522forceCatalogForFetch%2522%3Afalse%2C%2522forceFilterByCatalogIncludeInheritance%2522%3Afalse%2C%2522forceFilterByCatalogExcludeInheritance%2522%3Afalse%2C%2522applicationId%2522%3A%252201H4RD9NXMKQBQ1WVKM1181VD8%2522%2C%2522tenantId%2522%3A%2522REAL_MADRID%2522%257D&w=3840&q=50',
             category: 'new-talents',
             image_url: 'https://img.a.transfermarkt.technology/portrait/big/581678-1748102891.jpg?lm=1',
             team_logo: 'https://upload.wikimedia.org/wikipedia/en/5/56/Real_Madrid_CF.svg',
@@ -202,6 +219,7 @@ export function ensureSeedPlayers() {
             biography: 'Najlepszy polski piłkarz w historii. Rekordzista Bundesligi, gwiazda Barcelony.',
             jersey_price: 399,
             jersey_available: 100,
+            jersey_image_url: 'https://arenajerseys.com/wp-content/uploads/2022/08/download-13.jpg',
             category: 'top-players',
             image_url: 'https://img.a.transfermarkt.technology/portrait/big/38253-1760445524.jpg?lm=1',
             team_logo: 'https://upload.wikimedia.org/wikipedia/en/4/47/FC_Barcelona_%28crest%29.svg',
@@ -223,6 +241,7 @@ export function ensureSeedPlayers() {
             biography: 'Jeden z najlepszych bramkarzy na świecie. Mur nie do przejścia w bramce Realu Madryt.',
             jersey_price: 349,
             jersey_available: 100,
+            jersey_image_url: 'https://shop.realmadrid.com/_next/image?url=https%3A%2F%2Flegends.broadleafcloud.com%2Fapi%2Fasset%2Fcontent%2FSBP26%2FRMCFMZ0916-Mens-Goalkeeper-Shirt-25-26-Blue-courtois-1.jpg%3FcontextRequest%3D%257B%2522forceCatalogForFetch%2522%3Afalse%2C%2522forceFilterByCatalogIncludeInheritance%2522%3Afalse%2C%2522forceFilterByCatalogExcludeInheritance%2522%3Afalse%2C%2522applicationId%2522%3A%252201H4RD9NXMKQBQ1WVKM1181VD8%2522%2C%2522tenantId%2522%3A%2522REAL_MADRID%2522%257D&w=3840&q=50',
             category: 'goalkeepers',
             image_url: 'https://img.a.transfermarkt.technology/portrait/big/108390-1717280733.jpg?lm=1',
             team_logo: 'https://upload.wikimedia.org/wikipedia/en/5/56/Real_Madrid_CF.svg',
@@ -233,8 +252,8 @@ export function ensureSeedPlayers() {
             id: 'sergio-ramos',
             name: 'Sergio Ramos',
             full_name: 'Sergio Ramos García',
-            club_id: 'sevilla',
-            team: 'Sevilla FC',
+            club_id: 'monterrey',
+            team: 'Monterrey',
             position: 'Obrońca',
             nationality: 'Hiszpania',
             age: 37,
@@ -244,6 +263,7 @@ export function ensureSeedPlayers() {
             biography: 'Legenda obrony, znany z waleczności i kluczowych goli w ostatnich minutach.',
             jersey_price: 299,
             jersey_available: 100,
+            jersey_image_url: 'https://www.classicfootballshirts.co.uk/cdn-cgi/image/fit=pad,q=70,f=webp//pub/media/catalog/product//8/0/80416f91a15bf17558b1f201d4ad31462ec4ddf0f2d7b8093b467e9da4e1bd9e.jpeg',
             category: 'legends',
             image_url: 'https://img.a.transfermarkt.technology/portrait/big/25557-1694502812.jpg?lm=1',
             team_logo: 'https://tmssl.akamaized.net//images/wappen/head/2407.png?lm=1406966074',
@@ -265,6 +285,7 @@ export function ensureSeedPlayers() {
             biography: 'Niezwykle waleczny młody talent z La Masii. Serce środka pola Barcelony.',
             jersey_price: 449,
             jersey_available: 100,
+            jersey_image_url: 'https://m.media-amazon.com/images/I/41+QCAw2nZL._AC_SY1000_.jpg',
             category: 'new-talents',
             image_url: 'https://img.a.transfermarkt.technology/portrait/big/646740-1682685701.jpg?lm=1',
             team_logo: 'https://upload.wikimedia.org/wikipedia/en/4/47/FC_Barcelona_%28crest%29.svg',
@@ -286,6 +307,7 @@ export function ensureSeedPlayers() {
             biography: 'Polski bramkarz z Barcelony. Wielokrotny reprezentant Polski.',
             jersey_price: 299,
             jersey_available: 100,
+            jersey_image_url: 'https://tgsport.pl/environment/cache/images/500_500_productGfx_18574/Szczesny-Barcelona-koszulka-pilkarska-sportowa-kibica-2.jpg',
             category: 'goalkeepers',
             image_url: 'https://img.a.transfermarkt.technology/portrait/big/44058-1744278078.jpg?lm=1',
             team_logo: 'https://tmssl.akamaized.net//images/wappen/head/131.png?lm=1406739548',
@@ -296,9 +318,20 @@ export function ensureSeedPlayers() {
     ];
 
     players.forEach(p => {
-        const { goals, assists, matches, trophies, ...playerData } = p;
-        insertPlayer.run(playerData);
-        insertStats.run({ player_id: p.id, goals, assists, matches, trophies });
+        const { goals, assists, matches, trophies, ...rest } = p;
+
+        // --- POPRAWKA: Upewniamy się, że dane są kompletne ---
+        const playerData = {
+            ...rest,
+            jersey_image_url: p.jersey_image_url || null
+        };
+
+        try {
+            insertPlayer.run(playerData);
+            insertStats.run({ player_id: p.id, goals, assists, matches, trophies });
+        } catch (error) {
+            console.error("Błąd przy dodawaniu piłkarza:", p.name, error);
+        }
     });
 }
 
@@ -316,16 +349,13 @@ export function existsUserByUsername(u) { return !!db.prepare('SELECT 1 FROM use
 
 // --- DATA ---
 
-// POPRAWIONA FUNKCJA - zwraca obiekt z polami camelCase (np. imageUrl zamiast image_url)
 export function getPlayerById(id) {
     const p = db.prepare('SELECT * FROM players WHERE id=?').get(id);
     if (!p) return null;
 
-    // Pobieramy statystyki i osiągnięcia
     const stats = db.prepare('SELECT * FROM player_stats WHERE player_id=?').get(id) || {};
     const achievements = db.prepare('SELECT achievement FROM player_achievements WHERE player_id=?').all(id).map(x => x.achievement);
 
-    // Mapowanie snake_case (baza) na camelCase (frontend)
     return {
         id: p.id,
         name: p.name,
@@ -340,7 +370,6 @@ export function getPlayerById(id) {
         biography: p.biography,
         jerseyPrice: p.jersey_price,
         jerseyAvailable: p.jersey_available,
-        // Kluczowe mapowania dla obrazków:
         imageUrl: p.image_url,
         jerseyImageUrl: p.jersey_image_url,
         teamLogo: p.team_logo,
@@ -353,7 +382,6 @@ export function getPlayerById(id) {
 
 export function getPlayersByCategory(cat) {
     let rows = [];
-    // Logika "inteligentnych" kategorii
     if (cat === 'top-players') {
         rows = db.prepare("SELECT * FROM players WHERE (CAST(REPLACE(REPLACE(market_value, 'M €', ''), '€', '') AS INTEGER) >= 100) OR category='top-players' ORDER BY market_value DESC").all();
         if (rows.length === 0) rows = db.prepare("SELECT * FROM players WHERE category='top-players'").all();
@@ -368,16 +396,21 @@ export function getPlayersByCategory(cat) {
     }
 
     const uniqueRows = [...new Map(rows.map(item => [item['id'], item])).values()];
-    // Ponieważ getPlayerById teraz zwraca poprawnie zmapowany obiekt, mapowanie tutaj zadziała automatycznie
     return uniqueRows.map(p => getPlayerById(p.id));
 }
 
 export function getAllClubs() { return db.prepare('SELECT * FROM clubs').all(); }
 export function getClubById(id) { return db.prepare('SELECT * FROM clubs WHERE id=?').get(id); }
 export function createPurchase(u, p, j) { return db.prepare('INSERT INTO purchases (user_id, player_id, jersey_price) VALUES (?,?,?)').run(u, p, j); }
+
+// --- POPRAWKA: Dodano jersey_image_url do SELECT ---
 export function getUserPurchases(id) {
     return db.prepare(`
-        SELECT p.*, pl.name as player_name, pl.team 
+        SELECT p.*, 
+               pl.name as player_name, 
+               pl.team, 
+               pl.image_url as player_image,
+               pl.jersey_image_url
         FROM purchases p 
         JOIN players pl ON p.player_id = pl.id 
         WHERE user_id=? 
@@ -577,3 +610,54 @@ export function reorderCollectionItems(collectionId, items) {
 export function getUserCommentRating() { }
 export function createDiscussion() { }
 export function getDiscussionMessages() { return []; }
+
+// --- CART (KOSZYK - NOWE FUNKCJE) ---
+export function getCartItems(userId) {
+    return db.prepare(`
+        SELECT ci.*, p.name, p.team, p.jersey_price, p.jersey_image_url, p.image_url as player_image
+        FROM cart_items ci
+        JOIN players p ON ci.player_id = p.id
+        WHERE ci.user_id = ?
+    `).all(userId);
+}
+
+export function addToCart(userId, playerId) {
+    // Używamy UPSERT - jeśli wiersz istnieje, zwiększamy ilość (quantity)
+    return db.prepare(`
+        INSERT INTO cart_items (user_id, player_id, quantity) 
+        VALUES (?, ?, 1)
+        ON CONFLICT(user_id, player_id) 
+        DO UPDATE SET quantity = quantity + 1
+    `).run(userId, playerId);
+}
+
+export function removeFromCart(userId, itemId) {
+    return db.prepare('DELETE FROM cart_items WHERE id = ? AND user_id = ?').run(itemId, userId);
+}
+
+export function clearCart(userId) {
+    return db.prepare('DELETE FROM cart_items WHERE user_id = ?').run(userId);
+}
+
+export function checkoutCart(userId) {
+    // 1. Pobierz produkty z koszyka
+    const items = getCartItems(userId);
+    if (items.length === 0) throw new Error("Koszyk jest pusty");
+
+    // 2. Przenieś do purchases (zamówienia)
+    const insertPurchase = db.prepare('INSERT INTO purchases (user_id, player_id, jersey_price, status) VALUES (?, ?, ?, ?)');
+
+    const transaction = db.transaction(() => {
+        for (const item of items) {
+            // Dodajemy tyle wpisów, ile wynosi ilość
+            for (let i = 0; i < item.quantity; i++) {
+                insertPurchase.run(userId, item.player_id, item.jersey_price, 'pending');
+            }
+        }
+        // 3. Wyczyść koszyk
+        db.prepare('DELETE FROM cart_items WHERE user_id = ?').run(userId);
+    });
+
+    transaction();
+    return items.length;
+}

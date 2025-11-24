@@ -14,6 +14,7 @@ import multer from 'multer';
 import fs from 'fs';
 import './passport.js';
 
+
 const isProd = process.env.NODE_ENV === 'production';
 const usePostgreSQL = process.env.USE_POSTGRESQL === 'true';
 
@@ -31,6 +32,9 @@ const {
   findUserByLogin, getUserById, createOrUpdateUserFromProvider, existsUserByEmail, existsUserByUsername, createLocalUser,
   getPlayerById, getPlayersByCategory, getAllClubs, getClubById,
   createPurchase, getUserPurchases, updatePurchaseStatus,
+  // --- NOWE IMPORTY KOSZYKA ---
+  getCartItems, addToCart, removeFromCart, checkoutCart,
+  // ---------------------------
   getAllCategories, getCategoryBySlug, getSubcategories, createCategory, updateCategory, deleteCategory,
   getCategoryModerators, assignModeratorToCategory, removeModeratorFromCategory,
   getAllPosts, getPostsByCategory, getPostById, createPost, updatePost, approvePost, rejectPost, deletePost, getPendingPosts,
@@ -70,22 +74,19 @@ const uploadGalleryImage = multer({ storage: galleryStorage });
 
 app.use(compression());
 
-// --- POPRAWIONA KONFIGURACJA HELMET (CSP) ---
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      // Zezwalamy na style inline (potrzebne do background-image w dashboard.js)
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.tiny.cloud", "https://cdnjs.cloudflare.com"],
       scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.tiny.cloud", "https://cdnjs.cloudflare.com"],
       scriptSrcAttr: ["'unsafe-inline'"],
-      // Zezwalamy na obrazki z DOWOLNEGO źródła (https: data: blob: *)
       imgSrc: ["'self'", "data:", "https:", "blob:", "*"],
       fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
       connectSrc: ["'self'", "https://cdn.tiny.cloud"],
     },
   },
-  crossOriginEmbedderPolicy: false, // Wyłączenie dla pewności przy ładowaniu zewnętrznych zasobów
+  crossOriginEmbedderPolicy: false,
 }));
 
 app.use(express.json({ limit: '50mb' }));
@@ -167,10 +168,35 @@ app.get('/api/auth/me', (req, res) => {
 app.get('/api/player/:id', (req, res) => { const p = getPlayerById(req.params.id); p ? res.json(p) : res.status(404).send(); });
 app.get('/api/players/category/:cat', (req, res) => res.json(getPlayersByCategory(req.params.cat)));
 
-// PURCHASES
+// PURCHASES (OLD)
 app.post('/api/purchase', requireAuth, (req, res) => { createPurchase(getUserByIdFromReq(req), req.body.playerId, 299); res.json({ success: true }); });
 app.get('/api/user/purchases', requireAuth, (req, res) => res.json(getUserPurchases(getUserByIdFromReq(req))));
 app.post('/api/purchases/:id/pay', requireAuth, (req, res) => { updatePurchaseStatus(req.params.id, 'completed'); res.json({ success: true }); });
+
+// --- CART API (KOSZYK - NOWE) ---
+app.get('/api/cart', requireAuth, (req, res) => {
+  res.json(getCartItems(getUserByIdFromReq(req)));
+});
+
+app.post('/api/cart', requireAuth, (req, res) => {
+  addToCart(getUserByIdFromReq(req), req.body.playerId);
+  res.json({ success: true, message: "Dodano do koszyka" });
+});
+
+app.delete('/api/cart/:id', requireAuth, (req, res) => {
+  removeFromCart(getUserByIdFromReq(req), req.params.id);
+  res.json({ success: true });
+});
+
+app.post('/api/cart/checkout', requireAuth, (req, res) => {
+  try {
+    checkoutCart(getUserByIdFromReq(req));
+    res.json({ success: true, message: "Zamówienie złożone!" });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+// --------------------------------
 
 // FORUM
 app.post('/api/forum/upload', requireModerator, uploadPostImage.single('image'), (req, res) => {
@@ -179,7 +205,6 @@ app.post('/api/forum/upload', requireModerator, uploadPostImage.single('image'),
 });
 app.get('/api/forum/categories', (req, res) => res.json(getAllCategories()));
 
-// NOWE API DLA PODKATEGORII
 app.get('/api/forum/categories/:id/subcategories', async (req, res) => {
   const subs = await getSubcategories(req.params.id);
   res.json(subs);
@@ -193,7 +218,6 @@ app.post('/api/forum/categories', requireAdmin, (req, res) => {
 app.put('/api/forum/categories/:id', requireAdmin, (req, res) => { updateCategory(req.params.id, req.body.name, req.body.slug, req.body.description); res.json({ success: true }); });
 app.delete('/api/forum/categories/:id', requireAdmin, (req, res) => { deleteCategory(req.params.id); res.json({ success: true }); });
 
-// Zarządzanie moderatorami kategorii
 app.get('/api/forum/categories/:id/moderators', requireAdmin, (req, res) => {
   res.json(getCategoryModerators(req.params.id));
 });
@@ -246,7 +270,6 @@ app.delete('/api/forum/posts/:id', requireModerator, (req, res) => {
   }
 });
 
-// Powiadomienia po zatwierdzeniu/odrzuceniu postów
 app.post('/api/forum/posts/:id/approve', requireModerator, async (req, res) => {
   const post = await getPostById(req.params.id);
   approvePost(req.params.id);
@@ -300,13 +323,10 @@ app.post('/api/forum/comments/:id/reject', requireModerator, async (req, res) =>
   res.json({ success: true });
 });
 
-// API Powiadomień
 app.get('/api/user/notifications', requireAuth, (req, res) => res.json(getUserNotifications(req.user.id)));
 app.post('/api/user/notifications/:id/read', requireAuth, (req, res) => { markNotificationAsRead(req.params.id); res.json({ success: true }); });
 app.post('/api/user/notifications/read-all', requireAuth, (req, res) => { markAllNotificationsAsRead(req.user.id); res.json({ success: true }); });
 
-
-// GALLERY API
 app.post('/api/gallery/upload', requireAdmin, uploadGalleryImage.single('image'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
 

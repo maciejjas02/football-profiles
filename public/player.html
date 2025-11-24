@@ -1,29 +1,59 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pl">
+
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Football Profiles — Profil Piłkarza</title>
-  <link rel="icon" href="data:," />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profil Piłkarza - Football Profiles</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
   <header class="topbar">
-    <div class="brand-mini">
-      <strong>Football Profiles</strong>
-    </div>
-    <div id="authBar" class="authbar">
-      <span id="who">Ładowanie...</span>
-      <button id="logoutBtn" class="btn btn-ghost">Wyloguj</button>
+    <div class="topbar-content">
+      <div class="logo-section">
+        <img src="/images/logo.png" alt="Football Profiles" class="topbar-logo" />
+        <span class="site-title">Football Profiles</span>
+      </div>
+      <nav class="topbar-nav">
+        <a href="dashboard.html" class="nav-tab">Panel</a>
+        <a href="gallery.html" class="nav-tab">Galeria</a>
+        <a href="forum.html" class="nav-tab">Forum</a>
+        <a href="moderator-posts.html" class="nav-tab" id="moderatorLink" style="display:none;">Moderacja</a>
+        <a href="admin-categories.html" class="nav-tab" id="adminLink" style="display:none;">Admin</a>
+        <a href="admin-gallery-manage.html" class="nav-tab" id="galleryManageLink" style="display:none;">Zarządzaj
+          Galeriami</a>
+      </nav>
+      <div class="topbar-actions">
+        <div style="position:relative;">
+          <button id="notificationsBtn" class="icon-button" aria-label="Powiadomienia" style="display:none;">
+            <span>🔔</span>
+            <span id="notificationBadge" class="notification-badge" style="display:none;">0</span>
+          </button>
+          <div id="notificationsDropdown" class="notification-dropdown" style="display:none;">
+            <div class="notification-header">
+              <h3>Powiadomienia</h3>
+              <button id="markAllReadBtn" class="btn-link">Oznacz wszystkie jako przeczytane</button>
+            </div>
+            <div class="notification-list" id="notificationsList">
+              <div class="notification-empty">Brak powiadomień.</div>
+            </div>
+          </div>
+        </div>
+        <div id="authBar" class="authbar">
+          <span id="who">Ładowanie...</span>
+          <button id="logoutBtn" class="btn btn-ghost">Wyloguj</button>
+        </div>
+      </div>
     </div>
   </header>
 
   <div id="banner" class="banner" role="status" aria-live="polite" hidden></div>
 
-  <main class="container">
+  <main class="container" style="margin: 100px auto 40px; display: block; max-width: 1200px; padding: 0 20px;">
     <div id="loading" class="loading-state">
       <div class="spinner"></div>
       <p>Ładowanie profilu piłkarza...</p>
@@ -84,7 +114,8 @@
           <div class="jersey-preview">
             <div class="jersey-card">
               <div class="jersey-image">
-                <img id="jersey-image" src="" alt="Koszulka" style="display: block !important; width: 100% !important; height: 100% !important;" />
+                <img id="jersey-image" src="" alt="Koszulka"
+                  style="display: block !important; width: 100% !important; height: 100% !important; object-fit: contain;" />
               </div>
               <div class="jersey-info">
                 <h3>Oficjalna koszulka</h3>
@@ -96,7 +127,7 @@
               </div>
             </div>
             <button id="buy-jersey-btn" class="btn btn-primary btn-large">
-              🛒 Kup koszulkę
+              Dodaj do koszyka
             </button>
           </div>
         </div>
@@ -140,6 +171,7 @@
     </div>
   </main>
 
-  <script src="/player.js" type="module"></script>
+  <script type="module" src="player.js"></script>
 </body>
+
 </html>
