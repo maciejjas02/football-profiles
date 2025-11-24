@@ -6,6 +6,15 @@
   <title>Zarządzanie Kategoriami</title>
   <link rel="stylesheet" href="styles.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    .dashboard-container { 
+        max-width: 1400px;
+        margin: 100px auto 0;
+        padding: 0 20px 40px;
+        width: 100%;
+        display: block;
+    }
+  </style>
 </head>
 <body>
   <header class="topbar">
@@ -15,14 +24,15 @@
         <a href="dashboard.html" class="nav-tab">Panel</a>
         <a href="gallery.html" class="nav-tab">Galeria</a>
         <a href="forum.html" class="nav-tab">Forum</a>
-        <a href="moderator-posts.html" class="nav-tab">Moderacja</a>
+        <a href="moderator-posts.html" class="nav-tab" id="moderatorLink" style="display:none;">Moderacja</a>
         <a href="admin-categories.html" class="nav-tab active">Admin</a>
+        <a href="admin-gallery-manage.html" class="nav-tab" id="galleryManageLink" style="display:none;">Zarządzaj Galeriami</a>
       </nav>
       <div class="topbar-actions"><div id="authBar" class="authbar"><span id="who">...</span><button id="logoutBtn" class="btn btn-ghost">Wyloguj</button></div></div>
     </div>
   </header>
 
-  <div class="container" style="margin-top: 80px; max-width: 1000px; align-items: stretch;">
+  <div class="dashboard-container" style="max-width: 1000px;">
     <div class="page-header">
       <h1 class="page-title">📁 Kategorie Forum</h1>
     </div>
@@ -46,17 +56,66 @@
   </div>
 
   <script type="module">
-    import { handleLogout } from './utils/api-client.js'; // Tutaj import nie zadziała bo plik usunięty, użyjemy fetch wprost
+    // Ze względu na historyczną implementację, JavaScript pozostawiamy inline
     
+    // Funkcja do aktywacji aktywnej zakładki (zamiast hardkodowania)
+    function setActiveNav() {
+        const currentPath = window.location.pathname.toLowerCase();
+        document.querySelectorAll('.topbar-nav .nav-tab').forEach(link => {
+            link.classList.remove('active');
+            if (new URL(link.href).pathname.toLowerCase() === currentPath) {
+                link.classList.add('active');
+            }
+        });
+    }
+
+    async function loadCats() {
+        try {
+            const res = await fetch('/api/forum/categories');
+            if (!res.ok) throw new Error('Błąd ładowania kategorii');
+            const cats = await res.json();
+            document.getElementById('catList').innerHTML = cats.map(c => `
+                <div style="display:flex; justify-content:space-between; padding: 10px; border-bottom: 1px solid var(--border-color);">
+                    <div><strong>${c.name}</strong> <small>(${c.slug})</small></div>
+                    <div>
+                      <button onclick="window.deleteCat(${c.id})" class="btn btn-danger btn-sm" style="background:#dc3545; border:none; color:white;">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        } catch(e) {
+             document.getElementById('catList').innerHTML = `<div class="error-state">${e.message}</div>`;
+        }
+    }
+
+    window.deleteCat = async (id) => {
+        if(!confirm('Usunąć?')) return;
+        await fetch(`/api/forum/categories/${id}`, { method: 'DELETE' });
+        loadCats();
+    }
+
     async function init() {
         const res = await fetch('/api/auth/me');
         if(res.ok) {
             const data = await res.json();
             if(data.user.role !== 'admin') window.location.href = '/dashboard.html';
+            
             document.getElementById('who').textContent = data.user.username;
             document.getElementById('logoutBtn').onclick = async () => { await fetch('/api/auth/logout', {method:'POST'}); window.location.href='/'; };
+            
+            // Aktywacja linków dynamicznych
+            if (data.user.role === 'moderator' || data.user.role === 'admin') {
+                const modLink = document.getElementById('moderatorLink');
+                if(modLink) modLink.style.display = 'block';
+                const galleryManageLink = document.getElementById('galleryManageLink');
+                if(galleryManageLink) galleryManageLink.style.display = 'block';
+            }
+            if (data.user.role === 'admin') {
+                const adminLink = document.getElementById('adminLink');
+                if(adminLink) adminLink.style.display = 'block';
+            }
         } else window.location.href = '/';
 
+        setActiveNav();
         loadCats();
         
         document.getElementById('createCatBtn').onclick = async () => {
@@ -72,24 +131,9 @@
             });
             loadCats();
             document.getElementById('catName').value = '';
+            document.getElementById('catSlug').value = '';
+            document.getElementById('catDesc').value = '';
         };
-    }
-
-    async function loadCats() {
-        const res = await fetch('/api/forum/categories');
-        const cats = await res.json();
-        document.getElementById('catList').innerHTML = cats.map(c => `
-            <div style="display:flex; justify-content:space-between; padding: 10px; border-bottom: 1px solid var(--border-color);">
-                <div><strong>${c.name}</strong> <small>(${c.slug})</small></div>
-                <button onclick="deleteCat(${c.id})" class="btn btn-danger btn-sm" style="background:#dc3545; border:none; color:white;">Usuń</button>
-            </div>
-        `).join('');
-    }
-
-    window.deleteCat = async (id) => {
-        if(!confirm('Usunąć?')) return;
-        await fetch(`/api/forum/categories/${id}`, { method: 'DELETE' });
-        loadCats();
     }
 
     init();

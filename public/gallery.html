@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Galeria - Football Profiles</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-content">
+      <div class="logo-section">
+        <img src="/images/logo.png" alt="Logo" class="topbar-logo" />
+        <span class="site-title">Football Profiles</span>
+      </div>
+        <nav class="topbar-nav">
+        <a href="dashboard.html" class="nav-tab">Panel</a>
+        <a href="gallery.html" class="nav-tab">Galeria</a>
+        <a href="forum.html" class="nav-tab">Forum</a>
+        <a href="moderator-posts.html" class="nav-tab" id="moderatorLink" style="display:none;">Moderacja</a>
+        <a href="admin-categories.html" class="nav-tab" id="adminLink" style="display:none;">Admin</a>
+        <a href="admin-gallery-manage.html" class="nav-tab" id="galleryManageLink" style="display:none;">Zarządzaj Galeriami</a>
+        </nav>
+      <div class="topbar-actions">
+        <div id="authBar" class="authbar">
+          <span id="who">Ładowanie...</span>
+          <button id="logoutBtn" class="btn btn-ghost">Wyloguj</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="gallery-view">
+    <h1 id="gallery-title">🏆 Galeria</h1>
+
+    <div class="gallery-slider">
+        <div id="loadingState" class="loading-state" style="height: 500px; width: 100%; display: flex; justify-content: center; align-items: center;">
+            <div class="spinner"></div>
+            <p>Ładowanie galerii...</p>
+        </div>
+        <div id="sliderContent" style="display: none; width: 100%; justify-content: center; align-items: center; gap: 20px;">
+            <div id="carouselWrapper" class="images-grid">
+                </div>
+        </div>
+        <div id="emptyState" class="empty-state" style="display: none; padding: 100px;">
+             Brak aktywnej galerii. Skontaktuj się z administratorem.
+        </div>
+    </div>
+
+  </main>
+  <script src="/gallery.js" type="module"></script>
+</body>
+</html>

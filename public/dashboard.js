@@ -1,9 +1,34 @@
+// public/dashboard.js (pełny kod z poprawką nawigacji)
+
 // Slider
 let currentSlide = 0;
 const slides = document.querySelectorAll('.slide');
 const sliderTrack = document.querySelector('.slider-track');
 const arrowLeft = document.querySelector('.slider-arrow-left');
 const arrowRight = document.querySelector('.slider-arrow-right');
+
+// --- NOWA FUNKCJA POPRAWIAJĄCA NAWIGACJĘ ---
+function setActiveNav() {
+    const currentPath = window.location.pathname;
+    
+    // Iteracja po wszystkich linkach w pasku nawigacyjnym
+    document.querySelectorAll('.topbar-nav .nav-tab').forEach(link => {
+        // 1. Usuń klasę 'active' z każdego linku
+        link.classList.remove('active');
+        
+        // 2. Sprawdź, czy href linku pasuje do aktualnej ścieżki
+        const linkPath = new URL(link.href).pathname;
+        
+        // Specjalna obsługa dla "/" i "/dashboard.html"
+        const isDashboardHome = (currentPath === '/' || currentPath === '/dashboard.html') && linkPath === '/dashboard.html';
+
+        if (linkPath === currentPath || isDashboardHome) {
+            link.classList.add('active');
+        }
+    });
+}
+// ---------------------------------------------
+
 
 function goToSlide(index) {
   if (index < 0) index = slides.length - 1;
@@ -36,6 +61,9 @@ async function setupAuth() {
         
         if(currentUser.role === 'admin' || currentUser.role === 'moderator') {
             document.getElementById('moderatorLink').style.display = 'block';
+            
+            const galleryManageLink = document.getElementById('galleryManageLink');
+            if(galleryManageLink) galleryManageLink.style.display = 'block';
         }
         if(currentUser.role === 'admin') {
             document.getElementById('adminLink').style.display = 'block';
@@ -64,6 +92,7 @@ async function setupAuth() {
 }
 
 async function showPlayers(category, title) {
+    // ... (pozostała logika showPlayers)
     try {
         const res = await fetch(`/api/players/category/${category}`);
         const players = await res.json();
@@ -152,4 +181,4 @@ function initTheme() {
 }
 
 initTheme();
-setupAuth();
+setupAuth().then(setActiveNav); // Dodajemy wywołanie, by ustawić aktywny link po załadowaniu strony
