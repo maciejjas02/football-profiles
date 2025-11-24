@@ -1,13 +1,19 @@
 // public/admin-gallery-manage.js
 
 let currentCollectionId = null;
-let currentItems = []; // Przechowuje aktualną kolejność dla Drag & Drop
+let currentItems = [];
+let currentUser = null;
 
 async function init() {
     await setupAuth();
     await loadCollections();
     await loadAvailableImages();
     setupEventListeners();
+
+    // Dodano: ładowanie powiadomień
+    if (currentUser) {
+        await loadNotifications();
+    }
 }
 
 async function setupAuth() {
@@ -15,12 +21,29 @@ async function setupAuth() {
         const res = await fetch('/api/auth/me');
         if (!res.ok) throw new Error('Not auth');
         const data = await res.json();
-        
-        if (data.user.role !== 'admin' && data.user.role !== 'moderator') {
+        currentUser = data.user;
+
+        // Sprawdzenie uprawnień
+        if (currentUser.role !== 'admin' && currentUser.role !== 'moderator') {
             window.location.href = 'dashboard.html';
             return;
         }
-        document.getElementById('who').textContent = data.user.display_name || data.user.username;
+
+        document.getElementById('who').textContent = currentUser.display_name || currentUser.username;
+
+        // Logika odkrywania linków w menu
+        if (currentUser.role === 'moderator' || currentUser.role === 'admin') {
+            const modLink = document.getElementById('moderatorLink');
+            if (modLink) modLink.style.display = 'block';
+        }
+        if (currentUser.role === 'admin') {
+            const adminLink = document.getElementById('adminLink');
+            if (adminLink) adminLink.style.display = 'block';
+
+            const galleryManageLink = document.getElementById('galleryManageLink');
+            if (galleryManageLink) galleryManageLink.style.display = 'block';
+        }
+
         document.getElementById('logoutBtn').addEventListener('click', async () => {
             await fetch('/api/auth/logout', { method: 'POST' });
             window.location.href = '/';
@@ -28,15 +51,91 @@ async function setupAuth() {
     } catch (error) { window.location.href = 'index.html'; }
 }
 
+// --- LOGIKA POWIADOMIEŃ ---
+async function loadNotifications() {
+    const btn = document.getElementById('notificationsBtn');
+    const badge = document.getElementById('notificationBadge');
+    const dropdown = document.getElementById('notificationsDropdown');
+    const list = document.getElementById('notificationsList');
+
+    if (!btn) return;
+
+    try {
+        const res = await fetch('/api/user/notifications');
+        const notifications = await res.json();
+
+        const unreadCount = notifications.filter(n => n.is_read === 0).length;
+
+        if (unreadCount > 0) {
+            badge.textContent = unreadCount;
+            badge.style.display = 'block';
+        } else {
+            badge.style.display = 'none';
+        }
+
+        // Pokaż dzwoneczek
+        btn.style.display = 'block';
+
+        if (notifications.length === 0) {
+            list.innerHTML = '<div class="notification-empty">Brak powiadomień.</div>';
+        } else {
+            list.innerHTML = notifications.map(n => `
+                <div class="notification-item ${n.is_read === 0 ? 'unread' : ''}" 
+                     onclick="window.handleNotificationClick(${n.id}, '${n.link || '#'}', ${n.is_read})"
+                >
+                    <div class="notification-title">${n.title}</div>
+                    <div class="notification-message">${n.message}</div>
+                    <div class="notification-time">${new Date(n.created_at).toLocaleDateString()}</div>
+                </div>
+            `).join('');
+        }
+
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+        };
+
+        document.addEventListener('click', (e) => {
+            if (dropdown.style.display === 'block' && !dropdown.contains(e.target) && !btn.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
+
+        const markReadBtn = document.getElementById('markAllReadBtn');
+        if (markReadBtn) {
+            markReadBtn.onclick = async () => {
+                await fetch('/api/user/notifications/read-all', { method: 'POST' });
+                loadNotifications();
+            };
+        }
+
+    } catch (e) {
+        console.error('Błąd powiadomień:', e);
+        badge.style.display = 'none';
+    }
+}
+
+window.handleNotificationClick = async (id, link, isRead) => {
+    if (isRead === 0) {
+        await fetch(`/api/user/notifications/${id}/read`, { method: 'POST' });
+    }
+    if (link && link !== '#') {
+        window.location.href = link;
+    } else {
+        loadNotifications();
+    }
+};
+// --- KONIEC POWIADOMIEŃ ---
+
 // Ładowanie listy kolekcji
 async function loadCollections() {
     const list = document.getElementById('collectionsList');
     list.innerHTML = '<div class="loading">Ładowanie kolekcji...</div>';
-    
+
     try {
         const res = await fetch('/api/gallery/collections?t=' + Date.now());
         const collections = await res.json();
-        
+
         if (collections.length === 0) {
             list.innerHTML = '<div class="empty-state">Brak kolekcji.</div>';
             return;
@@ -60,28 +159,26 @@ async function loadCollections() {
 async function loadAvailableImages() {
     const select = document.getElementById('availableImagesSelect');
     select.innerHTML = '<option value="">Ładowanie obrazów...</option>';
-    
+
     try {
         const res = await fetch('/api/gallery/images?t=' + Date.now());
         const images = await res.json();
-        
+
         select.innerHTML = '<option value="">Wybierz obrazek do dodania...</option>' +
             images.map(img => `<option value="${img.id}">${img.title} (ID: ${img.id})</option>`).join('');
     } catch (e) { select.innerHTML = '<option value="">Błąd ładowania obrazów</option>'; }
 }
 
-// Wybieranie kolekcji do edycji
 window.selectCollection = (id, name) => {
     currentCollectionId = id;
     document.getElementById('itemsHeader').textContent = `Elementy: ${name}`;
     loadCollectionItems(id);
 };
 
-// Ładowanie elementów wybranej kolekcji (z możliwością Drag & Drop)
 async function loadCollectionItems(id) {
     const list = document.getElementById('collectionItems');
     list.innerHTML = '<div class="loading">Ładowanie elementów...</div>';
-    
+
     try {
         const res = await fetch(`/api/gallery/collections/${id}/items?t=` + Date.now());
         currentItems = await res.json();
@@ -99,16 +196,15 @@ async function loadCollectionItems(id) {
                 <button onclick="removeImageFromCollection(${item.id})" class="btn btn-danger btn-sm btn-remove">Usuń</button>
             </div>
         `).join('');
-        
-        setupDragAndDrop(); // Aktywacja D&D
+
+        setupDragAndDrop();
     } catch (e) { list.innerHTML = '<div class="error-state">Błąd ładowania elementów kolekcji.</div>'; }
 }
 
-// --- FUNKCJE D&D (BONUS) ---
 function setupDragAndDrop() {
     const list = document.getElementById('collectionItems');
     if (!list) return;
-    
+
     list.querySelectorAll('.slider-item').forEach(item => {
         item.addEventListener('dragstart', (e) => {
             e.dataTransfer.setData('text/plain', item.dataset.id);
@@ -129,11 +225,8 @@ function setupDragAndDrop() {
     });
 }
 
-
-// --- OBSŁUGA PRZYCISKÓW ---
-
 window.deleteCollection = async (id) => {
-    if(!confirm('Usunąć kolekcję? Spowoduje to usunięcie wszystkich jej elementów, ale zdjęcia pozostaną w bazie.')) return;
+    if (!confirm('Usunąć kolekcję? Spowoduje to usunięcie wszystkich jej elementów, ale zdjęcia pozostaną w bazie.')) return;
     try {
         await fetch(`/api/gallery/collections/${id}`, { method: 'DELETE' });
         loadCollections();
@@ -141,7 +234,7 @@ window.deleteCollection = async (id) => {
             currentCollectionId = null;
             document.getElementById('collectionItems').innerHTML = '<div class="empty-state">Wybierz kolekcję.</div>';
         }
-    } catch(e) { alert('Błąd usuwania kolekcji.'); }
+    } catch (e) { alert('Błąd usuwania kolekcji.'); }
 };
 
 window.activateCollection = async (id) => {
@@ -149,25 +242,23 @@ window.activateCollection = async (id) => {
         await fetch(`/api/gallery/collections/${id}/activate`, { method: 'PUT' });
         loadCollections();
         alert('✅ Kolekcja aktywowana pomyślnie!');
-    } catch(e) { alert('Błąd aktywacji.'); }
+    } catch (e) { alert('Błąd aktywacji.'); }
 };
 
 window.removeImageFromCollection = async (itemId) => {
-    if(!confirm('Usunąć element z tej kolekcji? (Zdjęcie pozostanie w bazie)')) return;
+    if (!confirm('Usunąć element z tej kolekcji? (Zdjęcie pozostanie w bazie)')) return;
     try {
         await fetch(`/api/gallery/items/${itemId}`, { method: 'DELETE' });
         loadCollectionItems(currentCollectionId);
-    } catch(e) { alert('Błąd usuwania elementu.'); }
+    } catch (e) { alert('Błąd usuwania elementu.'); }
 };
 
-
 function setupEventListeners() {
-    // Tworzenie kolekcji
     document.getElementById('createCollectionBtn').addEventListener('click', async () => {
         const name = document.getElementById('collectionName').value.trim();
         const description = document.getElementById('collectionDescription').value.trim();
         if (!name) return alert('Nazwa jest wymagana.');
-        
+
         try {
             await fetch('/api/gallery/collections', {
                 method: 'POST',
@@ -178,16 +269,15 @@ function setupEventListeners() {
             document.getElementById('collectionName').value = '';
             document.getElementById('collectionDescription').value = '';
             loadCollections();
-        } catch(e) { alert('Błąd tworzenia kolekcji.'); }
+        } catch (e) { alert('Błąd tworzenia kolekcji.'); }
     });
-    
-    // Dodawanie obrazka do wybranej kolekcji
+
     document.getElementById('addImageToCollectionBtn').addEventListener('click', async () => {
         if (!currentCollectionId) return alert('Najpierw wybierz kolekcję do zarządzania (przycisk "Zarządzaj").');
-        
+
         const imageId = document.getElementById('availableImagesSelect').value;
         if (!imageId) return alert('Wybierz obrazek z listy.');
-        
+
         try {
             await fetch(`/api/gallery/collections/${currentCollectionId}/items`, {
                 method: 'POST',
@@ -196,10 +286,9 @@ function setupEventListeners() {
             });
             alert('✅ Obrazek dodany!');
             loadCollectionItems(currentCollectionId);
-        } catch(e) { alert('Błąd dodawania obrazka.'); }
+        } catch (e) { alert('Błąd dodawania obrazka.'); }
     });
 
-    // Zapis kolejności po Drag & Drop
     document.getElementById('saveOrderBtn').addEventListener('click', async () => {
         if (!currentCollectionId) return;
 
@@ -216,7 +305,7 @@ function setupEventListeners() {
             });
             alert('✅ Kolejność zapisana!');
             loadCollectionItems(currentCollectionId);
-        } catch(e) { alert('Błąd zapisywania kolejności.'); }
+        } catch (e) { alert('Błąd zapisywania kolejności.'); }
     });
 }
 

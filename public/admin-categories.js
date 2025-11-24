@@ -5,23 +5,39 @@ let allCategories = [];
 
 async function init() {
   await checkAuth();
-  await loadModerators(); // Now dynamicznie ładuje prawdziwych moderatorów
+  await loadModerators();
   await loadCategories();
   setupEventListeners();
+  // Dodano: ładowanie powiadomień
+  if (currentUser) {
+    await loadNotifications();
+  }
 }
 
 async function checkAuth() {
   try {
     currentUser = await getCurrentUser();
-    
+
     if (!currentUser || currentUser.role !== 'admin') {
       alert('Brak dostępu. Tylko administratorzy mogą korzystać z tej strony.');
       window.location.href = 'dashboard.html';
       return;
     }
-    
+
     document.getElementById('who').textContent = currentUser.name || currentUser.username;
-    document.getElementById('galleryManageLink').style.display = 'block'; // Pokaż link zarządzania galeriami
+
+    // Logika odkrywania linków w menu
+    if (currentUser.role === 'admin') {
+      const adminLink = document.getElementById('adminLink');
+      if (adminLink) adminLink.style.display = 'block';
+
+      const galleryManageLink = document.getElementById('galleryManageLink');
+      if (galleryManageLink) galleryManageLink.style.display = 'block';
+
+      const modLink = document.getElementById('moderatorLink');
+      if (modLink) modLink.style.display = 'block';
+    }
+
   } catch (error) {
     console.error('Auth check failed:', error);
     window.location.href = 'index.html';
@@ -33,46 +49,117 @@ async function checkAuth() {
   });
 }
 
-// NOWE: Ładowanie moderatorów (zakładamy nowy endpoint /api/users/moderators)
-let allModerators = [];
-async function loadModerators() {
-    // UWAGA: Ponieważ brakuje endpointu /api/users/moderators, użyjemy mocka, 
-    // dopóki nie zostanie on dodany w server.js/db.js (co jest kolejnym krokiem)
-    // Na potrzeby tego zadania symulujemy, że mamy listę moderatorów.
-    
-    // W pełni działająca aplikacja powinna to zmienić:
-    // const res = await fetchWithAuth('/api/users/moderators');
-    // allModerators = await res.json();
-    
-    // Używamy zaimplementowanego w db.js/server.js konta "moderator@example.com"
-    allModerators = [{ id: 2, username: 'moderator', name: 'Moderator', email: 'moderator@example.com' }]; 
+// --- LOGIKA POWIADOMIEŃ ---
+async function loadNotifications() {
+  const btn = document.getElementById('notificationsBtn');
+  const badge = document.getElementById('notificationBadge');
+  const dropdown = document.getElementById('notificationsDropdown');
+  const list = document.getElementById('notificationsList');
 
-    const select = document.getElementById('assignModerator');
-    select.innerHTML = '<option value="">Wybierz moderatora...</option>' +
-      allModerators.map(mod => `<option value="${mod.id}">${mod.name} (@${mod.username})</option>`).join('');
+  if (!btn) return;
+
+  try {
+    const res = await fetchWithAuth('/api/user/notifications');
+    // Uwaga: fetchWithAuth zwraca już JSON, więc nie trzeba res.json()
+    // Ale jeśli endpoint zwraca tablicę bezpośrednio, to OK.
+    // Jeśli api-client.js robi response.json(), to tutaj mamy gotowe dane.
+    // Sprawdźmy czy to tablica, czy obiekt {notifications: []} - zależy od backendu.
+    // W Twoim backendzie: res.json(getUserNotifications(...)) zwraca tablicę.
+
+    const notifications = res;
+
+    const unreadCount = notifications.filter(n => n.is_read === 0).length;
+
+    if (unreadCount > 0) {
+      badge.textContent = unreadCount;
+      badge.style.display = 'block';
+    } else {
+      badge.style.display = 'none';
+    }
+
+    // Pokaż dzwoneczek
+    btn.style.display = 'block';
+
+    if (notifications.length === 0) {
+      list.innerHTML = '<div class="notification-empty">Brak powiadomień.</div>';
+    } else {
+      list.innerHTML = notifications.map(n => `
+                <div class="notification-item ${n.is_read === 0 ? 'unread' : ''}" 
+                     onclick="window.handleNotificationClick(${n.id}, '${n.link || '#'}', ${n.is_read})"
+                >
+                    <div class="notification-title">${n.title}</div>
+                    <div class="notification-message">${n.message}</div>
+                    <div class="notification-time">${new Date(n.created_at).toLocaleDateString()}</div>
+                </div>
+            `).join('');
+    }
+
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+    };
+
+    document.addEventListener('click', (e) => {
+      if (dropdown.style.display === 'block' && !dropdown.contains(e.target) && !btn.contains(e.target)) {
+        dropdown.style.display = 'none';
+      }
+    });
+
+    const markReadBtn = document.getElementById('markAllReadBtn');
+    if (markReadBtn) {
+      markReadBtn.onclick = async () => {
+        await fetchWithAuth('/api/user/notifications/read-all', { method: 'POST' });
+        loadNotifications();
+      };
+    }
+
+  } catch (e) {
+    console.error('Błąd powiadomień:', e);
+    badge.style.display = 'none';
+  }
 }
 
+window.handleNotificationClick = async (id, link, isRead) => {
+  if (isRead === 0) {
+    await fetchWithAuth(`/api/user/notifications/${id}/read`, { method: 'POST' });
+  }
+  if (link && link !== '#') {
+    window.location.href = link;
+  } else {
+    loadNotifications();
+  }
+};
+// --- KONIEC POWIADOMIEŃ ---
 
-// Min: Ładowanie kategorii
+let allModerators = [];
+async function loadModerators() {
+  // Mock moderatorów (jak w poprzedniej wersji)
+  allModerators = [{ id: 2, username: 'moderator', name: 'Moderator', email: 'moderator@example.com' }];
+
+  const select = document.getElementById('assignModerator');
+  select.innerHTML = '<option value="">Wybierz moderatora...</option>' +
+    allModerators.map(mod => `<option value="${mod.id}">${mod.name} (@${mod.username})</option>`).join('');
+}
+
 async function loadCategories() {
   try {
     allCategories = await fetchWithAuth('/api/forum/categories');
-    
+
     const parentSelect = document.getElementById('parentCategory');
-    if(parentSelect) parentSelect.innerHTML = '<option value="">Brak (główna kategoria)</option>' +
+    if (parentSelect) parentSelect.innerHTML = '<option value="">Brak (główna kategoria)</option>' +
       allCategories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
-    
+
     const assignSelect = document.getElementById('assignCategory');
-    if(assignSelect) assignSelect.innerHTML = '<option value="">Wybierz kategorię...</option>' +
+    if (assignSelect) assignSelect.innerHTML = '<option value="">Wybierz kategorię...</option>' +
       allCategories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
-    
+
     const list = document.getElementById('categoriesList');
-    
+
     if (allCategories.length === 0) {
       list.innerHTML = '<div class="empty-state">Brak kategorii</div>';
       return;
     }
-    
+
     list.innerHTML = `
       <table class="data-table">
         <thead>
@@ -104,41 +191,38 @@ async function loadCategories() {
 }
 
 function setupEventListeners() {
-  // Min: Tworzenie kategorii
   document.getElementById('submitCategoryBtn').addEventListener('click', async (e) => {
     e.preventDefault();
-    
+
     const name = document.getElementById('categoryName').value.trim();
     let slug = document.getElementById('categorySlug').value.trim();
     const description = document.getElementById('categoryDescription').value.trim();
     const parent_id = document.getElementById('parentCategory').value || null;
-    
+
     if (!name || !slug) {
       alert('Nazwa i slug są wymagane');
       return;
     }
-    
+
     try {
       await fetchWithAuth('/api/forum/categories', {
         method: 'POST',
         body: JSON.stringify({ name, slug, description, parent_id })
       });
-      
+
       alert('✅ Kategoria utworzona');
-      // Reset pól
       document.getElementById('categoryName').value = '';
       document.getElementById('categorySlug').value = '';
       document.getElementById('categoryDescription').value = '';
       document.getElementById('parentCategory').value = '';
-      
+
       loadCategories();
     } catch (error) {
       console.error('Failed to create category:', error);
       alert('❌ Błąd podczas tworzenia kategorii');
     }
   });
-  
-  // Auto-generate slug
+
   document.getElementById('categoryName').addEventListener('input', (e) => {
     const slug = e.target.value
       .toLowerCase()
@@ -149,23 +233,22 @@ function setupEventListeners() {
       .replace(/^-|-$/g, '');
     document.getElementById('categorySlug').value = slug;
   });
-  
-  // Min: Przypisywanie moderatora
+
   document.getElementById('assignBtn').addEventListener('click', async () => {
     const category_id = document.getElementById('assignCategory').value;
     const user_id = document.getElementById('assignModerator').value;
-    
+
     if (!category_id || !user_id) {
       alert('Wybierz kategorię i moderatora');
       return;
     }
-    
+
     try {
       await fetchWithAuth(`/api/forum/categories/${category_id}/moderators`, {
         method: 'POST',
         body: JSON.stringify({ user_id: parseInt(user_id) })
       });
-      
+
       alert('✅ Moderator przypisany');
       loadAssignments(category_id);
     } catch (error) {
@@ -173,7 +256,7 @@ function setupEventListeners() {
       alert('❌ Błąd podczas przypisywania moderatora');
     }
   });
-  
+
   document.getElementById('assignCategory').addEventListener('change', (e) => {
     if (e.target.value) {
       loadAssignments(e.target.value);
@@ -181,17 +264,16 @@ function setupEventListeners() {
   });
 }
 
-// Min: Zarządzanie przypisaniami
 async function loadAssignments(category_id) {
   try {
     const moderators = await fetchWithAuth(`/api/forum/categories/${category_id}/moderators`);
     const list = document.getElementById('assignmentsList');
-    
+
     if (moderators.length === 0) {
       list.innerHTML = '<p style="margin-top: 20px; color: rgba(255,255,255,0.5);">Brak przypisanych moderatorów</p>';
       return;
     }
-    
+
     list.innerHTML = `
       <div style="margin-top: 20px;">
         <h3 style="color:#FFD700; font-size:18px;">Przypisani moderatorzy:</h3>
@@ -216,29 +298,28 @@ async function loadAssignments(category_id) {
   }
 }
 
-// Min: Edycja/Usuwanie kategorii
 window.editCategory = async (id) => {
   const category = allCategories.find(c => c.id === id);
   if (!category) return;
-  
+
   const newName = prompt('Nowa nazwa:', category.name);
   if (!newName || newName === category.name) return;
-  
+
   const newSlug = prompt('Nowy slug:', category.slug);
   if (!newSlug) return;
-  
+
   const newDescription = prompt('Nowy opis:', category.description || '');
-  
+
   try {
     await fetchWithAuth(`/api/forum/categories/${id}`, {
       method: 'PUT',
-      body: JSON.stringify({ 
-        name: newName, 
-        slug: newSlug, 
-        description: newDescription 
+      body: JSON.stringify({
+        name: newName,
+        slug: newSlug,
+        description: newDescription
       })
     });
-    
+
     alert('✅ Kategoria zaktualizowana');
     loadCategories();
   } catch (error) {
@@ -250,11 +331,11 @@ window.editCategory = async (id) => {
 window.deleteCategory = async (id) => {
   const category = allCategories.find(c => c.id === id);
   if (!category) return;
-  
+
   if (!confirm(`Czy na pewno chcesz usunąć kategorię "${category.name}"? Spowoduje to usunięcie wszystkich powiązanych postów!`)) {
     return;
   }
-  
+
   try {
     await fetchWithAuth(`/api/forum/categories/${id}`, { method: 'DELETE' });
     alert('✅ Kategoria usunięta');
@@ -267,7 +348,7 @@ window.deleteCategory = async (id) => {
 
 window.removeModerator = async (category_id, user_id) => {
   if (!confirm('Czy na pewno chcesz usunąć tego moderatora z kategorii?')) return;
-  
+
   try {
     await fetchWithAuth(`/api/forum/categories/${category_id}/moderators/${user_id}`, { method: 'DELETE' });
     alert('✅ Moderator usunięty z kategorii');

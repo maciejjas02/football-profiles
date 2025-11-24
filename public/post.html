@@ -1,44 +1,75 @@
 <!DOCTYPE html>
 <html lang="pl">
+
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Post - Football Profiles</title>
   <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 </head>
+
 <body>
   <header class="topbar">
     <div class="topbar-content">
-      <div class="logo-section"><img src="/images/logo.png" class="topbar-logo" /><span class="site-title">Football Profiles</span></div>
+      <div class="logo-section"><img src="/images/logo.png" class="topbar-logo" /><span class="site-title">Football
+          Profiles</span></div>
       <nav class="topbar-nav">
         <a href="dashboard.html" class="nav-tab">Panel</a>
         <a href="gallery.html" class="nav-tab">Galeria</a>
-        <a href="forum.html" class="nav-tab">Forum</a>
-        <a href="moderator-posts.html" class="nav-tab">Moderacja</a>
+        <a href="forum.html" class="nav-tab active">Forum</a> <a href="moderator-posts.html" class="nav-tab"
+          id="moderatorLink" style="display:none;">Moderacja</a>
+        <a href="admin-categories.html" class="nav-tab" id="adminLink" style="display:none;">Admin</a>
+        <a href="admin-gallery-manage.html" class="nav-tab" id="galleryManageLink" style="display:none;">Zarządzaj
+          Galeriami</a>
       </nav>
-      <div class="topbar-actions"><div id="authBar" class="authbar"><span id="who">...</span><button id="logoutBtn" class="btn btn-ghost">Wyloguj</button></div></div>
+      <div class="topbar-actions">
+        <div style="position:relative;">
+          <button id="notificationsBtn" class="icon-button" aria-label="Powiadomienia" style="display:none;">
+            <span>🔔</span>
+            <span id="notificationBadge" class="notification-badge" style="display:none;">0</span>
+          </button>
+          <div id="notificationsDropdown" class="notification-dropdown" style="display:none;">
+            <div class="notification-header">
+              <h3>Powiadomienia</h3>
+              <button id="markAllReadBtn" class="btn-link">Oznacz wszystkie jako przeczytane</button>
+            </div>
+            <div class="notification-list" id="notificationsList">
+              <div class="notification-empty">Brak powiadomień.</div>
+            </div>
+          </div>
+        </div>
+
+        <div id="authBar" class="authbar"><span id="who">...</span><button id="logoutBtn"
+            class="btn btn-ghost">Wyloguj</button></div>
+      </div>
     </div>
   </header>
 
   <main class="container">
-    <div class="post-detail" id="postContent">Ładowanie...</div>
+    <div class="post-view-container">
+      <div class="post-detail" id="postContent">Ładowanie...</div>
 
-    <div class="comment-form-section hidden" id="commentFormSection">
-      <h3>Dodaj komentarz</h3>
-      <textarea id="commentContent" placeholder="Napisz komentarz..."></textarea>
-      <div style="margin-top:10px;">
-         <button id="submitCommentBtn" class="btn btn-primary">Wyślij</button>
+      <div class="comment-form-section hidden" id="commentFormSection">
+        <h3>Dodaj komentarz</h3>
+        <textarea id="commentContent" placeholder="Napisz komentarz..."></textarea>
+        <div style="margin-top:10px;">
+          <button id="submitCommentBtn" class="btn btn-primary">Wyślij</button>
+        </div>
       </div>
-    </div>
-    <div id="loginToComment" class="hidden" style="text-align:center; margin:20px;"><a href="/" class="btn btn-primary">Zaloguj się aby skomentować</a></div>
+      <div id="loginToComment" class="hidden" style="text-align:center; margin:20px;"><a href="/"
+          class="btn btn-primary">Zaloguj się aby skomentować</a></div>
 
-    <div class="comments-section hidden" id="commentsSection">
-      <h3>Komentarze (<span id="commentCount">0</span>)</h3>
-      <div class="comments-list" id="commentsList"></div>
-    </div>
+      <div class="comments-section hidden" id="commentsSection">
+        <h3>Komentarze (<span id="commentCount">0</span>)</h3>
+        <div class="comments-list" id="commentsList"></div>
+      </div>
 
-    <div style="text-align:center; margin-top:30px;"><a href="forum.html" class="btn btn-secondary">Wróć</a></div>
+      <div style="text-align:center; margin-top:30px;"><a href="forum.html" class="btn btn-secondary">Wróć</a></div>
+    </div>
   </main>
 
   <script type="module" src="post.js"></script>
 </body>
+
 </html>

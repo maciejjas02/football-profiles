@@ -4181,3 +4181,82 @@ label:hover::before {
     font-size: 14px;
   }
 }
+
+/* =========================================
+   NAPRAWA FORMULARZA KOMENTARZY (POST.HTML)
+   ========================================= */
+
+/* Kontener formularza */
+.comment-form-section {
+  background: rgba(255, 255, 255, 0.03);
+  /* Bardzo delikatne tło */
+  border: 1px solid rgba(255, 215, 0, 0.15);
+  /* Subtelna złota ramka */
+  border-radius: 12px;
+  padding: 25px;
+  margin-bottom: 30px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.comment-form-section h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #FFD700;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+/* Pole tekstowe (to, co teraz wygląda źle) */
+#commentContent {
+  width: 100%;
+  min-height: 120px;
+  padding: 15px;
+
+  /* Ciemny motyw */
+  background-color: rgba(0, 0, 0, 0.4);
+  color: #e0e0e0;
+
+  /* Ramka i fonty */
+  border: 1px solid #444;
+  border-radius: 8px;
+  font-family: 'Inter', sans-serif;
+  /* Spójna czcionka */
+  font-size: 15px;
+  line-height: 1.5;
+
+  resize: vertical;
+  /* Pozwala rozciągać tylko w dół */
+  transition: all 0.3s ease;
+  display: block;
+  /* Naprawia dziwne marginesy */
+  box-sizing: border-box;
+}
+
+/* Efekt po kliknięciu w pole */
+#commentContent:focus {
+  outline: none;
+  border-color: #FFD700;
+  /* Złote podświetlenie */
+  background-color: rgba(0, 0, 0, 0.6);
+  box-shadow: 0 0 15px rgba(218, 165, 32, 0.15);
+}
+
+#commentContent::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+/* Przycisk wysyłania */
+#submitCommentBtn {
+  margin-top: 15px;
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  font-weight: bold;
+  border-radius: 8px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+#submitCommentBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(218, 165, 32, 0.3);
+}

@@ -1,7 +1,7 @@
 // public/moderator-posts.js
 
 let currentUser = null;
-let editingPostId = null; // Zmienna przechowująca ID edytowanego posta
+let editingPostId = null;
 
 async function init() {
   await setupAuth();
@@ -10,6 +10,10 @@ async function init() {
   await loadMyPosts();
   initEditor();
   setupEventListeners();
+  // Dodano: ładowanie powiadomień
+  if (currentUser) {
+    await loadNotifications();
+  }
 }
 
 async function setupAuth() {
@@ -19,23 +23,21 @@ async function setupAuth() {
       const data = await res.json();
       currentUser = data.user;
       document.getElementById('who').textContent = currentUser.display_name || currentUser.username;
-      
+
       if (currentUser.role !== 'moderator' && currentUser.role !== 'admin') {
         window.location.href = 'dashboard.html';
         return;
       }
-      
-      // DODANO: Wyświetlanie linków administracyjnych
+
+      // Logika pokazywania ukrytych linków
       if (currentUser.role === 'admin') {
-          document.getElementById('adminLink').style.display = 'block';
-          document.getElementById('galleryManageLink').style.display = 'block';
+        const adminLink = document.getElementById('adminLink');
+        if (adminLink) adminLink.style.display = 'block';
+
+        const galleryManageLink = document.getElementById('galleryManageLink');
+        if (galleryManageLink) galleryManageLink.style.display = 'block';
       }
-      if (currentUser.role === 'moderator') {
-          // Moderator też powinien widzieć linki do moderacji/admina
-          const moderatorLink = document.querySelector('a[href="moderator-posts.html"]');
-          if(moderatorLink) moderatorLink.style.display = 'block';
-      }
-      
+
       document.getElementById('logoutBtn').addEventListener('click', async () => {
         await fetch('/api/auth/logout', { method: 'POST' });
         window.location.href = '/';
@@ -44,22 +46,98 @@ async function setupAuth() {
   } catch (error) { window.location.href = 'index.html'; }
 }
 
-function initEditor() {
-    if (typeof tinymce === 'undefined') return;
-    if (tinymce.get('postContent')) tinymce.get('postContent').remove();
-    tinymce.init({
-        selector: '#postContent',
-        height: 400,
-        menubar: false,
-        statusbar: false,
-        plugins: 'lists link image code',
-        toolbar: 'undo redo | bold italic | alignleft aligncenter | bullist numlist | image',
-        skin: 'oxide-dark',
-        content_css: 'dark',
-        setup: function (editor) {
-            editor.on('change', function () { editor.save(); });
-        }
+// --- POWIADOMIENIA (Skopiowane z innych plików) ---
+async function loadNotifications() {
+  const btn = document.getElementById('notificationsBtn');
+  const badge = document.getElementById('notificationBadge');
+  const dropdown = document.getElementById('notificationsDropdown');
+  const list = document.getElementById('notificationsList');
+
+  if (!btn) return;
+
+  try {
+    const res = await fetch('/api/user/notifications');
+    const notifications = await res.json();
+
+    const unreadCount = notifications.filter(n => n.is_read === 0).length;
+
+    if (unreadCount > 0) {
+      badge.textContent = unreadCount;
+      badge.style.display = 'block';
+    } else {
+      badge.style.display = 'none';
+    }
+
+    // Pokaż dzwoneczek
+    btn.style.display = 'block';
+
+    if (notifications.length === 0) {
+      list.innerHTML = '<div class="notification-empty">Brak powiadomień.</div>';
+    } else {
+      list.innerHTML = notifications.map(n => `
+                <div class="notification-item ${n.is_read === 0 ? 'unread' : ''}" 
+                     onclick="window.handleNotificationClick(${n.id}, '${n.link || '#'}', ${n.is_read})"
+                >
+                    <div class="notification-title">${n.title}</div>
+                    <div class="notification-message">${n.message}</div>
+                    <div class="notification-time">${new Date(n.created_at).toLocaleDateString()}</div>
+                </div>
+            `).join('');
+    }
+
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+    };
+
+    document.addEventListener('click', (e) => {
+      if (dropdown.style.display === 'block' && !dropdown.contains(e.target) && !btn.contains(e.target)) {
+        dropdown.style.display = 'none';
+      }
     });
+
+    const markReadBtn = document.getElementById('markAllReadBtn');
+    if (markReadBtn) {
+      markReadBtn.onclick = async () => {
+        await fetch('/api/user/notifications/read-all', { method: 'POST' });
+        loadNotifications();
+      };
+    }
+
+  } catch (e) {
+    console.error('Błąd powiadomień:', e);
+    badge.style.display = 'none';
+  }
+}
+
+window.handleNotificationClick = async (id, link, isRead) => {
+  if (isRead === 0) {
+    await fetch(`/api/user/notifications/${id}/read`, { method: 'POST' });
+  }
+  if (link && link !== '#') {
+    window.location.href = link;
+  } else {
+    loadNotifications();
+  }
+};
+// --- KONIEC POWIADOMIEŃ ---
+
+function initEditor() {
+  if (typeof tinymce === 'undefined') return;
+  if (tinymce.get('postContent')) tinymce.get('postContent').remove();
+  tinymce.init({
+    selector: '#postContent',
+    height: 400,
+    menubar: false,
+    statusbar: false,
+    plugins: 'lists link image code',
+    toolbar: 'undo redo | bold italic | alignleft aligncenter | bullist numlist | image',
+    skin: 'oxide-dark',
+    content_css: 'dark',
+    setup: function (editor) {
+      editor.on('change', function () { editor.save(); });
+    }
+  });
 }
 
 async function loadCategories() {
@@ -68,7 +146,7 @@ async function loadCategories() {
     const categories = await res.json();
     document.getElementById('postCategory').innerHTML = '<option value="">Wybierz...</option>' +
       categories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
-  } catch (error) {}
+  } catch (error) { }
 }
 
 async function loadPendingPosts() {
@@ -76,11 +154,11 @@ async function loadPendingPosts() {
     const res = await fetch('/api/forum/posts/pending/list');
     const posts = await res.json();
     const countEl = document.getElementById('pendingCount');
-    if(countEl) countEl.textContent = posts.length;
-    
+    if (countEl) countEl.textContent = posts.length;
+
     const list = document.getElementById('pendingPostsList');
     if (posts.length === 0) { list.innerHTML = '<div class="empty-state">Brak postów do zatwierdzenia</div>'; return; }
-    
+
     list.innerHTML = posts.map(p => `
       <div class="pending-item" style="background:rgba(255,255,255,0.05); padding:15px; border-radius:8px; margin-bottom:10px; border: 1px solid var(--border-color);">
         <h3 style="margin-top:0; font-size:16px; color:#FFD700;">${p.title}</h3>
@@ -97,24 +175,22 @@ async function loadPendingPosts() {
         </div>
       </div>
     `).join('');
-  } catch (error) {}
+  } catch (error) { }
 }
 
 async function loadMyPosts() {
-    try {
-      // Pobieramy wszystkie zatwierdzone posty, aby umożliwić moderatorowi edycję każdego z nich.
-      const res = await fetch('/api/forum/posts?limit=50&t=' + Date.now());
-      const allPosts = await res.json();
+  try {
+    const res = await fetch('/api/forum/posts?limit=50&t=' + Date.now());
+    const allPosts = await res.json();
 
-      const list = document.getElementById('myPostsList');
-      
-      if (allPosts.length === 0) {
-        list.innerHTML = '<div class="empty-state">Brak opublikowanych postów w systemie.</div>';
-        return;
-      }
-      
-      // Posty są już zatwierdzone, więc status jest hardcode'owany na Approved
-      list.innerHTML = allPosts.map(p => `
+    const list = document.getElementById('myPostsList');
+
+    if (allPosts.length === 0) {
+      list.innerHTML = '<div class="empty-state">Brak opublikowanych postów w systemie.</div>';
+      return;
+    }
+
+    list.innerHTML = allPosts.map(p => `
         <div class="my-post-item" style="background:rgba(255,255,255,0.05); border:1px solid var(--border-color); padding:15px; border-radius:8px; margin-bottom:10px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
               <h3 style="margin:0; font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width: 200px;">${p.title}</h3>
@@ -128,97 +204,90 @@ async function loadMyPosts() {
           </div>
         </div>
       `).join('');
-    } catch (error) {}
+  } catch (error) { }
 }
 
-// Funkcja uruchamiająca tryb edycji
 window.startEdit = async (id) => {
-    try {
-        const res = await fetch(`/api/forum/posts/${id}`);
-        if(!res.ok) return alert("Nie można pobrać danych posta.");
-        const post = await res.json();
+  try {
+    const res = await fetch(`/api/forum/posts/${id}`);
+    if (!res.ok) return alert("Nie można pobrać danych posta.");
+    const post = await res.json();
 
-        // Wypełnij formularz
-        document.getElementById('postTitle').value = post.title;
-        document.getElementById('postCategory').value = post.category_id;
-        
-        if(tinymce.get('postContent')) {
-            tinymce.get('postContent').setContent(post.content);
-        } else {
-            document.getElementById('postContent').value = post.content;
-        }
+    document.getElementById('postTitle').value = post.title;
+    document.getElementById('postCategory').value = post.category_id;
 
-        // Zmień stan na edycję
-        editingPostId = id;
-        const submitBtn = document.getElementById('submitPostBtn');
-        submitBtn.textContent = "💾 Zapisz zmiany";
-        submitBtn.classList.remove('btn-primary');
-        submitBtn.classList.add('btn-success'); 
-        
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-
-    } catch(e) {
-        console.error(e);
-        alert("Błąd podczas ładowania posta do edycji.");
+    if (tinymce.get('postContent')) {
+      tinymce.get('postContent').setContent(post.content);
+    } else {
+      document.getElementById('postContent').value = post.content;
     }
+
+    editingPostId = id;
+    const submitBtn = document.getElementById('submitPostBtn');
+    submitBtn.textContent = "💾 Zapisz zmiany";
+    submitBtn.classList.remove('btn-primary');
+    submitBtn.classList.add('btn-success');
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  } catch (e) {
+    console.error(e);
+    alert("Błąd podczas ładowania posta do edycji.");
+  }
 };
 
 function resetForm() {
-    document.getElementById('postTitle').value = '';
-    document.getElementById('postCategory').value = '';
-    if(tinymce.get('postContent')) tinymce.get('postContent').setContent('');
-    document.getElementById('postContent').value = '';
-    document.getElementById('postImageInput').value = '';
-    
-    // Reset trybu edycji
-    editingPostId = null;
-    const submitBtn = document.getElementById('submitPostBtn');
-    submitBtn.textContent = "Utwórz post";
-    submitBtn.classList.add('btn-primary');
-    submitBtn.classList.remove('btn-success');
+  document.getElementById('postTitle').value = '';
+  document.getElementById('postCategory').value = '';
+  if (tinymce.get('postContent')) tinymce.get('postContent').setContent('');
+  document.getElementById('postContent').value = '';
+  document.getElementById('postImageInput').value = '';
+
+  editingPostId = null;
+  const submitBtn = document.getElementById('submitPostBtn');
+  submitBtn.textContent = "Utwórz post";
+  submitBtn.classList.add('btn-primary');
+  submitBtn.classList.remove('btn-success');
 }
 
 function setupEventListeners() {
-  // Upload obrazka
   document.getElementById('uploadImageBtn').addEventListener('click', async () => {
-      const fileInput = document.getElementById('postImageInput');
-      const file = fileInput.files[0];
-      if(!file) return alert('Wybierz plik!');
-      
-      const formData = new FormData();
-      formData.append('image', file);
-      
-      try {
-          const res = await fetch('/api/forum/upload', { method: 'POST', body: formData });
-          const data = await res.json();
-          if(res.ok) {
-              const imgHtml = `<img src="${data.location}" alt="Obrazek" style="max-width:100%; height:auto; border-radius:8px; margin:10px 0;" />`;
-              if(typeof tinymce !== 'undefined' && tinymce.get('postContent')) tinymce.get('postContent').insertContent(imgHtml);
-              else document.getElementById('postContent').value += imgHtml;
-              alert('✅ Zdjęcie wstawione!');
-              fileInput.value = '';
-          } else alert('Błąd uploadu');
-      } catch(e) { alert('Błąd połączenia'); }
+    const fileInput = document.getElementById('postImageInput');
+    const file = fileInput.files[0];
+    if (!file) return alert('Wybierz plik!');
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+      const res = await fetch('/api/forum/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (res.ok) {
+        const imgHtml = `<img src="${data.location}" alt="Obrazek" style="max-width:100%; height:auto; border-radius:8px; margin:10px 0;" />`;
+        if (typeof tinymce !== 'undefined' && tinymce.get('postContent')) tinymce.get('postContent').insertContent(imgHtml);
+        else document.getElementById('postContent').value += imgHtml;
+        alert('✅ Zdjęcie wstawione!');
+        fileInput.value = '';
+      } else alert('Błąd uploadu');
+    } catch (e) { alert('Błąd połączenia'); }
   });
 
-  // Przycisk wyczyść
   document.getElementById('resetPostBtn').addEventListener('click', (e) => {
-      e.preventDefault();
-      resetForm();
+    e.preventDefault();
+    resetForm();
   });
 
-  // Submit (Tworzenie lub Edycja)
   document.getElementById('submitPostBtn').addEventListener('click', async (e) => {
     e.preventDefault();
-    
+
     const title = document.getElementById('postTitle').value.trim();
     const category_id = document.getElementById('postCategory').value;
-    
-    if(typeof tinymce !== 'undefined' && tinymce.get('postContent')) tinymce.triggerSave();
+
+    if (typeof tinymce !== 'undefined' && tinymce.get('postContent')) tinymce.triggerSave();
     const content = document.getElementById('postContent').value;
-    
+
     if (!title || !category_id || !content) return alert('Wypełnij wszystkie pola!');
-    
+
     const isEdit = editingPostId !== null;
     const url = isEdit ? `/api/forum/posts/${editingPostId}` : '/api/forum/posts';
     const method = isEdit ? 'PUT' : 'POST';
@@ -229,38 +298,37 @@ function setupEventListeners() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, category_id, content })
       });
-      
+
       if (res.ok) {
         alert(isEdit ? '✅ Post zaktualizowany!' : '✅ Post utworzony!');
         resetForm();
-        loadMyPosts();     
-        loadPendingPosts(); 
+        loadMyPosts();
+        loadPendingPosts();
       } else {
-          const err = await res.json();
-          alert('Błąd: ' + (err.error || 'Nieznany'));
+        const err = await res.json();
+        alert('Błąd: ' + (err.error || 'Nieznany'));
       }
     } catch (e) { alert('Błąd połączenia'); }
   });
 }
 
-// Akcje moderatora
 window.approvePost = async (id) => {
-  if(!confirm('Zatwierdzić ten post?')) return;
+  if (!confirm('Zatwierdzić ten post?')) return;
   await fetch(`/api/forum/posts/${id}/approve`, { method: 'POST' });
   loadPendingPosts();
   loadMyPosts();
 };
 
 window.rejectPost = async (id) => {
-  if(!confirm('Odrzucić ten post?')) return;
+  if (!confirm('Odrzucić ten post?')) return;
   await fetch(`/api/forum/posts/${id}/reject`, { method: 'POST' });
   loadPendingPosts();
 };
 
 window.deletePost = async (id) => {
-    if(!confirm('Czy na pewno chcesz usunąć ten post bezpowrotnie?')) return;
-    await fetch(`/api/forum/posts/${id}`, { method: 'DELETE' }); 
-    loadMyPosts();
+  if (!confirm('Czy na pewno chcesz usunąć ten post bezpowrotnie?')) return;
+  await fetch(`/api/forum/posts/${id}`, { method: 'DELETE' });
+  loadMyPosts();
 }
 
 init();
