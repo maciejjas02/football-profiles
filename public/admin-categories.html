@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pl">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,39 +8,69 @@
   <link rel="stylesheet" href="styles.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>
-    .dashboard-container { 
-        max-width: 1400px;
-        margin: 100px auto 0;
-        padding: 0 20px 40px;
-        width: 100%;
-        display: block;
+    .dashboard-container {
+      max-width: 1400px;
+      margin: 100px auto 0;
+      padding: 0 20px 40px;
+      width: 100%;
+      display: block;
     }
+
     .categories-grid-admin {
-        display: grid;
-        grid-template-columns: 2fr 1fr;
-        gap: 30px;
-        align-items: flex-start;
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 30px;
+      align-items: flex-start;
     }
+
     @media (max-width: 1000px) {
-        .categories-grid-admin {
-            grid-template-columns: 1fr;
-        }
+      .categories-grid-admin {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
+
 <body>
   <header class="topbar">
     <div class="topbar-content">
-      <div class="logo-section"><img src="/images/logo.png" class="topbar-logo" /><span class="site-title">Football Profiles</span></div>
+      <div class="logo-section">
+        <img src="/images/logo.png" alt="Logo" class="topbar-logo" />
+        <span class="site-title">Football Profiles</span>
+      </div>
+
       <nav class="topbar-nav">
         <a href="dashboard.html" class="nav-tab">Panel</a>
         <a href="gallery.html" class="nav-tab">Galeria</a>
         <a href="forum.html" class="nav-tab">Forum</a>
+
         <a href="moderator-posts.html" class="nav-tab" id="moderatorLink" style="display:none;">Moderacja</a>
-        <a href="admin-categories.html" class="nav-tab active">Admin</a>
-        <a href="admin-gallery-manage.html" class="nav-tab" id="galleryManageLink" style="display:none;">Zarządzaj Galeriami</a>
+        <a href="admin-categories.html" class="nav-tab active" id="adminLink" style="display:none;">Admin</a> <a
+          href="admin-gallery-manage.html" class="nav-tab" id="galleryManageLink" style="display:none;">Zarządzaj
+          Galeriami</a>
       </nav>
-      <div class="topbar-actions"><div id="authBar" class="authbar"><span id="who">...</span><button id="logoutBtn" class="btn btn-ghost">Wyloguj</button></div></div>
+
+      <div class="topbar-actions">
+        <div style="position:relative;">
+          <button id="notificationsBtn" class="icon-button" aria-label="Powiadomienia">
+            <span>🔔</span>
+            <span id="notificationBadge" class="notification-badge" style="display:none;">0</span>
+          </button>
+          <div id="notificationsDropdown" class="notification-dropdown" style="display:none;">
+            <div class="notification-header">
+              <h3>Powiadomienia</h3>
+              <button id="markAllReadBtn" class="btn-link">Oznacz wszystkie jako przeczytane</button>
+            </div>
+            <div class="notification-list" id="notificationsList">
+              <div class="notification-empty">Brak powiadomień.</div>
+            </div>
+          </div>
+        </div>
+        <div id="authBar" class="authbar">
+          <span id="who">Ładowanie...</span>
+          <button id="logoutBtn" class="btn btn-ghost">Wyloguj</button>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -49,59 +80,62 @@
     </div>
 
     <div class="categories-grid-admin">
-        <div class="admin-panel">
-            <h2>Utwórz Kategorię</h2>
-            <div id="createCatContainer">
-              <div class="form-group">
-                  <label for="categoryName">Nazwa kategorii *</label>
-                  <input type="text" id="categoryName" class="form-input" placeholder="Nazwa kategorii" />
-              </div>
-              <div class="form-group">
-                  <label for="categorySlug">Slug (unikalny link) *</label>
-                  <input type="text" id="categorySlug" class="form-input" placeholder="np. dyskusje-o-lidze" />
-              </div>
-              <div class="form-group">
-                  <label for="categoryDescription">Opis</label>
-                  <textarea id="categoryDescription" class="form-textarea" rows="2" placeholder="Opis..."></textarea>
-              </div>
-              <div class="form-group">
-                  <label for="parentCategory">Kategoria nadrzędna (+0.5)</label>
-                  <select id="parentCategory" class="form-select">
-                      <option value="">Brak (główna kategoria)</option>
-                  </select>
-              </div>
-              <button id="submitCategoryBtn" class="btn btn-primary" style="margin-top: 10px;">Utwórz Kategorię</button>
-            </div>
-
-            <div class="admin-panel" style="margin-top: 30px; background: rgba(0,0,0,0.2); border: 1px solid #444; padding: 20px;">
-                <h2>Lista Kategorii</h2>
-                <div id="categoriesList">Ładowanie...</div>
-            </div>
+      <div class="admin-panel">
+        <h2>Utwórz Kategorię</h2>
+        <div id="createCatContainer">
+          <div class="form-group">
+            <label for="categoryName">Nazwa kategorii *</label>
+            <input type="text" id="categoryName" class="form-input" placeholder="Nazwa kategorii" />
+          </div>
+          <div class="form-group">
+            <label for="categorySlug">Slug (unikalny link) *</label>
+            <input type="text" id="categorySlug" class="form-input" placeholder="np. dyskusje-o-lidze" />
+          </div>
+          <div class="form-group">
+            <label for="categoryDescription">Opis</label>
+            <textarea id="categoryDescription" class="form-textarea" rows="2" placeholder="Opis..."></textarea>
+          </div>
+          <div class="form-group">
+            <label for="parentCategory">Kategoria nadrzędna (+0.5)</label>
+            <select id="parentCategory" class="form-select">
+              <option value="">Brak (główna kategoria)</option>
+            </select>
+          </div>
+          <button id="submitCategoryBtn" class="btn btn-primary" style="margin-top: 10px;">Utwórz Kategorię</button>
         </div>
-        
-        <div class="admin-panel">
-            <h2>Przypisz Moderatora</h2>
-            <div class="form-group">
-                <label for="assignCategory">Wybierz kategorię</label>
-                <select id="assignCategory" class="form-select">
-                    <option value="">Wybierz kategorię...</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="assignModerator">Wybierz moderatora</label>
-                <select id="assignModerator" class="form-select">
-                    <option value="">Wybierz moderatora...</option>
-                </select>
-            </div>
-            <button id="assignBtn" class="btn btn-primary" style="margin-top: 10px;">Przypisz</button>
 
-            <div id="assignmentsList">
-                 <p style="margin-top: 20px; color: rgba(255,255,255,0.5);">Wybierz kategorię, aby zobaczyć przypisanych moderatorów.</p>
-            </div>
+        <div class="admin-panel"
+          style="margin-top: 30px; background: rgba(0,0,0,0.2); border: 1px solid #444; padding: 20px;">
+          <h2>Lista Kategorii</h2>
+          <div id="categoriesList">Ładowanie...</div>
         </div>
+      </div>
+
+      <div class="admin-panel">
+        <h2>Przypisz Moderatora</h2>
+        <div class="form-group">
+          <label for="assignCategory">Wybierz kategorię</label>
+          <select id="assignCategory" class="form-select">
+            <option value="">Wybierz kategorię...</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="assignModerator">Wybierz moderatora</label>
+          <select id="assignModerator" class="form-select">
+            <option value="">Wybierz moderatora...</option>
+          </select>
+        </div>
+        <button id="assignBtn" class="btn btn-primary" style="margin-top: 10px;">Przypisz</button>
+
+        <div id="assignmentsList">
+          <p style="margin-top: 20px; color: rgba(255,255,255,0.5);">Wybierz kategorię, aby zobaczyć przypisanych
+            moderatorów.</p>
+        </div>
+      </div>
     </div>
   </div>
 
   <script type="module" src="admin-categories.js"></script>
 </body>
+
 </html>

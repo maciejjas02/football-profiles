@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="pl">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -10,6 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css" />
 </head>
+
 <body>
   <header class="topbar">
     <div class="topbar-content">
@@ -17,13 +19,18 @@
         <img src="/images/logo.png" alt="Logo" class="topbar-logo" />
         <span class="site-title">Football Profiles</span>
       </div>
+
       <nav class="topbar-nav">
-        <a href="dashboard.html" class="nav-tab">Panel</a>
+        <a href="dashboard.html" class="nav-tab active">Panel</a>
         <a href="gallery.html" class="nav-tab">Galeria</a>
         <a href="forum.html" class="nav-tab">Forum</a>
+
         <a href="moderator-posts.html" class="nav-tab" id="moderatorLink" style="display:none;">Moderacja</a>
         <a href="admin-categories.html" class="nav-tab" id="adminLink" style="display:none;">Admin</a>
+        <a href="admin-gallery-manage.html" class="nav-tab" id="galleryManageLink" style="display:none;">Zarządzaj
+          Galeriami</a>
       </nav>
+
       <div class="topbar-actions">
         <div style="position:relative;">
           <button id="notificationsBtn" class="icon-button" aria-label="Powiadomienia">
@@ -36,11 +43,10 @@
               <button id="markAllReadBtn" class="btn-link">Oznacz wszystkie jako przeczytane</button>
             </div>
             <div class="notification-list" id="notificationsList">
-               <div class="notification-empty">Brak powiadomień.</div>
+              <div class="notification-empty">Brak powiadomień.</div>
             </div>
           </div>
         </div>
-        
         <div id="authBar" class="authbar">
           <span id="who">Ładowanie...</span>
           <button id="logoutBtn" class="btn btn-ghost">Wyloguj</button>
@@ -55,44 +61,91 @@
         <button class="slider-arrow slider-arrow-left">‹</button>
         <div class="slider-container">
           <div class="slider-track">
-            <div class="slide active"><div class="slide-icon">⚽</div><h2>Witaj!</h2><p>Profile najlepszych piłkarzy</p></div>
-            <div class="slide"><div class="slide-icon">🏆</div><h2>Ligi</h2><p>Top 5 Lig Europejskich</p></div>
-            <div class="slide"><div class="slide-icon">💎</div><h2>Kolekcja</h2><p>Zbieraj koszulki</p></div>
+            <div class="slide active">
+              <div class="slide-icon">⚽</div>
+              <h2>Witaj!</h2>
+              <p>Profile najlepszych piłkarzy</p>
+            </div>
+            <div class="slide">
+              <div class="slide-icon">🏆</div>
+              <h2>Ligi</h2>
+              <p>Top 5 Lig Europejskich</p>
+            </div>
+            <div class="slide">
+              <div class="slide-icon">💎</div>
+              <h2>Kolekcja</h2>
+              <p>Zbieraj koszulki</p>
+            </div>
           </div>
         </div>
         <button class="slider-arrow slider-arrow-right">›</button>
       </div>
 
       <div class="main-panels">
-        <div class="panel-card" data-action="leagues"><div class="panel-icon">🏆</div><h3>Ligi</h3></div>
-        <div class="panel-card" data-action="top-players"><div class="panel-icon">⭐</div><h3>Gwiazdy</h3></div>
-        <div class="panel-card" data-action="new-talents"><div class="panel-icon">🚀</div><h3>Talenty</h3></div>
-        <div class="panel-card" data-action="goalkeepers"><div class="panel-icon">🥅</div><h3>Bramkarze</h3></div>
-        <div class="panel-card" data-action="legends"><div class="panel-icon">👑</div><h3>Legendy</h3></div>
+        <div class="panel-card" data-action="leagues">
+          <div class="panel-icon">🏆</div>
+          <h3>Ligi</h3>
+        </div>
+        <div class="panel-card" data-action="top-players">
+          <div class="panel-icon">⭐</div>
+          <h3>Gwiazdy</h3>
+        </div>
+        <div class="panel-card" data-action="new-talents">
+          <div class="panel-icon">🚀</div>
+          <h3>Talenty</h3>
+        </div>
+        <div class="panel-card" data-action="goalkeepers">
+          <div class="panel-icon">🥅</div>
+          <h3>Bramkarze</h3>
+        </div>
+        <div class="panel-card" data-action="legends">
+          <div class="panel-icon">👑</div>
+          <h3>Legendy</h3>
+        </div>
         <div class="panel-card" data-action="my-collection">
-            <div class="panel-icon">💎</div>
-            <h3>Moja Kolekcja</h3>
-            <div class="panel-stats"><span id="collection-count">0 koszulek</span></div>
+          <div class="panel-icon">💎</div>
+          <h3>Moja Kolekcja</h3>
+          <div class="panel-stats"><span id="collection-count">0 koszulek</span></div>
         </div>
       </div>
 
       <div id="leagues-section" class="players-section hidden">
-        <div class="section-header"><button id="leagues-back-btn" class="btn btn-secondary">Powrót</button><h2>Ligi</h2></div>
+        <div class="section-header"><button id="leagues-back-btn" class="btn btn-secondary">Powrót</button>
+          <h2>Ligi</h2>
+        </div>
         <div class="leagues-grid">
-            <div class="league-card"><h3>Premier League</h3><p>Anglia</p></div>
-            <div class="league-card"><h3>La Liga</h3><p>Hiszpania</p></div>
-            <div class="league-card"><h3>Bundesliga</h3><p>Niemcy</p></div>
-            <div class="league-card"><h3>Serie A</h3><p>Włochy</p></div>
-            <div class="league-card"><h3>Ligue 1</h3><p>Francja</p></div>
+          <div class="league-card">
+            <h3>Premier League</h3>
+            <p>Anglia</p>
+          </div>
+          <div class="league-card">
+            <h3>La Liga</h3>
+            <p>Hiszpania</p>
+          </div>
+          <div class="league-card">
+            <h3>Bundesliga</h3>
+            <p>Niemcy</p>
+          </div>
+          <div class="league-card">
+            <h3>Serie A</h3>
+            <p>Włochy</p>
+          </div>
+          <div class="league-card">
+            <h3>Ligue 1</h3>
+            <p>Francja</p>
+          </div>
         </div>
       </div>
 
       <div id="players-section" class="players-section hidden">
-        <div class="section-header"><button id="back-btn" class="btn btn-secondary">Powrót</button><h2 id="section-title"></h2></div>
+        <div class="section-header"><button id="back-btn" class="btn btn-secondary">Powrót</button>
+          <h2 id="section-title"></h2>
+        </div>
         <div id="players-grid" class="players-grid"></div>
       </div>
     </div>
   </main>
   <script src="/dashboard.js" type="module"></script>
 </body>
+
 </html>

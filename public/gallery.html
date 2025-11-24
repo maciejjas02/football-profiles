@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="pl">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Galeria - Football Profiles</title>
   <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
   <header class="topbar">
     <div class="topbar-content">
@@ -13,14 +15,18 @@
         <img src="/images/logo.png" alt="Logo" class="topbar-logo" />
         <span class="site-title">Football Profiles</span>
       </div>
-        <nav class="topbar-nav">
+
+      <nav class="topbar-nav">
         <a href="dashboard.html" class="nav-tab">Panel</a>
-        <a href="gallery.html" class="nav-tab active">Galeria</a>
+        <a href="gallery.html" class="nav-tab">Galeria</a>
         <a href="forum.html" class="nav-tab">Forum</a>
+
         <a href="moderator-posts.html" class="nav-tab" id="moderatorLink" style="display:none;">Moderacja</a>
         <a href="admin-categories.html" class="nav-tab" id="adminLink" style="display:none;">Admin</a>
-        <a href="admin-gallery-manage.html" class="nav-tab" id="galleryManageLink" style="display:none;">Zarządzaj Galeriami</a>
-        </nav>
+        <a href="admin-gallery-manage.html" class="nav-tab" id="galleryManageLink" style="display:none;">Zarządzaj
+          Galeriami</a>
+      </nav>
+
       <div class="topbar-actions">
         <div id="authBar" class="authbar">
           <span id="who">Ładowanie...</span>
@@ -31,38 +37,40 @@
   </header>
 
   <main class="gallery-view">
-    <h1 id="gallery-title">🏆 Galeria</h1>
+    <h1 id="gallery-title"></h1>
 
-    <div id="loadingState" class="loading-state" style="height: 400px; display: flex; justify-content: center; align-items: center;">
-        <div class="spinner"></div>
-        <p>Ładowanie galerii...</p>
+    <div id="loadingState" class="loading-state"
+      style="height: 400px; display: flex; justify-content: center; align-items: center;">
+      <div class="spinner"></div>
+      <p>Ładowanie galerii...</p>
     </div>
 
     <div id="galleryContainer" style="display: none;">
-        
-        <div class="carousel-stage">
-            <button id="prevBtn" class="nav-arrow left">❮</button>
-            
-            <div id="carouselTrack" class="carousel-track">
-                </div>
-            
-            <button id="nextBtn" class="nav-arrow right">❯</button>
+
+      <div class="carousel-stage">
+        <button id="prevBtn" class="nav-arrow left">❮</button>
+
+        <div id="carouselTrack" class="carousel-track">
         </div>
 
-        <div class="caption-container">
-            <h2 id="imageTitle">Tytuł zdjęcia</h2>
-            <p id="imageDescription">Opis zdjęcia...</p>
-            
-            <div id="dotsContainer" class="dots-container"></div>
-        </div>
+        <button id="nextBtn" class="nav-arrow right">❯</button>
+      </div>
+
+      <div class="caption-container">
+        <h2 id="imageTitle">Tytuł zdjęcia</h2>
+        <p id="imageDescription">Opis zdjęcia...</p>
+
+        <div id="dotsContainer" class="dots-container"></div>
+      </div>
 
     </div>
 
     <div id="emptyState" class="empty-state" style="display: none; padding: 100px;">
-        Brak aktywnej galerii. Skontaktuj się z administratorem.
+      Brak aktywnej galerii. Skontaktuj się z administratorem.
     </div>
 
   </main>
   <script src="/gallery.js" type="module"></script>
 </body>
+
 </html>

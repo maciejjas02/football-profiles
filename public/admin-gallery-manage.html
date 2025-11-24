@@ -1,83 +1,119 @@
 <!DOCTYPE html>
 <html lang="pl">
+
 <head>
     <meta charset="UTF-8">
     <title>Admin - Zarządzaj Sliderem Galerii</title>
     <link rel="stylesheet" href="styles.css">
     <style>
-        .dashboard-container { 
+        .dashboard-container {
             max-width: 1400px;
             margin: 100px auto 0;
             padding: 0 20px 40px;
             width: 100%;
             display: block;
         }
-        .manage-grid { 
-            display: grid; 
-            grid-template-columns: 1fr 1fr; 
-            gap: 30px; 
-            align-items: start; 
-            margin-top: 30px; 
+
+        .manage-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            align-items: start;
+            margin-top: 30px;
         }
-        @media (max-width: 768px) { .manage-grid { grid-template-columns: 1fr; } }
+
+        @media (max-width: 768px) {
+            .manage-grid {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
+
 <body>
-  <header class="topbar">
-    <div class="topbar-content">
-      <div class="logo-section"><img src="/images/logo.png" class="topbar-logo" /><span class="site-title">Football Profiles</span></div>
-      <nav class="topbar-nav">
-        <a href="dashboard.html" class="nav-tab">Panel</a>
-        <a href="gallery.html" class="nav-tab">Galeria</a>
-        <a href="forum.html" class="nav-tab">Forum</a>
-        <a href="moderator-posts.html" class="nav-tab" id="moderatorLink" style="display:none;">Moderacja</a>
-        <a href="admin-categories.html" class="nav-tab" id="adminLink" style="display:none;">Admin</a>
-        <a href="admin-gallery-manage.html" class="nav-tab" id="galleryManageLink" style="display:none;">Zarządzaj Galeriami</a>
-      </nav>
-      <div class="topbar-actions"><div id="authBar" class="authbar"><span id="who">...</span><button id="logoutBtn" class="btn btn-ghost">Wyloguj</button></div></div>
-    </div>
-  </header>
-
-  <div class="dashboard-container">
-    <h1 class="page-title">🛠️ Zarządzanie Sliderem</h1>
-    <div class="sub-nav">
-        <a href="admin-gallery-upload.html" class="sub-nav-link">Upload zdjęć</a>
-        <a href="admin-gallery-manage.html" class="sub-nav-link active">Zarządzaj Sliderem</a>
-        <a href="gallery.html" class="sub-nav-link">Podgląd dla Użytkownika</a>
-    </div>
-
-    <div class="manage-grid">
-        <div class="admin-panel">
-            <h2>Kolekcje (Galerie)</h2>
-            <div id="collectionsList" class="collections-grid">
-                <div class="loading">Ładowanie...</div>
+    <header class="topbar">
+        <div class="topbar-content">
+            <div class="logo-section">
+                <img src="/images/logo.png" class="topbar-logo" /><span class="site-title">Football Profiles</span>
             </div>
+            <nav class="topbar-nav">
+                <a href="dashboard.html" class="nav-tab">Panel</a>
+                <a href="gallery.html" class="nav-tab">Galeria</a>
+                <a href="forum.html" class="nav-tab">Forum</a>
 
-            <div style="border-top: 1px solid #333; padding-top: 20px; margin-top: 20px;">
-                <h3>Utwórz nową kolekcję</h3>
-                <input type="text" id="collectionName" class="form-input" placeholder="Nazwa kolekcji" style="margin-bottom: 10px;">
-                <textarea id="collectionDescription" class="form-textarea" rows="2" placeholder="Opis kolekcji"></textarea>
-                <button id="createCollectionBtn" class="btn btn-primary" style="margin-top: 10px;">Utwórz</button>
-            </div>
-        </div>
-
-        <div class="admin-panel">
-            <h2 id="itemsHeader">Elementy kolekcji</h2>
-            <div id="collectionActions" style="margin-bottom: 15px; display:flex; gap:10px; flex-wrap: wrap;">
-                <select id="availableImagesSelect" class="form-select" style="flex: 1; min-width: 180px;">
-                    <option value="">Wybierz obrazek do dodania...</option>
-                </select>
-                <button id="addImageToCollectionBtn" class="btn btn-secondary">➕ Dodaj</button>
-                <button id="saveOrderBtn" class="btn btn-success" style="flex: 1;">💾 Zapisz Kolejność (Drag & Drop)</button>
-            </div>
-            
-            <div class="slider-items" id="collectionItems">
-                <div class="empty-state">Wybierz kolekcję, aby zarządzać elementami.</div>
+                <a href="moderator-posts.html" class="nav-tab" id="moderatorLink" style="display:none;">Moderacja</a>
+                <a href="admin-categories.html" class="nav-tab" id="adminLink" style="display:none;">Admin</a>
+                <a href="admin-gallery-manage.html" class="nav-tab active" id="galleryManageLink"
+                    style="display:none;">Zarządzaj Galeriami</a>
+            </nav>
+            <div class="topbar-actions">
+                <div style="position:relative;">
+                    <button id="notificationsBtn" class="icon-button" aria-label="Powiadomienia">
+                        <span>🔔</span>
+                        <span id="notificationBadge" class="notification-badge" style="display:none;">0</span>
+                    </button>
+                    <div id="notificationsDropdown" class="notification-dropdown" style="display:none;">
+                        <div class="notification-header">
+                            <h3>Powiadomienia</h3>
+                            <button id="markAllReadBtn" class="btn-link">Oznacz wszystkie jako przeczytane</button>
+                        </div>
+                        <div class="notification-list" id="notificationsList">
+                            <div class="notification-empty">Brak powiadomień.</div>
+                        </div>
+                    </div>
+                </div>
+                <div id="authBar" class="authbar">
+                    <span id="who">...</span>
+                    <button id="logoutBtn" class="btn btn-ghost">Wyloguj</button>
+                </div>
             </div>
         </div>
-    </div>
-  </div>
+    </header>
 
-  <script src="/admin-gallery-manage.js" type="module"></script>
+    <div class="dashboard-container">
+        <h1 class="page-title">🛠️ Zarządzanie Sliderem</h1>
+        <div class="sub-nav">
+            <a href="admin-gallery-upload.html" class="sub-nav-link">Upload zdjęć</a>
+            <a href="admin-gallery-manage.html" class="sub-nav-link active">Zarządzaj Sliderem</a>
+            <a href="gallery.html" class="sub-nav-link">Podgląd dla Użytkownika</a>
+        </div>
+
+        <div class="manage-grid">
+            <div class="admin-panel">
+                <h2>Kolekcje (Galerie)</h2>
+                <div id="collectionsList" class="collections-grid">
+                    <div class="loading">Ładowanie...</div>
+                </div>
+
+                <div style="border-top: 1px solid #333; padding-top: 20px; margin-top: 20px;">
+                    <h3>Utwórz nową kolekcję</h3>
+                    <input type="text" id="collectionName" class="form-input" placeholder="Nazwa kolekcji"
+                        style="margin-bottom: 10px;">
+                    <textarea id="collectionDescription" class="form-textarea" rows="2"
+                        placeholder="Opis kolekcji"></textarea>
+                    <button id="createCollectionBtn" class="btn btn-primary" style="margin-top: 10px;">Utwórz</button>
+                </div>
+            </div>
+
+            <div class="admin-panel">
+                <h2 id="itemsHeader">Elementy kolekcji</h2>
+                <div id="collectionActions" style="margin-bottom: 15px; display:flex; gap:10px; flex-wrap: wrap;">
+                    <select id="availableImagesSelect" class="form-select" style="flex: 1; min-width: 180px;">
+                        <option value="">Wybierz obrazek do dodania...</option>
+                    </select>
+                    <button id="addImageToCollectionBtn" class="btn btn-secondary">➕ Dodaj</button>
+                    <button id="saveOrderBtn" class="btn btn-success" style="flex: 1;">💾 Zapisz Kolejność (Drag &
+                        Drop)</button>
+                </div>
+
+                <div class="slider-items" id="collectionItems">
+                    <div class="empty-state">Wybierz kolekcję, aby zarządzać elementami.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/admin-gallery-manage.js" type="module"></script>
 </body>
+
 </html>
