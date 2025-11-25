@@ -14,6 +14,7 @@ import passport from 'passport';
 import multer from 'multer';
 import fs from 'fs';
 import './passport.js';
+import nodemailer from 'nodemailer'; // <--- DODANO
 
 const isProd = process.env.NODE_ENV === 'production';
 const usePostgreSQL = process.env.USE_POSTGRESQL === 'true';
@@ -31,7 +32,7 @@ const {
   ensureSchema, ensureSeedAdmin, ensureSeedClubs, ensureSeedPlayers, ensureSeedCategories,
   findUserByLogin, getUserById, createOrUpdateUserFromProvider, existsUserByEmail, existsUserByUsername, createLocalUser,
   getPlayerById, getPlayersByCategory, getAllClubs, getClubById,
-  createPurchase, getUserPurchases, updatePurchaseStatus, getAllPurchases, // <--- DODANO TUTAJ
+  createPurchase, getUserPurchases, updatePurchaseStatus, getAllPurchases,
   // --- KOSZYK ---
   getCartItems, addToCart, removeFromCart, checkoutCart,
   // --- FORUM ---
@@ -43,7 +44,8 @@ const {
   createDiscussion, getDiscussionMessages, getDiscussionUsers,
   createGalleryImage, getAllGalleryImages, getGalleryImageById, deleteGalleryImage,
   createGalleryCollection, getAllGalleryCollections, getGalleryCollectionById, getActiveGalleryCollection, setActiveGalleryCollection, deleteGalleryCollection,
-  addImageToCollection, getCollectionItems, removeImageFromCollection, reorderCollectionItems
+  addImageToCollection, getCollectionItems, removeImageFromCollection, reorderCollectionItems,
+  updateUserAddress // <--- DODANO
 } = dbFunctions;
 
 const __filename = fileURLToPath(import.meta.url);
@@ -112,6 +114,37 @@ await ensureSeedAdmin();
 await ensureSeedClubs();
 await ensureSeedPlayers();
 ensureSeedCategories();
+
+// --- Konfiguracja Email (Mock Ethereal do testów - użyj swoich danych z .env w prod) ---
+const transporter = nodemailer.createTransport({
+  host: 'smtp.ethereal.email',
+  port: 587,
+  auth: {
+    user: 'ethereal.user@ethereal.email', // Zmień na swoje
+    pass: 'ethereal.pass' // Zmień na swoje
+  }
+});
+
+// Funkcja pomocnicza do wysyłania (loguje w konsoli, aby uniknąć błędów SMTP)
+const sendEmail = async (to, subject, html) => {
+  console.log(`📧 [EMAIL SYSTEM] Do: ${to} | Temat: ${subject}`);
+  // Aby aktywować prawdziwą wysyłkę, odkomentuj i skonfiguruj auth:
+  /*
+  try {
+      await transporter.sendMail({
+          from: '"Football Shop" <sklep@foot.ball>',
+          to,
+          subject,
+          html
+      });
+      console.log(`📧 [EMAIL SENT] Successfully to: ${to}`);
+  } catch (e) {
+      console.error("❌ Błąd wysyłki maila:", e);
+  }
+  */
+};
+// --------------------------------------------------------------------------------------
+
 
 const issueJwt = (user) => jwt.sign({ sub: user.id, role: user.role }, 'secret', { expiresIn: '1h' });
 const setAuthCookies = (res, token) => res.cookie('jwt', token, { httpOnly: true });
@@ -184,15 +217,70 @@ app.get('/api/players/category/:cat', (req, res) => res.json(getPlayersByCategor
 // PURCHASES (OLD)
 app.post('/api/purchase', requireAuth, (req, res) => { createPurchase(getUserByIdFromReq(req), req.body.playerId, 299); res.json({ success: true }); });
 app.get('/api/user/purchases', requireAuth, (req, res) => res.json(getUserPurchases(getUserByIdFromReq(req))));
-app.post('/api/purchases/:id/pay', requireAuth, (req, res) => { updatePurchaseStatus(req.params.id, 'completed'); res.json({ success: true }); });
+
+// --- NOWY ENDPOINT: Aktualizacja adresu (MIN WYMAGANIE) ---
+app.put('/api/user/address', requireAuth, (req, res) => {
+  const { address, city, postalCode } = req.body;
+  if (!address || !city || !postalCode) {
+    return res.status(400).json({ error: 'Wypełnij wszystkie pola adresu' });
+  }
+  updateUserAddress(req.user.id, address, city, postalCode);
+  res.json({ success: true });
+});
+
+// --- ZAKTUALIZOWANA PŁATNOŚĆ (SANDBOX + MAIL) ---
+app.post('/api/purchases/:id/pay', requireAuth, async (req, res) => {
+  updatePurchaseStatus(req.params.id, 'completed');
+
+  // Wyślij Email o płatności (+0.5/1.0 Bonus support)
+  const user = getUserById(req.user.id);
+  await sendEmail(
+    user.email,
+    'Płatność zaksięgowana!',
+    `<h1>Twoje zamówienie #${req.params.id} jest opłacone!</h1>
+         <p>Dziękujemy za płatność. Status Twojego zamówienia został zmieniony na <strong>Opłacone</strong>. Paczka wkrótce wyruszy w drogę!</p>`
+  );
+
+  res.json({ success: true });
+});
+
 
 // --- CART API ---
 app.get('/api/cart', requireAuth, (req, res) => { res.json(getCartItems(getUserByIdFromReq(req))); });
 app.post('/api/cart', requireAuth, (req, res) => { addToCart(getUserByIdFromReq(req), req.body.playerId); res.json({ success: true, message: "Dodano do koszyka" }); });
 app.delete('/api/cart/:id', requireAuth, (req, res) => { removeFromCart(getUserByIdFromReq(req), req.params.id); res.json({ success: true }); });
-app.post('/api/cart/checkout', requireAuth, (req, res) => {
-  try { checkoutCart(getUserByIdFromReq(req)); res.json({ success: true, message: "Zamówienie złożone!" }); }
-  catch (e) { res.status(400).json({ error: e.message }); }
+
+// --- ZAKTUALIZOWANY CHECKOUT (Z WALIDACJĄ ADRESU I MAILEM) ---
+app.post('/api/cart/checkout', requireAuth, async (req, res) => {
+  try {
+    // 1. Sprawdź czy user ma adres (MIN WYMAGANIE)
+    const user = getUserById(req.user.id);
+    if (!user.address || !user.city || !user.postal_code) {
+      return res.status(400).json({ error: 'Brak pełnych danych do wysyłki (adres, miasto, kod pocztowy). Uzupełnij profil.' });
+    }
+
+    // 2. Oblicz kwotę dla maila
+    const cartItems = getCartItems(user.id);
+    if (cartItems.length === 0) throw new Error("Koszyk jest pusty");
+    const total = cartItems.reduce((sum, item) => sum + (item.jersey_price * item.quantity), 0);
+
+    // 3. Wykonaj logikę bazy
+    checkoutCart(user.id);
+
+    // 4. Wyślij Email (+0.5 Bonus)
+    await sendEmail(
+      user.email,
+      `Potwierdzenie zamówienia (${new Date().toLocaleDateString()})`,
+      `<h1>Dziękujemy za zamówienie!</h1>
+             <p>Wysyłamy na adres: <strong>${user.address}, ${user.postal_code} ${user.city}</strong></p>
+             <p>Kwota do zapłaty: <strong>${total} zł</strong></p>
+             <p>Status: Oczekuje na płatność. Przejdź do 'Moja Kolekcja' aby opłacić.</p>`
+    );
+
+    res.json({ success: true, message: "Zamówienie złożone! Sprawdź maila." });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
 });
 
 // --- ADMIN ORDERS ---

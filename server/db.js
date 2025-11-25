@@ -14,7 +14,27 @@ export function ensureSchema() {
     PRAGMA journal_mode = WAL;
     PRAGMA foreign_keys = ON; 
     
-    CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE, username TEXT UNIQUE, password_hash TEXT, name TEXT, avatar_url TEXT, role TEXT DEFAULT 'user', reputation INTEGER DEFAULT 0, provider TEXT, provider_id TEXT, created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now')));
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, 
+        email TEXT UNIQUE, 
+        username TEXT UNIQUE, 
+        password_hash TEXT, 
+        name TEXT, 
+        avatar_url TEXT, 
+        role TEXT DEFAULT 'user', 
+        reputation INTEGER DEFAULT 0, 
+        provider TEXT, 
+        provider_id TEXT, 
+        
+        -- 👇 NOWE KOLUMNY ADRESOWE 👇
+        address TEXT,
+        city TEXT,
+        postal_code TEXT,
+        -- 👆 KONIEC NOWYCH KOLUMN 👆
+
+        created_at TEXT DEFAULT (datetime('now')), 
+        updated_at TEXT DEFAULT (datetime('now'))
+    );
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
     CREATE TABLE IF NOT EXISTS clubs (id TEXT PRIMARY KEY, name TEXT, full_name TEXT, country TEXT, league TEXT, founded INTEGER, stadium TEXT, logo_url TEXT, primary_color TEXT, secondary_color TEXT, created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now')));
@@ -196,7 +216,7 @@ export function ensureSeedPlayers() {
             biography: 'Fenomenalny młody pomocnik, który podbił serca kibiców Realu Madryt w swoim debiutanckim sezonie.',
             jersey_price: 529,
             jersey_available: 100,
-            jersey_image_url: 'https://us.shop.realmadrid.com/_next/image?url=https%3A%2F%2Flegends.broadleafcloud.com%2Fapi%2Fasset%2Fcontent%2FSBP26%2FRMCFMZ0899-Mens-Home-Shirt-25-26-White-bellingham-5.jpg%3FcontextRequest%3D%257B%2522forceCatalogForFetch%2522%3Afalse%2C%2522forceFilterByCatalogIncludeInheritance%2522%3Afalse%2C%2522forceFilterByCatalogExcludeInheritance%2522%3Afalse%2C%2522applicationId%2522%3A%252201H4RD9NXMKQBQ1WVKM1181VD8%2522%2C%2522tenantId%2522%3A%2522REAL_MADRID%2522%257D&w=3840&q=50',
+            jersey_image_url: 'https://us.shop.realmadrid.com/_next/image?url=https%3A%2F%2Flegends.broadleafcloud.com%2Fapi%2Fasset%2Fcontent%2FSBP26%2FRMCFMZ0899-Mens-Home-Shirt-25-26-White-bellingham-5.jpg%3FcontextRequest%3D%257B%2522forceCatalogForFetch%2522%3Afalse%252C%2522forceFilterByCatalogIncludeInheritance%2522%3Afalse%252C%2522forceFilterByCatalogExcludeInheritance%2522%3Afalse%252C%2522applicationId%2522%3A%252201H4RD9NXMKQBQ1WVKM1181VD8%2522%252C%2522tenantId%2522%3A%2522REAL_MADRID%2522%257D&w=3840&q=50',
             category: 'new-talents',
             image_url: 'https://img.a.transfermarkt.technology/portrait/big/581678-1748102891.jpg?lm=1',
             team_logo: 'https://upload.wikimedia.org/wikipedia/en/5/56/Real_Madrid_CF.svg',
@@ -240,7 +260,7 @@ export function ensureSeedPlayers() {
             biography: 'Jeden z najlepszych bramkarzy na świecie. Mur nie do przejścia w bramce Realu Madryt.',
             jersey_price: 349,
             jersey_available: 100,
-            jersey_image_url: 'https://shop.realmadrid.com/_next/image?url=https%3A%2F%2Flegends.broadleafcloud.com%2Fapi%2Fasset%2Fcontent%2FSBP26%2FRMCFMZ0916-Mens-Goalkeeper-Shirt-25-26-Blue-courtois-1.jpg%3FcontextRequest%3D%257B%2522forceCatalogForFetch%2522%3Afalse%2C%2522forceFilterByCatalogIncludeInheritance%2522%3Afalse%2C%2522forceFilterByCatalogExcludeInheritance%2522%3Afalse%2C%2522applicationId%2522%3A%252201H4RD9NXMKQBQ1WVKM1181VD8%2522%2C%2522tenantId%2522%3A%2522REAL_MADRID%2522%257D&w=3840&q=50',
+            jersey_image_url: 'https://shop.realmadrid.com/_next/image?url=https%3A%2F%2Flegends.broadleafcloud.com%2Fapi%2Fasset%2Fcontent%2FSBP26%2FRMCFMZ0916-Mens-Goalkeeper-Shirt-25-26-Blue-courtois-1.jpg%3FcontextRequest%3D%257B%2522forceCatalogForFetch%2522%3Afalse%252C%2522forceFilterByCatalogIncludeInheritance%2522%3Afalse%252C%2522forceFilterByCatalogExcludeInheritance%2522%3Afalse%252C%2522applicationId%2522%3A%252201H4RD9NXMKQBQ1WVKM1181VD8%2522%252C%2522tenantId%2522%3A%2522REAL_MADRID%2522%257D&w=3840&q=50',
             category: 'goalkeepers',
             image_url: 'https://img.a.transfermarkt.technology/portrait/big/108390-1717280733.jpg?lm=1',
             team_logo: 'https://upload.wikimedia.org/wikipedia/en/5/56/Real_Madrid_CF.svg',
@@ -338,6 +358,12 @@ export async function createLocalUser({ email, username, password, name }) {
 export function createOrUpdateUserFromProvider(p, d) { return getUserById(1); }
 export function existsUserByEmail(e) { return !!db.prepare('SELECT 1 FROM users WHERE email=?').get(e); }
 export function existsUserByUsername(u) { return !!db.prepare('SELECT 1 FROM users WHERE username=?').get(u); }
+// 👇 NOWA FUNKCJA DO AKTUALIZACJI ADRESU (Eksportowana) 👇
+export function updateUserAddress(userId, address, city, postalCode) {
+    const stmt = db.prepare('UPDATE users SET address = ?, city = ?, postal_code = ? WHERE id = ?');
+    return stmt.run(address, city, postalCode, userId);
+}
+// 👆 KONIEC NOWEJ FUNKCJI 👆
 
 // --- DATA ---
 export function getPlayerById(id) {
@@ -444,7 +470,7 @@ export function deleteComment(id) { return db.prepare("DELETE FROM post_comments
 export function getPendingComments() { return db.prepare(`SELECT pc.*, u.username as author_username, p.title as post_title, c.name as category_name FROM post_comments pc LEFT JOIN users u ON pc.author_id=u.id LEFT JOIN posts p ON pc.post_id=p.id LEFT JOIN categories c ON p.category_id=c.id WHERE pc.status='pending' ORDER BY pc.created_at DESC`).all(); }
 export function getUserCommentRating() { }
 
-// --- DYSKUSJE I ZGŁOSZENIA (NOWE) ---
+// --- DYSKUSJE ---
 export function createDiscussion(postId, userId, message, senderType) {
     return db.prepare(`INSERT INTO user_discussions (post_id, user_id, message, sender_type) VALUES (?, ?, ?, ?)`).run(postId, userId, message, senderType);
 }

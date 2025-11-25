@@ -1,7 +1,19 @@
 // public/my-collection.js
-import { showToast, showConfirm } from './utils/ui.js'; // <--- IMPORT UI
+import { showToast, showConfirm } from './utils/ui.js'; // <--- IMPORTUJEMY FUNKCJE UI
 
 let currentUser = null;
+
+// Dodano: funkcja do odświeżania danych użytkownika (w tym adresu)
+async function refreshUserData() {
+  try {
+    const res = await fetch('/api/auth/me');
+    if (res.ok) {
+      const data = await res.json();
+      return data.user;
+    }
+  } catch (e) { }
+  return null;
+}
 
 async function init() {
   await setupAuth();
@@ -191,6 +203,7 @@ async function loadPurchases() {
 
     list.innerHTML = purchases.map(p => {
       const isCompleted = p.status === 'completed';
+      const isPending = p.status === 'pending';
       const jerseyImage = p.jersey_image_url || p.player_image || 'https://via.placeholder.com/300x300/1a1a1a/FFFFFF?text=Brak+Zdjecia';
 
       return `
@@ -207,7 +220,7 @@ async function loadPurchases() {
             <div class="jersey-title">${p.player_name}</div>
             <div class="jersey-team">${p.team}</div>
             
-            ${!isCompleted ? `
+            ${isPending ? `
                 <button class="pay-btn" onclick="payForOrder(${p.id})">
                     💳 Zapłać teraz (Sandbox)
                 </button>
@@ -237,8 +250,41 @@ window.removeFromCart = async (id) => {
   loadCart();
 };
 
+
+// --- ZMODYFIKOWANA FUNKCJA CHECKOUT (MIN: ADRES) ---
 async function checkout() {
-  const confirmed = await showConfirm("Złożenie zamówienia", "Czy na pewno chcesz sfinalizować zamówienie?");
+  // 1. Sprawdź czy user ma adres (MIN WYMAGANIE)
+  let user = await refreshUserData();
+
+  if (!user || !user.address || !user.city || !user.postal_code) {
+    const wantToFill = await showConfirm("Brak danych do wysyłki", "Aby złożyć zamówienie, musisz podać adres. Czy chcesz to zrobić teraz?");
+    if (!wantToFill) return;
+
+    // Prosty flow na promptach
+    const address = prompt("Podaj ulicę i numer domu:", user?.address || "");
+    if (!address) return;
+    const postalCode = prompt("Podaj kod pocztowy:", user?.postal_code || "");
+    if (!postalCode) return;
+    const city = prompt("Podaj miasto:", user?.city || "");
+    if (!city) return;
+
+    // Zapisz adres w bazie (PUT /api/user/address)
+    try {
+      const saveRes = await fetch('/api/user/address', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address, city, postalCode })
+      });
+      if (!saveRes.ok) throw new Error("Błąd zapisu adresu");
+      showToast("Adres zapisany w profilu!", "success");
+    } catch (e) {
+      showToast("Nie udało się zapisać adresu. Spróbuj ponownie.", "error");
+      return;
+    }
+  }
+
+  // 2. Finalne potwierdzenie zamówienia
+  const confirmed = await showConfirm("Finalizacja", "Czy na pewno chcesz złożyć zamówienie z obowiązkiem zapłaty?");
   if (!confirmed) return;
 
   try {
@@ -257,17 +303,34 @@ async function checkout() {
   }
 }
 
+// --- ZMODYFIKOWANA FUNKCJA PŁATNOŚCI (BONUS +1.0 SANDBOX) ---
 window.payForOrder = async (id) => {
-  const confirmed = await showConfirm("Płatność (Sandbox)", "Symulacja płatności: Czy chcesz opłacić to zamówienie?");
+  // 1. Symulacja bramki płatności
+  const confirmed = await showConfirm("Płatność (Sandbox)", "Przechodzisz do symulowanej bramki płatności. Czy chcesz kontynuować i opłacić to zamówienie?");
   if (!confirmed) return;
 
+  // 2. Symulacja wpisywania kodu BLIK (sandbox)
+  const blikCode = prompt("🔒 [SANDBOX] Symulacja: Podaj kod BLIK (wpisz cokolwiek, aby kontynuować):");
+
+  if (!blikCode) {
+    showToast("Płatność anulowana.", "info");
+    return;
+  }
+
+  const payBtn = document.querySelector(`.jersey-card-item button[onclick="payForOrder(${id})"]`);
+  if (payBtn) {
+    payBtn.textContent = "Przetwarzanie...";
+    payBtn.disabled = true;
+  }
+
   try {
+    // 3. Faktyczne wywołanie API, które zmieni status i wyśle e-mail
     const res = await fetch(`/api/purchases/${id}/pay`, { method: 'POST' });
     if (res.ok) {
-      showToast("Płatność przyjęta! Status zaktualizowany.", 'success');
+      showToast("Sukces! Płatność przyjęta. Status zaktualizowany.", 'success');
       loadPurchases();
     } else {
-      showToast("Wystąpił błąd podczas płatności.", 'error');
+      showToast("Błąd płatności.", 'error');
     }
   } catch (e) {
     showToast("Błąd połączenia z serwerem.", 'error');

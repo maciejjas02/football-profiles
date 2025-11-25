@@ -1,3 +1,4 @@
+// public/app.js
 // DOM Elements
 const banner = document.getElementById('banner');
 const authStatus = document.getElementById('authStatus');
@@ -72,7 +73,7 @@ if (regPw && passwordStrengthBar) {
 
         passwordStrengthBar.className = 'password-strength-bar';
         if (val.length === 0) {
-             passwordStrengthBar.style.width = '0%';
+            passwordStrengthBar.style.width = '0%';
         } else if (strength <= 1) {
             passwordStrengthBar.classList.add('weak');
             passwordStrengthBar.style.width = '33%';
@@ -125,6 +126,7 @@ if (loginForm) {
 
             if (res.ok) {
                 showBanner('Zalogowano pomyślnie!', true);
+                // 🚀 Przekierowanie tylko po udanym logowaniu
                 setTimeout(() => window.location.href = '/dashboard.html', 500);
             } else {
                 loginErrorEl.textContent = data.error || "Błąd logowania";
@@ -140,13 +142,13 @@ if (loginForm) {
 if (regForm) {
     regForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
+
         const email = regEmail.value.trim();
         const username = regUsername.value.trim();
         const name = regName ? regName.value.trim() : '';
         const password = regPw.value;
         const passwordConfirm = regPwConfirm.value;
-        
+
         regErrorEl.textContent = "";
         regErrorEl.style.color = "red";
 
@@ -176,7 +178,7 @@ if (regForm) {
                 body: JSON.stringify({ email, username, password, name })
             });
             const data = await res.json();
-            
+
             if (res.ok) {
                 showBanner('Konto utworzone! Logowanie...', true);
                 setTimeout(() => window.location.href = '/dashboard.html', 1000);
@@ -193,10 +195,15 @@ if (regForm) {
     });
 }
 
-// --- AUTO REDIRECT ---
+// --- INICJALIZACJA: Sprawdzenie stanu logowania i opcjonalne przekierowanie ---
 (async () => {
     try {
         const res = await fetch('/api/auth/me');
-        if (res.ok) window.location.href = '/dashboard.html';
-    } catch (e) {}
+        if (res.ok) {
+            // 🚀 Delikatne przekierowanie, jeśli user próbuje wejść na /logowanie będąc zalogowanym.
+            window.location.href = '/dashboard.html';
+        }
+    } catch (e) {
+        // Jeśli błąd autoryzacji (np. token wygasł), pozostaw na stronie logowania.
+    }
 })();

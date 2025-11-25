@@ -30,6 +30,10 @@ async function setupAuth() {
         await fetch('/api/auth/logout', { method: 'POST' });
         window.location.href = '/';
       });
+      if (currentUser.role === 'admin' || currentUser.role === 'moderator') {
+        const ordersLink = document.getElementById('ordersLink');
+        if (ordersLink) ordersLink.style.display = 'block';
+      }
 
       // Odkrywanie linków Admina/Moderatora
       if (currentUser.role === 'moderator' || currentUser.role === 'admin') {
