@@ -6,6 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Galeria - Football Profiles</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 </head>
 
 <body>
@@ -18,7 +21,8 @@
 
       <nav class="topbar-nav">
         <a href="dashboard.html" class="nav-tab">Panel</a>
-        <a href="gallery.html" class="nav-tab active">Galeria</a> <a href="forum.html" class="nav-tab">Forum</a>
+        <a href="gallery.html" class="nav-tab active">Galeria</a>
+        <a href="forum.html" class="nav-tab">Forum</a>
 
         <a href="moderator-posts.html" class="nav-tab" id="moderatorLink" style="display:none;">Moderacja</a>
         <a href="admin-categories.html" class="nav-tab" id="adminLink" style="display:none;">Admin</a>
@@ -53,32 +57,36 @@
   </header>
 
   <main class="gallery-view">
-    <h1 id="gallery-title"></h1>
+    <div class="gallery-header-container">
+      <h1 id="gallery-title">Galeria Football Profiles</h1>
+      <p class="gallery-subtitle">Przeglądaj unikalne momenty z historii piłki nożnej</p>
+    </div>
 
-    <div id="loadingState" class="loading-state"
-      style="height: 400px; display: flex; justify-content: center; align-items: center;">
+    <div id="loadingState" class="loading-state">
       <div class="spinner"></div>
       <p>Ładowanie galerii...</p>
     </div>
 
-    <div id="galleryContainer" style="display: none;">
-      <div class="carousel-stage">
-        <button id="prevBtn" class="nav-arrow left">❮</button>
-        <div id="carouselTrack" class="carousel-track"></div>
-        <button id="nextBtn" class="nav-arrow right">❯</button>
+    <div id="galleryContainer" class="gallery-slider-container" style="display: none;">
+
+      <button id="prevBtn" class="slider-nav-btn prev">❮</button>
+
+      <div class="gallery-viewport">
+        <div id="carouselTrack" class="gallery-track">
+        </div>
       </div>
 
-      <div class="caption-container">
-        <h2 id="imageTitle">Tytuł zdjęcia</h2>
-        <p id="imageDescription">Opis zdjęcia...</p>
-        <div id="dotsContainer" class="dots-container"></div>
-      </div>
+      <button id="nextBtn" class="slider-nav-btn next">❯</button>
+
     </div>
 
-    <div id="emptyState" class="empty-state" style="display: none; padding: 100px;">
+    <div id="dotsContainer" class="dots-container"></div>
+
+    <div id="emptyState" class="empty-state" style="display: none;">
       Brak aktywnej galerii. Skontaktuj się z administratorem.
     </div>
   </main>
+
   <script src="/gallery.js" type="module"></script>
 </body>
 

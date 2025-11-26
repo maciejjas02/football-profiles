@@ -177,6 +177,47 @@ function requireAdmin(req, res, next) {
 }
 
 // --- AUTH ---
+
+// --- OAUTH ROUTES  ---
+//google
+app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+
+app.get('/auth/google/callback',
+  passport.authenticate('google', { failureRedirect: '/' }),
+  async (req, res) => {
+    try {
+      const user = await createOrUpdateUserFromProvider('google', req.user);
+
+      req.session.userId = user.id;
+      setAuthCookies(res, issueJwt(user));
+      res.redirect('/dashboard.html');
+    } catch (e) {
+      console.error('Google Auth Error:', e);
+      res.redirect('/?error=oauth_failed');
+    }
+  }
+);
+
+//github
+app.get('/auth/github', passport.authenticate('github', { scope: ['user:email'] }));
+
+app.get('/auth/github/callback',
+  passport.authenticate('github', { failureRedirect: '/' }),
+  async (req, res) => {
+    try {
+      const user = await createOrUpdateUserFromProvider('github', req.user);
+
+      req.session.userId = user.id;
+      setAuthCookies(res, issueJwt(user));
+
+      res.redirect('/dashboard.html');
+    } catch (e) {
+      console.error('GitHub Auth Error:', e);
+      res.redirect('/?error=oauth_failed');
+    }
+  }
+);
+
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, username, password, name } = req.body;

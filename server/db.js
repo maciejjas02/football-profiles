@@ -350,12 +350,46 @@ export function ensureSeedPlayers() {
 // --- USERS ---
 export function findUserByLogin(l) { return db.prepare('SELECT * FROM users WHERE email=? OR username=?').get(l, l); }
 export function getUserById(id) { return db.prepare('SELECT * FROM users WHERE id=?').get(id); }
+export function getUserByProvider(provider, providerId) {
+    return db.prepare('SELECT * FROM users WHERE provider = ? AND provider_id = ?').get(provider, providerId);
+}
+
 export async function createLocalUser({ email, username, password, name }) {
     const hash = await bcrypt.hash(password, 10);
     const res = db.prepare('INSERT INTO users (email, username, password_hash, name, role, provider) VALUES (?,?,?,?,?,?)').run(email, username, hash, name, 'user', 'local');
     return getUserById(res.lastInsertRowid);
 }
-export function createOrUpdateUserFromProvider(p, d) { return getUserById(1); }
+
+export function createOrUpdateUserFromProvider(provider, userData) {
+    const { id: providerId, email, username, displayName, name, avatar_url } = userData;
+
+    let user = getUserByProvider(provider, providerId);
+
+    if (user) {
+        // Update istniejącego
+        db.prepare(`
+            UPDATE users SET 
+                email = COALESCE(?, email),
+                name = COALESCE(?, name),
+                avatar_url = COALESCE(?, avatar_url),
+                updated_at = datetime('now')
+            WHERE id = ?
+        `).run(email, displayName || name, avatar_url, user.id);
+        return getUserById(user.id);
+    }
+
+    // Create nowego
+    const usernameToUse = username || (email && email.split('@')[0]) ||
+        (displayName ? displayName.replace(/\s+/g, '').toLowerCase() : `${provider}_${providerId}`);
+
+    const info = db.prepare(`
+        INSERT INTO users (email, username, name, avatar_url, provider, provider_id, role) 
+        VALUES (?, ?, ?, ?, ?, ?, 'user')
+    `).run(email, usernameToUse, displayName || name, avatar_url, provider, providerId);
+
+    return getUserById(info.lastInsertRowid);
+}
+
 export function existsUserByEmail(e) { return !!db.prepare('SELECT 1 FROM users WHERE email=?').get(e); }
 export function existsUserByUsername(u) { return !!db.prepare('SELECT 1 FROM users WHERE username=?').get(u); }
 // 👇 NOWA FUNKCJA DO AKTUALIZACJI ADRESU (Eksportowana) 👇

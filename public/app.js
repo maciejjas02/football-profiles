@@ -1,4 +1,5 @@
 // public/app.js
+
 // DOM Elements
 const banner = document.getElementById('banner');
 const authStatus = document.getElementById('authStatus');
@@ -36,6 +37,36 @@ function showBanner(msg, success) {
     banner.classList.add(success ? 'banner--ok' : 'banner--err');
     banner.hidden = false;
     setTimeout(() => { banner.hidden = true; }, 3000);
+}
+
+// --- AUTO-SAVE FORMULARZA (Wymaganie MIN) ---
+const autoSaveFields = ['reg_email', 'reg_username', 'reg_name'];
+
+function restoreFormFields() {
+    autoSaveFields.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            const saved = localStorage.getItem('autosave_' + id);
+            if (saved) el.value = saved;
+        }
+    });
+}
+
+// Inicjalizacja nasłuchiwania zmian
+autoSaveFields.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+        el.addEventListener('input', (e) => {
+            localStorage.setItem('autosave_' + id, e.target.value);
+        });
+    }
+});
+
+// Przywróć dane przy starcie
+restoreFormFields();
+
+function clearAutoSave() {
+    autoSaveFields.forEach(id => localStorage.removeItem('autosave_' + id));
 }
 
 // --- FUNKCJA POMOCNICZA: OBSŁUGA "OCZKA" ---
@@ -126,7 +157,6 @@ if (loginForm) {
 
             if (res.ok) {
                 showBanner('Zalogowano pomyślnie!', true);
-                // 🚀 Przekierowanie tylko po udanym logowaniu
                 setTimeout(() => window.location.href = '/dashboard.html', 500);
             } else {
                 loginErrorEl.textContent = data.error || "Błąd logowania";
@@ -181,6 +211,7 @@ if (regForm) {
 
             if (res.ok) {
                 showBanner('Konto utworzone! Logowanie...', true);
+                clearAutoSave();
                 setTimeout(() => window.location.href = '/dashboard.html', 1000);
             } else {
                 regErrorEl.textContent = data.error || "Błąd rejestracji";
@@ -200,10 +231,8 @@ if (regForm) {
     try {
         const res = await fetch('/api/auth/me');
         if (res.ok) {
-            // 🚀 Delikatne przekierowanie, jeśli user próbuje wejść na /logowanie będąc zalogowanym.
             window.location.href = '/dashboard.html';
         }
     } catch (e) {
-        // Jeśli błąd autoryzacji (np. token wygasł), pozostaw na stronie logowania.
     }
 })();

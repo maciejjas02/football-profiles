@@ -2,25 +2,55 @@
 
 let currentUser = null;
 let galleryItems = [];
-let currentIndex = 0;
+let isAnimating = false;
+let visibleItems = 3;
 
 async function init() {
     await setupAuth();
     await loadGallery();
-    // Ładowanie powiadomień jeśli user zalogowany
+
+    window.addEventListener('resize', () => {
+        updateVisibleItemsCount();
+        updateLayout();
+        highlightCenterItem();
+    });
+
     if (currentUser) {
         await loadNotifications();
     }
 }
 
+function updateVisibleItemsCount() {
+    const width = window.innerWidth;
+    if (width <= 768) visibleItems = 1;
+    else if (width <= 1200) visibleItems = 2;
+    else visibleItems = 3;
+}
+
+// --- PODŚWIETLANIE ŚRODKA ---
+function highlightCenterItem() {
+    const items = document.querySelectorAll('.gallery-item');
+    items.forEach(item => item.classList.remove('active-center'));
+
+    if (items.length === 0) return;
+
+    let centerIndex = Math.floor(visibleItems / 2);
+    if (visibleItems === 2) centerIndex = 0;
+
+    if (items[centerIndex]) {
+        items[centerIndex].classList.add('active-center');
+    }
+}
+
+// --- AUTH & NOTIFICATIONS ---
 async function setupAuth() {
     try {
         const res = await fetch('/api/auth/me');
         if (res.ok) {
             const data = await res.json();
             currentUser = data.user;
-            document.getElementById('who').textContent = currentUser.display_name || currentUser.username;
-
+            const whoEl = document.getElementById('who');
+            if (whoEl) whoEl.textContent = currentUser.display_name || currentUser.username;
             const logoutBtn = document.getElementById('logoutBtn');
             if (logoutBtn) {
                 logoutBtn.addEventListener('click', async () => {
@@ -31,110 +61,51 @@ async function setupAuth() {
             if (currentUser.role === 'admin' || currentUser.role === 'moderator') {
                 const ordersLink = document.getElementById('ordersLink');
                 if (ordersLink) ordersLink.style.display = 'block';
-            }
-
-            // Odkrywanie linków w nawigacji
-            if (currentUser.role === 'moderator' || currentUser.role === 'admin') {
                 const modLink = document.getElementById('moderatorLink');
                 if (modLink) modLink.style.display = 'block';
             }
             if (currentUser.role === 'admin') {
                 const adminLink = document.getElementById('adminLink');
                 if (adminLink) adminLink.style.display = 'block';
-
                 const galleryManageLink = document.getElementById('galleryManageLink');
                 if (galleryManageLink) galleryManageLink.style.display = 'block';
             }
-
         } else {
-            document.getElementById('who').textContent = "Gość";
-            const logoutBtn = document.getElementById('logoutBtn');
-            if (logoutBtn) logoutBtn.style.display = 'none';
-            // Ukryj dzwonek dla gościa
-            const notifBtn = document.getElementById('notificationsBtn');
-            if (notifBtn) notifBtn.style.display = 'none';
+            const whoEl = document.getElementById('who'); if (whoEl) whoEl.textContent = "Gość";
+            const logoutBtn = document.getElementById('logoutBtn'); if (logoutBtn) logoutBtn.style.display = 'none';
+            const notifBtn = document.getElementById('notificationsBtn'); if (notifBtn) notifBtn.style.display = 'none';
         }
     } catch (error) { console.error("Auth setup error:", error); }
 }
 
-// --- LOGIKA POWIADOMIEŃ ---
 async function loadNotifications() {
     const btn = document.getElementById('notificationsBtn');
-    const badge = document.getElementById('notificationBadge');
-    const dropdown = document.getElementById('notificationsDropdown');
-    const list = document.getElementById('notificationsList');
-
     if (!btn) return;
-
     try {
         const res = await fetch('/api/user/notifications');
         const notifications = await res.json();
-
-        const unreadCount = notifications.filter(n => n.is_read === 0).length;
-
-        if (unreadCount > 0) {
-            badge.textContent = unreadCount;
-            badge.style.display = 'block';
-        } else {
-            badge.style.display = 'none';
-        }
-
-        // Pokaż przycisk dzwonka bo jesteśmy zalogowani
+        const badge = document.getElementById('notificationBadge');
+        const list = document.getElementById('notificationsList');
+        const unread = notifications.filter(n => n.is_read === 0).length;
+        if (unread > 0) { badge.textContent = unread; badge.style.display = 'block'; }
+        else { badge.style.display = 'none'; }
         btn.style.display = 'block';
-
-        if (notifications.length === 0) {
-            list.innerHTML = '<div class="notification-empty">Brak powiadomień.</div>';
-        } else {
-            list.innerHTML = notifications.map(n => `
-                <div class="notification-item ${n.is_read === 0 ? 'unread' : ''}" 
-                     onclick="window.handleNotificationClick(${n.id}, '${n.link || '#'}', ${n.is_read})"
-                >
-                    <div class="notification-title">${n.title}</div>
-                    <div class="notification-message">${n.message}</div>
-                    <div class="notification-time">${new Date(n.created_at).toLocaleDateString()}</div>
-                </div>
-            `).join('');
-        }
-
-        // Obsługa kliknięcia dzwoneczka
-        btn.onclick = (e) => {
-            e.stopPropagation();
-            dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
-        };
-
-        // Zamykanie dropdowna
-        document.addEventListener('click', (e) => {
-            if (dropdown.style.display === 'block' && !dropdown.contains(e.target) && !btn.contains(e.target)) {
-                dropdown.style.display = 'none';
-            }
-        });
-
-        // Oznacz wszystkie jako przeczytane
-        const markReadBtn = document.getElementById('markAllReadBtn');
-        if (markReadBtn) {
-            markReadBtn.onclick = async () => {
-                await fetch('/api/user/notifications/read-all', { method: 'POST' });
-                loadNotifications();
-            };
-        }
-
-    } catch (e) {
-        console.error('Błąd powiadomień:', e);
-        badge.style.display = 'none';
-    }
+        list.innerHTML = notifications.length ? notifications.map(n => `
+            <div class="notification-item ${n.is_read === 0 ? 'unread' : ''}" onclick="window.handleNotificationClick(${n.id}, '${n.link || '#'}', ${n.is_read})">
+                <div class="notification-title">${n.title}</div><div class="notification-message">${n.message}</div>
+            </div>`).join('') : '<div class="notification-empty">Brak powiadomień.</div>';
+        btn.onclick = (e) => { e.stopPropagation(); document.getElementById('notificationsDropdown').style.display = 'block'; };
+        document.addEventListener('click', () => document.getElementById('notificationsDropdown').style.display = 'none');
+        const markBtn = document.getElementById('markAllReadBtn');
+        if (markBtn) markBtn.onclick = async () => { await fetch('/api/user/notifications/read-all', { method: 'POST' }); loadNotifications(); };
+    } catch (e) { }
 }
-
 window.handleNotificationClick = async (id, link, isRead) => {
-    if (isRead === 0) {
-        await fetch(`/api/user/notifications/${id}/read`, { method: 'POST' });
-    }
-    if (link && link !== '#') {
-        window.location.href = link;
-    } else {
-        loadNotifications();
-    }
+    if (isRead === 0) await fetch(`/api/user/notifications/${id}/read`, { method: 'POST' });
+    if (link && link !== '#') window.location.href = link; else loadNotifications();
 };
-// --- KONIEC POWIADOMIEŃ ---
+
+// --- LOGIKA GALERII ---
 
 async function loadGallery() {
     const loadingState = document.getElementById('loadingState');
@@ -143,8 +114,6 @@ async function loadGallery() {
 
     try {
         const res = await fetch('/api/gallery/active?t=' + Date.now());
-        if (!res.ok) throw new Error('API Error');
-
         const data = await res.json();
         galleryItems = data.items || [];
 
@@ -155,105 +124,137 @@ async function loadGallery() {
             return;
         }
 
+        if (galleryItems.length > 0) {
+            while (galleryItems.length < 6) {
+                galleryItems = [...galleryItems, ...galleryItems];
+            }
+        }
+
         if (galleryContainer) galleryContainer.style.display = 'flex';
 
-        renderSlidesMarkup();
-        setupNavigation();
-        updateCarousel();
+        updateVisibleItemsCount();
+        renderGallery();
+        highlightCenterItem();
+        setupSliderEvents();
 
     } catch (e) {
+        console.error(e);
         if (loadingState) loadingState.innerHTML = '<div class="error-state">Błąd ładowania danych galerii.</div>';
-        console.error("Gallery loading failed:", e);
     }
 }
 
-function renderSlidesMarkup() {
+function renderGallery() {
     const track = document.getElementById('carouselTrack');
-    if (!track) return;
+    track.innerHTML = '';
 
-    track.innerHTML = galleryItems.map((item, index) => `
-        <div class="carousel-card" onclick="window.goToSlide(${index})">
-            <div class="card-bg" style="background-image: url('/uploads/gallery/${item.filename}')"></div>
-            <img class="card-img" src="/uploads/gallery/${item.filename}" alt="${item.title}" loading="lazy" />
-        </div>
-    `).join('');
-}
-
-function updateCarousel() {
-    const track = document.getElementById('carouselTrack');
-    if (!track || galleryItems.length === 0) return;
-
-    const slides = Array.from(track.children);
-    const count = galleryItems.length;
-
-    const prevIndex = (currentIndex - 1 + count) % count;
-    const nextIndex = (currentIndex + 1) % count;
-
-    slides.forEach((slide, index) => {
-        slide.className = 'carousel-card';
-
-        if (index === currentIndex) {
-            slide.classList.add('active');
-        } else if (index === prevIndex) {
-            slide.classList.add('prev');
-        } else if (index === nextIndex) {
-            slide.classList.add('next');
-        }
+    galleryItems.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'gallery-item';
+        div.innerHTML = `
+            <div class="gallery-card-inner">
+                <div class="card-image-wrapper">
+                    <img src="/uploads/gallery/${item.filename}" alt="${item.title}" loading="lazy" />
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">${item.title}</h3>
+                    <p class="card-description">${item.description || ''}</p>
+                </div>
+            </div>
+        `;
+        track.appendChild(div);
     });
-
-    const activeItem = galleryItems[currentIndex];
-    const titleEl = document.getElementById('imageTitle');
-    const descEl = document.getElementById('imageDescription');
-
-    if (titleEl) titleEl.textContent = activeItem.title;
-    if (descEl) descEl.textContent = activeItem.description || 'Brak opisu.';
-
-    const dotsContainer = document.getElementById('dotsContainer');
-    if (dotsContainer) {
-        dotsContainer.innerHTML = galleryItems.map((_, index) => `
-            <span class="dot ${index === currentIndex ? 'active' : ''}" 
-                  onclick="window.goToSlide(${index})"></span>
-        `).join('');
-    }
 }
 
-function nextSlide() {
-    currentIndex = (currentIndex + 1) % galleryItems.length;
-    updateCarousel();
+function getItemWidth() {
+    const item = document.querySelector('.gallery-item');
+    return item ? item.getBoundingClientRect().width : 0;
 }
 
-function prevSlide() {
-    currentIndex = (currentIndex - 1 + galleryItems.length) % galleryItems.length;
-    updateCarousel();
+// --- RUCH ---
+
+function moveNext() {
+    if (isAnimating || galleryItems.length === 0) return;
+    isAnimating = true;
+
+    const track = document.getElementById('carouselTrack');
+    const itemWidth = getItemWidth();
+
+    const items = document.querySelectorAll('.gallery-item');
+
+    let centerIndex = Math.floor(visibleItems / 2);
+    if (visibleItems === 2) centerIndex = 0;
+
+    if (items[centerIndex]) items[centerIndex].classList.remove('active-center');
+    if (items[centerIndex + 1]) items[centerIndex + 1].classList.add('active-center');
+
+    track.style.transition = 'transform 0.6s cubic-bezier(0.25, 1, 0.5, 1)';
+    track.style.transform = `translateX(-${itemWidth}px)`;
+
+    track.addEventListener('transitionend', () => {
+        track.style.transition = 'none';
+        track.appendChild(track.firstElementChild);
+        track.style.transform = 'translateX(0)';
+
+        highlightCenterItem();
+
+        requestAnimationFrame(() => {
+            isAnimating = false;
+        });
+    }, { once: true });
 }
 
-window.goToSlide = (index) => {
-    if (index === currentIndex) return;
-    const count = galleryItems.length;
-    const nextIndex = (currentIndex + 1) % count;
-    const prevIndex = (currentIndex - 1 + count) % count;
+function movePrev() {
+    if (isAnimating || galleryItems.length === 0) return;
+    isAnimating = true;
 
-    if (index === nextIndex) {
-        nextSlide();
-    } else if (index === prevIndex) {
-        prevSlide();
-    } else {
-        currentIndex = index;
-        updateCarousel();
-    }
+    const track = document.getElementById('carouselTrack');
+    const itemWidth = getItemWidth();
+
+    track.style.transition = 'none';
+    track.prepend(track.lastElementChild);
+    track.style.transform = `translateX(-${itemWidth}px)`;
+
+    highlightCenterItem();
+
+    void track.offsetWidth;
+
+    track.style.transition = 'transform 0.6s cubic-bezier(0.25, 1, 0.5, 1)';
+    track.style.transform = 'translateX(0)';
+
+    track.addEventListener('transitionend', () => {
+        isAnimating = false;
+    }, { once: true });
 }
 
-function setupNavigation() {
+function setupSliderEvents() {
     const nextBtn = document.getElementById('nextBtn');
     const prevBtn = document.getElementById('prevBtn');
 
-    if (nextBtn) nextBtn.addEventListener('click', nextSlide);
-    if (prevBtn) prevBtn.addEventListener('click', prevSlide);
+    if (nextBtn) nextBtn.addEventListener('click', moveNext);
+    if (prevBtn) prevBtn.addEventListener('click', movePrev);
+
+    /* Auto-play
+    setInterval(() => {
+        const container = document.querySelector('.gallery-slider-container');
+        if (container && !container.matches(':hover')) {
+            moveNext();
+        }
+    }, 5000);
+    */
 
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'ArrowLeft') prevSlide();
-        if (e.key === 'ArrowRight') nextSlide();
+        if (e.key === 'ArrowLeft') movePrev();
+        if (e.key === 'ArrowRight') moveNext();
     });
+}
+
+function updateLayout() {
+    const track = document.getElementById('carouselTrack');
+    if (track) {
+        track.style.transition = 'none';
+        track.style.transform = 'translateX(0)';
+        isAnimating = false;
+    }
 }
 
 init();
