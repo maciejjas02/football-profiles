@@ -24,7 +24,14 @@ async function checkAuth() {
       return;
     }
 
-    document.getElementById('who').textContent = currentUser.name || currentUser.username;
+    // ZMIANA TUTAJ: wymuszenie małych liter dla nicku
+    document.getElementById('who').textContent = (currentUser.name || currentUser.username).toLowerCase();
+
+    // Odkrywanie linku Zamówienia
+    if (currentUser.role === 'admin' || currentUser.role === 'moderator') {
+      const ordersLink = document.getElementById('ordersLink');
+      if (ordersLink) ordersLink.style.display = 'block';
+    }
 
     // Logika odkrywania linków w menu
     if (currentUser.role === 'admin') {
@@ -60,12 +67,6 @@ async function loadNotifications() {
 
   try {
     const res = await fetchWithAuth('/api/user/notifications');
-    // Uwaga: fetchWithAuth zwraca już JSON, więc nie trzeba res.json()
-    // Ale jeśli endpoint zwraca tablicę bezpośrednio, to OK.
-    // Jeśli api-client.js robi response.json(), to tutaj mamy gotowe dane.
-    // Sprawdźmy czy to tablica, czy obiekt {notifications: []} - zależy od backendu.
-    // W Twoim backendzie: res.json(getUserNotifications(...)) zwraca tablicę.
-
     const notifications = res;
 
     const unreadCount = notifications.filter(n => n.is_read === 0).length;

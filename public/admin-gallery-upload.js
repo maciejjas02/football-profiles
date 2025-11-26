@@ -2,8 +2,8 @@
 
 let currentUser = null;
 let selectedFile = null;
-let editingImageId = null; // Przechowuje ID edytowanego zdjęcia (null = tryb dodawania)
-let loadedImages = []; // Przechowuje listę pobranych zdjęć
+let editingImageId = null;
+let loadedImages = [];
 
 const uploadZone = document.getElementById('uploadZone');
 const fileInputContainer = document.getElementById('fileInputContainer');
@@ -13,17 +13,14 @@ const cancelBtn = document.getElementById('cancelEditBtn');
 const formHeader = document.getElementById('formHeader');
 const messageEl = document.getElementById('message');
 const imagesGrid = document.getElementById('imagesGrid');
+const previewContainer = document.getElementById('previewContainer');
 
-// Pola tekstowe
 const titleInput = document.getElementById('imageTitle');
 const descInput = document.getElementById('imageDescription');
 
 async function initGalleryUpload() {
     await setupAuth();
     loadImages();
-    if (currentUser) {
-        // await loadNotifications(); // Odkomentuj jeśli masz ten moduł
-    }
 }
 
 async function setupAuth() {
@@ -39,97 +36,160 @@ async function setupAuth() {
             window.location.href = 'dashboard.html';
             return;
         }
-        // Logika menu (skrócona dla czytelności - wklej swoją jeśli masz rozbudowaną)
-        document.getElementById('logoutBtn').addEventListener('click', async () => {
-            await fetch('/api/auth/logout', { method: 'POST' });
-            window.location.href = '/';
-        });
+
+        // Nawigacja dla admina
+        if (currentUser.role === 'admin') {
+            const adminLink = document.getElementById('adminLink');
+            if (adminLink) adminLink.style.display = 'block';
+
+            const galleryManageLink = document.getElementById('galleryManageLink');
+            if (galleryManageLink) galleryManageLink.style.display = 'block';
+        }
+
+        if (currentUser.role === 'admin' || currentUser.role === 'moderator') {
+            const modLink = document.getElementById('moderatorLink');
+            if (modLink) modLink.style.display = 'block';
+
+            const ordersLink = document.getElementById('ordersLink');
+            if (ordersLink) ordersLink.style.display = 'block';
+        }
+
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', async () => {
+                await fetch('/api/auth/logout', { method: 'POST' });
+                window.location.href = '/';
+            });
+        }
     } catch (error) { window.location.href = 'index.html'; }
 }
 
+// --- ŁADOWANIE LISTY ZDJĘĆ (UCINANIE PO 100 ZNAKACH) ---
 async function loadImages() {
     if (!imagesGrid) return;
-    imagesGrid.innerHTML = '<div class="loading">Ładowanie...</div>';
 
     try {
         const res = await fetch('/api/gallery/images?t=' + Date.now());
-        loadedImages = await res.json(); // Zapisz do zmiennej globalnej
+        loadedImages = await res.json();
 
         if (loadedImages.length === 0) {
             imagesGrid.innerHTML = '<div class="empty-state">Brak zdjęć w bazie.</div>';
             return;
         }
 
-        imagesGrid.innerHTML = loadedImages.map(img => `
-            <div class="image-card">
-                <img src="/gallery-img/${img.filename}" alt="${img.title}" loading="lazy" />
-                <div class="image-info">
-                    <h3>${img.title}</h3>
-                    <p>${img.description || 'Brak opisu.'}</p>
-                    <small>ID: ${img.id}</small>
-                    <div style="display:flex; gap:10px; margin-top:10px;">
-                        <button onclick="window.startEdit(${img.id})" class="btn btn-primary btn-sm" style="flex:1;">✏️ Edytuj</button>
-                        <button onclick="window.deleteImage(${img.id})" class="btn btn-danger btn-sm" style="width:40px;">🗑️</button>
-                    </div>
+        // Generowanie widoku listy z ucinaniem tekstu w JS
+        imagesGrid.innerHTML = loadedImages.map(img => {
+            const fullDesc = img.description || '';
+            // TUTAJ JEST ZMIANA: Ucinamy tekst jeśli ma więcej niż 100 znaków
+            const truncatedDesc = fullDesc.length > 100
+                ? fullDesc.substring(0, 100) + '...'
+                : (fullDesc || '<em style="opacity:0.5">Brak opisu</em>');
+
+            return `
+            <div class="image-row-item">
+                <img src="/gallery-img/${img.filename}" alt="${img.title}" class="image-row-thumb" loading="lazy" />
+                
+                <div class="image-row-content">
+                    <h3 title="${img.title}">${img.title}</h3>
+                    
+                    <p title="${fullDesc.replace(/"/g, '&quot;')}">
+                        ${truncatedDesc}
+                    </p>
+                    
+                    <div class="image-row-meta">ID: ${img.id} | Plik: ${img.filename}</div>
+                </div>
+                
+                <div class="image-row-actions">
+                    <button onclick="window.startEdit(${img.id})" class="btn btn-primary btn-sm" style="font-size: 13px;">✏️ Edytuj</button>
+                    <button onclick="window.deleteImage(${img.id})" class="btn btn-danger btn-sm" style="font-size: 13px;">🗑️ Usuń</button>
                 </div>
             </div>
-        `).join('');
-    } catch (e) { imagesGrid.innerHTML = '<div class="error-state">Błąd ładowania zdjęć.</div>'; }
+            `;
+        }).join('');
+
+    } catch (e) {
+        console.error(e);
+        imagesGrid.innerHTML = '<div class="error-state">Błąd ładowania zdjęć.</div>';
+    }
 }
 
-// --- TRYB EDYCJI ---
+// --- PODGLĄD ZDJĘCIA ---
+function showPreview(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        previewContainer.innerHTML = `
+            <p style="margin:0 0 5px 0; color:#FFD700; font-size:12px;">Podgląd pliku:</p>
+            <img src="${e.target.result}">
+        `;
+        previewContainer.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+}
 
+function showServerPreview(filename) {
+    previewContainer.innerHTML = `
+        <p style="margin:0 0 5px 0; color:#FFD700; font-size:12px;">Edytujesz to zdjęcie:</p>
+        <img src="/gallery-img/${filename}">
+    `;
+    previewContainer.style.display = 'block';
+}
+
+function clearPreview() {
+    previewContainer.innerHTML = '';
+    previewContainer.style.display = 'none';
+}
+
+// --- EDYCJA ---
 window.startEdit = (id) => {
     const img = loadedImages.find(i => i.id === id);
     if (!img) return;
 
-    // Ustaw tryb edycji
     editingImageId = id;
-
-    // Wypełnij formularz
     titleInput.value = img.title;
     descInput.value = img.description || '';
 
-    // Zmień UI
-    formHeader.textContent = `Edytuj zdjęcie (ID: ${id})`;
-    submitBtn.textContent = '💾 Zapisz zmiany';
-    submitBtn.disabled = false; // Zawsze aktywne przy edycji (bo dane są wypełnione)
-    fileInputContainer.style.display = 'none'; // Ukryj upload pliku
-    cancelBtn.style.display = 'block'; // Pokaż guzik anuluj
+    showServerPreview(img.filename);
 
-    // Przewiń do góry
+    formHeader.textContent = `Edycja zdjęcia #${id}`;
+    submitBtn.textContent = '💾 Zapisz zmiany';
+    submitBtn.classList.remove('btn-primary');
+    submitBtn.classList.add('btn-success');
+    submitBtn.disabled = false;
+
+    fileInputContainer.style.display = 'none';
+    cancelBtn.style.display = 'inline-block';
+
+    if (messageEl) messageEl.textContent = '';
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    messageEl.textContent = '';
 };
 
 function resetForm() {
     editingImageId = null;
     selectedFile = null;
-
     titleInput.value = '';
     descInput.value = '';
     fileInput.value = '';
 
     formHeader.textContent = 'Nowe zdjęcie';
     submitBtn.textContent = 'Upload';
-    submitBtn.disabled = true; // Wyłącz, bo brak pliku
+    submitBtn.classList.remove('btn-success');
+    submitBtn.classList.add('btn-primary');
+    submitBtn.disabled = true;
 
-    fileInputContainer.style.display = 'flex'; // Pokaż upload
-    cancelBtn.style.display = 'none'; // Ukryj guzik anuluj
+    fileInputContainer.style.display = 'flex';
+    cancelBtn.style.display = 'none';
 
-    // Reset stylu drag&drop
-    if (uploadZone) uploadZone.querySelector('p').textContent = "Przeciągnij plik tutaj lub kliknij, aby wybrać.";
+    if (uploadZone) {
+        uploadZone.querySelector('p').textContent = "Przeciągnij plik lub kliknij.";
+        uploadZone.classList.remove('dragover');
+    }
+    clearPreview();
 }
 
-if (cancelBtn) {
-    cancelBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        resetForm();
-    });
-}
+if (cancelBtn) cancelBtn.addEventListener('click', (e) => { e.preventDefault(); resetForm(); });
 
-// --- OBSŁUGA DODAWANIA / EDYCJI ---
-
+// --- SUBMIT ---
 if (submitBtn) {
     submitBtn.addEventListener('click', async () => {
         const title = titleInput.value.trim();
@@ -137,7 +197,7 @@ if (submitBtn) {
 
         if (!title) return alert('Tytuł jest wymagany!');
 
-        // SCENARIUSZ 1: EDYCJA ISTNIEJĄCEGO
+        // EDYCJA (PUT)
         if (editingImageId) {
             submitBtn.textContent = 'Zapisywanie...';
             submitBtn.disabled = true;
@@ -146,28 +206,24 @@ if (submitBtn) {
                 const res = await fetch(`/api/gallery/images/${editingImageId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ title, description })
+                    body: JSON.stringify({ title, description }),
+                    credentials: 'include'
                 });
 
                 if (res.ok) {
-                    messageEl.textContent = '✅ Dane zaktualizowane!';
+                    messageEl.textContent = '✅ Zaktualizowano pomyślnie!';
+                    messageEl.className = 'success';
                     resetForm();
                     loadImages();
                 } else {
-                    const err = await res.json();
-                    alert('Błąd: ' + (err.error || 'Nieznany'));
+                    alert('Błąd aktualizacji');
                     submitBtn.disabled = false;
-                    submitBtn.textContent = '💾 Zapisz zmiany';
                 }
-            } catch (e) {
-                alert('Błąd połączenia');
-                submitBtn.disabled = false;
-                submitBtn.textContent = '💾 Zapisz zmiany';
-            }
+            } catch (e) { alert('Błąd połączenia'); submitBtn.disabled = false; }
             return;
         }
 
-        // SCENARIUSZ 2: NOWY UPLOAD
+        // UPLOAD (POST)
         if (!selectedFile) return alert('Wybierz plik!');
 
         const formData = new FormData();
@@ -177,23 +233,29 @@ if (submitBtn) {
 
         submitBtn.textContent = 'Wysyłanie...';
         submitBtn.disabled = true;
-        messageEl.textContent = '';
 
         try {
-            const res = await fetch('/api/gallery/upload', { method: 'POST', body: formData });
+            const res = await fetch('/api/gallery/upload', {
+                method: 'POST',
+                body: formData,
+                credentials: 'include'
+            });
 
             if (res.ok) {
-                messageEl.textContent = '✅ Zdjęcie przesłane!';
-                resetForm(); // To wyczyści formularz i stan
+                messageEl.textContent = '✅ Zdjęcie dodane!';
+                messageEl.className = 'success';
+                resetForm();
                 loadImages();
             } else {
-                const error = await res.json();
-                messageEl.textContent = `❌ Błąd: ${error.error || 'Nieznany'}`;
+                const err = await res.json();
+                messageEl.textContent = `❌ ${err.error || 'Błąd'}`;
+                messageEl.className = 'error';
                 submitBtn.textContent = 'Upload';
                 submitBtn.disabled = false;
             }
         } catch (e) {
-            messageEl.textContent = '❌ Błąd połączenia z serwerem.';
+            messageEl.textContent = '❌ Błąd połączenia';
+            messageEl.className = 'error';
             submitBtn.textContent = 'Upload';
             submitBtn.disabled = false;
         }
@@ -202,33 +264,35 @@ if (submitBtn) {
 
 // --- USUWANIE ---
 window.deleteImage = async (id) => {
-    if (!confirm('Usunąć to zdjęcie z bazy? Zostanie usunięte z wszystkich kolekcji!')) return;
+    if (!confirm('Usunąć to zdjęcie? Zostanie ono usunięte również ze sliderów.')) return;
     try {
-        const res = await fetch(`/api/gallery/images/${id}`, { method: 'DELETE' });
+        const res = await fetch(`/api/gallery/images/${id}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
         if (res.ok) {
-            messageEl.textContent = '✅ Zdjęcie usunięte!';
             loadImages();
         } else {
-            messageEl.textContent = '❌ Błąd usuwania.';
+            alert('Błąd usuwania');
         }
-    } catch (e) { messageEl.textContent = '❌ Błąd połączenia.'; }
+    } catch (e) { alert('Błąd połączenia'); }
 };
 
-// --- OBSŁUGA PLIKU (DRAG & DROP) ---
+// --- OBSŁUGA PLIKÓW ---
 function handleFile(file) {
     selectedFile = file;
-    const p = uploadZone.querySelector('p');
-    if (p) p.textContent = `Wybrano: ${file.name}`;
+    if (uploadZone) uploadZone.querySelector('p').textContent = `Wybrano: ${file.name}`;
     submitBtn.disabled = false;
+    showPreview(file);
 }
 
-if (uploadZone) {
-    uploadZone.addEventListener('click', () => fileInput.click());
-    uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('dragover'); });
-    uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
-    uploadZone.addEventListener('drop', (e) => {
+if (fileInputContainer) {
+    fileInputContainer.addEventListener('click', () => fileInput.click());
+    fileInputContainer.addEventListener('dragover', (e) => { e.preventDefault(); fileInputContainer.classList.add('dragover'); });
+    fileInputContainer.addEventListener('dragleave', () => fileInputContainer.classList.remove('dragover'));
+    fileInputContainer.addEventListener('drop', (e) => {
         e.preventDefault();
-        uploadZone.classList.remove('dragover');
+        fileInputContainer.classList.remove('dragover');
         if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
     });
 }

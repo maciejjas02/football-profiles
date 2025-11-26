@@ -29,7 +29,13 @@ async function setupAuth() {
         return;
       }
 
-      // Logika pokazywania ukrytych linków
+      // === POPRAWKA: Odkrywanie linku Zamówienia ===
+      if (currentUser.role === 'admin' || currentUser.role === 'moderator') {
+        const ordersLink = document.getElementById('ordersLink');
+        if (ordersLink) ordersLink.style.display = 'block';
+      }
+
+      // Logika pokazywania ukrytych linków Admina
       if (currentUser.role === 'admin') {
         const adminLink = document.getElementById('adminLink');
         if (adminLink) adminLink.style.display = 'block';
@@ -46,7 +52,7 @@ async function setupAuth() {
   } catch (error) { window.location.href = 'index.html'; }
 }
 
-// --- POWIADOMIENIA (Skopiowane z innych plików) ---
+// --- POWIADOMIENIA ---
 async function loadNotifications() {
   const btn = document.getElementById('notificationsBtn');
   const badge = document.getElementById('notificationBadge');
@@ -68,7 +74,6 @@ async function loadNotifications() {
       badge.style.display = 'none';
     }
 
-    // Pokaż dzwoneczek
     btn.style.display = 'block';
 
     if (notifications.length === 0) {
