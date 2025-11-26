@@ -28,19 +28,27 @@
         grid-template-columns: 1fr;
       }
     }
+
+    .role-badge {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: bold;
+      text-transform: uppercase;
+      display: inline-block;
+    }
   </style>
 </head>
 
 <body>
   <header class="topbar">
     <div class="topbar-content">
-      <div class="logo-section"><img src="/images/logo.png" class="topbar-logo" /><span class="site-title">Football
-          Profiles</span></div>
+      <div class="logo-section"><img src="/images/logo.png" class="topbar-logo" alt="Logo" /><span
+          class="site-title">Football Profiles</span></div>
       <nav class="topbar-nav">
         <a href="dashboard.html" class="nav-tab">Panel</a>
         <a href="gallery.html" class="nav-tab">Galeria</a>
         <a href="forum.html" class="nav-tab">Forum</a>
-
         <a href="moderator-posts.html" class="nav-tab" id="moderatorLink" style="display:none;">Moderacja</a>
         <a href="admin-categories.html" class="nav-tab active" id="adminLink" style="display:none;">Admin</a>
         <a href="admin-gallery-manage.html" class="nav-tab" id="galleryManageLink" style="display:none;">Zarządzaj
@@ -48,22 +56,6 @@
         <a href="admin-orders.html" class="nav-tab" id="ordersLink" style="display:none;">Zamówienia</a>
       </nav>
       <div class="topbar-actions">
-        <div style="position:relative;">
-          <button id="notificationsBtn" class="icon-button" aria-label="Powiadomienia" style="display:none;">
-            <span>🔔</span>
-            <span id="notificationBadge" class="notification-badge" style="display:none;">0</span>
-          </button>
-          <div id="notificationsDropdown" class="notification-dropdown" style="display:none;">
-            <div class="notification-header">
-              <h3>Powiadomienia</h3>
-              <button id="markAllReadBtn" class="btn-link">Oznacz wszystkie jako przeczytane</button>
-            </div>
-            <div class="notification-list" id="notificationsList">
-              <div class="notification-empty">Brak powiadomień.</div>
-            </div>
-          </div>
-        </div>
-
         <div id="authBar" class="authbar"><span id="who">...</span><button id="logoutBtn"
             class="btn btn-ghost">Wyloguj</button></div>
       </div>
@@ -72,10 +64,11 @@
 
   <div class="dashboard-container">
     <div class="page-header">
-      <h1 class="page-title">📁 Kategorie Forum</h1>
+      <h1 class="page-title">📁 Administracja Forum</h1>
     </div>
 
     <div class="categories-grid-admin">
+
       <div class="admin-panel">
         <h2>Utwórz Kategorię</h2>
         <div id="createCatContainer">
@@ -129,6 +122,16 @@
         </div>
       </div>
     </div>
+
+    <div class="admin-panel" style="margin-top: 40px;">
+      <h2 style="color: #FFD700;">👥 Zarządzanie Użytkownikami</h2>
+      <p style="color: #aaa; margin-bottom: 20px;">Zmieniaj role użytkowników. Moderatorzy pojawią się na liście w
+        sekcji powyżej.</p>
+
+      <div id="usersListLoading" class="loading">Ładowanie użytkowników...</div>
+      <div id="usersManageList" style="overflow-x: auto;"></div>
+    </div>
+
   </div>
 
   <script type="module" src="admin-categories.js"></script>

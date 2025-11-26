@@ -41,11 +41,11 @@ const {
   getAllPosts, getPostsByCategory, getPostById, createPost, updatePost, approvePost, rejectPost, deletePost, getPendingPosts,
   getPostComments, createComment, getCommentById, updateComment, approveComment, rejectComment, deleteComment, getPendingComments,
   rateComment, getUserCommentRating, createNotification, getUserNotifications, markNotificationAsRead, markAllNotificationsAsRead,
-  createDiscussion, getDiscussionMessages, getDiscussionUsers,
+  createDiscussion, getDiscussionMessages, getDiscussionUsers, checkModPermission, isModOfCategory, getUserAllowedCategories,
   // --- GALERIA ---
   createGalleryImage, getAllGalleryImages, getGalleryImageById, deleteGalleryImage, updateGalleryImage, // <--- DODANO TUTAJ
   createGalleryCollection, getAllGalleryCollections, getGalleryCollectionById, getActiveGalleryCollection, setActiveGalleryCollection, deleteGalleryCollection,
-  addImageToCollection, getCollectionItems, removeImageFromCollection, reorderCollectionItems,
+  addImageToCollection, getCollectionItems, removeImageFromCollection, reorderCollectionItems, getAllUsers, updateUserRole,
   // --- USER ---
   updateUserAddress
 } = dbFunctions;
@@ -105,13 +105,27 @@ app.use(session({
 
 app.use(passport.initialize());
 app.use(passport.session());
+
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 const csrfProtection = csrf({ cookie: true });
-app.use((req, res, next) => {
-  if (req.path.startsWith('/api/') || req.path.startsWith('/auth/')) return next();
-  return csrfProtection(req, res, next);
+
+
+app.get('/api/auth/csrf-token', csrfProtection, (req, res) => {
+  res.json({ csrfToken: req.csrfToken() });
 });
+
+app.use((req, res, next) => {
+
+  if (req.path === '/api/auth/login' || req.path === '/api/auth/register') return next();
+
+
+  if (req.path.startsWith('/api/')) {
+    return csrfProtection(req, res, next);
+  }
+  next();
+});
+
 
 await ensureSchema();
 await ensureSeedAdmin();
@@ -262,6 +276,31 @@ app.put('/api/admin/orders/:id/status', requireModerator, (req, res) => {
   res.json({ success: true });
 });
 
+// --- ADMIN: USER ROLES ---
+app.get('/api/admin/users', requireAdmin, async (req, res) => {
+  try {
+    const users = await getAllUsers();
+    res.json(users);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/admin/users/:id/role', requireAdmin, async (req, res) => {
+  const { role } = req.body;
+  // Walidacja roli
+  if (!['user', 'moderator', 'admin'].includes(role)) {
+    return res.status(400).json({ error: 'Nieprawidłowa rola' });
+  }
+  // Zabezpieczenie: nie ruszaj głównego admina (opcjonalne, ale dobre)
+  if (parseInt(req.params.id) === 1 && role !== 'admin') {
+    return res.status(403).json({ error: 'Nie można zmienić roli głównego administratora.' });
+  }
+
+  await updateUserRole(req.params.id, role);
+  res.json({ success: true });
+});
+
 // --- FORUM ---
 app.post('/api/forum/upload', requireModerator, uploadPostImage.single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
@@ -276,30 +315,71 @@ app.get('/api/forum/categories/:id/moderators', requireAdmin, (req, res) => { re
 app.post('/api/forum/categories/:id/moderators', requireAdmin, (req, res) => { assignModeratorToCategory(req.body.user_id, req.params.id); res.json({ success: true }); });
 app.delete('/api/forum/categories/:catId/moderators/:userId', requireAdmin, (req, res) => { removeModeratorFromCategory(req.params.userId, req.params.catId); res.json({ success: true }); });
 
+app.get('/api/forum/my-allowed-categories', requireAuth, requireModerator, async (req, res) => {
+  const categories = await getUserAllowedCategories(req.user.id, req.user.role);
+  res.json(categories);
+});
+
 app.get('/api/forum/posts', (req, res) => {
   const limit = parseInt(req.query.limit) || 20;
   const offset = parseInt(req.query.offset) || 0;
   if (req.query.category_id) res.json(getPostsByCategory(req.query.category_id, limit, offset));
   else res.json(getAllPosts(limit, offset));
 });
-app.get('/api/forum/posts/pending/list', requireAuth, requireModerator, (req, res) => res.json(getPendingPosts()));
+app.get('/api/forum/posts/pending/list', requireAuth, requireModerator, async (req, res) => {
+  const posts = await getPendingPosts(req.user.id, req.user.role);
+  res.json(posts);
+});
+
+app.get('/api/auth/csrf-token', csrfProtection, (req, res) => {
+  res.json({ csrfToken: req.csrfToken() });
+})
 app.get('/api/forum/posts/:id', (req, res) => { const p = getPostById(req.params.id); p ? res.json(p) : res.status(404).json({ error: 'Not found' }); });
-app.post('/api/forum/posts', requireModerator, (req, res) => {
-  const id = getUserByIdFromReq(req);
-  const user = getUserById(id);
-  const status = user.role === 'admin' ? 'approved' : 'pending';
-  const result = createPost(req.body.title, req.body.content || '', req.body.category_id, id, status);
-  res.json({ success: true, id: result.lastInsertRowid });
+app.post('/api/forum/posts', requireModerator, async (req, res) => {
+  const id = req.user.id;
+  const role = req.user.role;
+  const categoryId = parseInt(req.body.category_id);
+
+
+  if (role !== 'admin') {
+    const isMod = await isModOfCategory(id, categoryId);
+    if (!isMod) {
+      return res.status(403).json({ error: 'Brak uprawnień do tworzenia postów w tej kategorii.' });
+    }
+  }
+
+
+  const status = 'approved';
+
+  try {
+    const result = await createPost(req.body.title, req.body.content || '', categoryId, id, status);
+    const newId = result.lastInsertRowid || result.id;
+    res.json({ success: true, id: newId });
+  } catch (e) {
+    res.status(500).json({ error: 'Błąd bazy danych' });
+  }
 });
 app.put('/api/forum/posts/:id', requireModerator, (req, res) => { updatePost(req.params.id, req.body.title, req.body.content, req.body.category_id); res.json({ success: true }); });
-app.delete('/api/forum/posts/:id', requireModerator, (req, res) => { deletePost(req.params.id); res.json({ success: true }); });
+app.delete('/api/forum/posts/:id', requireModerator, async (req, res) => {
+  const permitted = await checkModPermission(req.user.id, req.user.role, req.params.id);
+  if (!permitted) return res.status(403).json({ error: 'Brak uprawnień do tej kategorii' });
+
+  deletePost(req.params.id);
+  res.json({ success: true });
+});
 app.post('/api/forum/posts/:id/approve', requireModerator, async (req, res) => {
+  const permitted = await checkModPermission(req.user.id, req.user.role, req.params.id);
+  if (!permitted) return res.status(403).json({ error: 'Brak uprawnień do tej kategorii' });
+
   const post = await getPostById(req.params.id);
   approvePost(req.params.id);
   if (post) createNotification(post.author_id, 'post_approved', 'Post zatwierdzony', `Twój post "${post.title}" został zatwierdzony.`, `/post.html?id=${post.id}`);
   res.json({ success: true });
 });
 app.post('/api/forum/posts/:id/reject', requireModerator, async (req, res) => {
+  const permitted = await checkModPermission(req.user.id, req.user.role, req.params.id);
+  if (!permitted) return res.status(403).json({ error: 'Brak uprawnień do tej kategorii' });
+
   const post = await getPostById(req.params.id);
   rejectPost(req.params.id);
   if (post) createNotification(post.author_id, 'post_rejected', 'Post odrzucony', `Twój post "${post.title}" został odrzucony.`, `/moderator-posts.html`);

@@ -3,12 +3,23 @@ import { fetchWithAuth, getCurrentUser, handleLogout } from './utils/api-client.
 let currentUser = null;
 let allCategories = [];
 
+// Czekamy na pełne załadowanie DOM
+document.addEventListener('DOMContentLoaded', init);
+
 async function init() {
+  // Zabezpieczenie: jeśli init odpali się dwa razy (przez type=module i listener)
+  if (window.initStarted) return;
+  window.initStarted = true;
+
   await checkAuth();
+
+  // Ładowanie danych - kolejność nie ma znaczenia, bo są niezależne
+  await loadUsersManagement();
   await loadModerators();
   await loadCategories();
+
   setupEventListeners();
-  // Dodano: ładowanie powiadomień
+
   if (currentUser) {
     await loadNotifications();
   }
@@ -17,36 +28,25 @@ async function init() {
 async function checkAuth() {
   try {
     currentUser = await getCurrentUser();
-
     if (!currentUser || currentUser.role !== 'admin') {
-      alert('Brak dostępu. Tylko administratorzy mogą korzystać z tej strony.');
       window.location.href = 'dashboard.html';
       return;
     }
 
-    // ZMIANA TUTAJ: wymuszenie małych liter dla nicku
-    document.getElementById('who').textContent = (currentUser.name || currentUser.username).toLowerCase();
+    const whoEl = document.getElementById('who');
+    if (whoEl) whoEl.textContent = (currentUser.name || currentUser.username).toLowerCase();
 
-    // Odkrywanie linku Zamówienia
-    if (currentUser.role === 'admin' || currentUser.role === 'moderator') {
-      const ordersLink = document.getElementById('ordersLink');
-      if (ordersLink) ordersLink.style.display = 'block';
+    // Odkrywanie linków w nawigacji
+    if (['admin', 'moderator'].includes(currentUser.role)) {
+      document.getElementById('ordersLink')?.style.setProperty('display', 'block');
+      document.getElementById('moderatorLink')?.style.setProperty('display', 'block');
     }
-
-    // Logika odkrywania linków w menu
     if (currentUser.role === 'admin') {
-      const adminLink = document.getElementById('adminLink');
-      if (adminLink) adminLink.style.display = 'block';
-
-      const galleryManageLink = document.getElementById('galleryManageLink');
-      if (galleryManageLink) galleryManageLink.style.display = 'block';
-
-      const modLink = document.getElementById('moderatorLink');
-      if (modLink) modLink.style.display = 'block';
+      document.getElementById('adminLink')?.style.setProperty('display', 'block');
+      document.getElementById('galleryManageLink')?.style.setProperty('display', 'block');
     }
-
   } catch (error) {
-    console.error('Auth check failed:', error);
+    console.error('Auth error:', error);
     window.location.href = 'index.html';
   }
 
@@ -56,105 +56,32 @@ async function checkAuth() {
   });
 }
 
-// --- LOGIKA POWIADOMIEŃ ---
-async function loadNotifications() {
-  const btn = document.getElementById('notificationsBtn');
-  const badge = document.getElementById('notificationBadge');
-  const dropdown = document.getElementById('notificationsDropdown');
-  const list = document.getElementById('notificationsList');
-
-  if (!btn) return;
-
-  try {
-    const res = await fetchWithAuth('/api/user/notifications');
-    const notifications = res;
-
-    const unreadCount = notifications.filter(n => n.is_read === 0).length;
-
-    if (unreadCount > 0) {
-      badge.textContent = unreadCount;
-      badge.style.display = 'block';
-    } else {
-      badge.style.display = 'none';
-    }
-
-    // Pokaż dzwoneczek
-    btn.style.display = 'block';
-
-    if (notifications.length === 0) {
-      list.innerHTML = '<div class="notification-empty">Brak powiadomień.</div>';
-    } else {
-      list.innerHTML = notifications.map(n => `
-                <div class="notification-item ${n.is_read === 0 ? 'unread' : ''}" 
-                     onclick="window.handleNotificationClick(${n.id}, '${n.link || '#'}', ${n.is_read})"
-                >
-                    <div class="notification-title">${n.title}</div>
-                    <div class="notification-message">${n.message}</div>
-                    <div class="notification-time">${new Date(n.created_at).toLocaleDateString()}</div>
-                </div>
-            `).join('');
-    }
-
-    btn.onclick = (e) => {
-      e.stopPropagation();
-      dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
-    };
-
-    document.addEventListener('click', (e) => {
-      if (dropdown.style.display === 'block' && !dropdown.contains(e.target) && !btn.contains(e.target)) {
-        dropdown.style.display = 'none';
-      }
-    });
-
-    const markReadBtn = document.getElementById('markAllReadBtn');
-    if (markReadBtn) {
-      markReadBtn.onclick = async () => {
-        await fetchWithAuth('/api/user/notifications/read-all', { method: 'POST' });
-        loadNotifications();
-      };
-    }
-
-  } catch (e) {
-    console.error('Błąd powiadomień:', e);
-    badge.style.display = 'none';
-  }
-}
-
-window.handleNotificationClick = async (id, link, isRead) => {
-  if (isRead === 0) {
-    await fetchWithAuth(`/api/user/notifications/${id}/read`, { method: 'POST' });
-  }
-  if (link && link !== '#') {
-    window.location.href = link;
-  } else {
-    loadNotifications();
-  }
-};
-// --- KONIEC POWIADOMIEŃ ---
-
-let allModerators = [];
-async function loadModerators() {
-  // Mock moderatorów (jak w poprzedniej wersji)
-  allModerators = [{ id: 2, username: 'moderator', name: 'Moderator', email: 'moderator@example.com' }];
-
-  const select = document.getElementById('assignModerator');
-  select.innerHTML = '<option value="">Wybierz moderatora...</option>' +
-    allModerators.map(mod => `<option value="${mod.id}">${mod.name} (@${mod.username})</option>`).join('');
-}
+// --- SEKCJA 1: ZARZĄDZANIE KATEGORIAMI ---
 
 async function loadCategories() {
   try {
+    // Pobieranie elementu - jeśli go nie ma, kończymy funkcję (bez błędu w konsoli)
+    const list = document.getElementById('categoriesList');
+    if (!list) {
+      console.warn("Element #categoriesList nie został znaleziony w HTML.");
+      return;
+    }
+
     allCategories = await fetchWithAuth('/api/forum/categories');
 
+    // Wypełnij select w formularzu tworzenia
     const parentSelect = document.getElementById('parentCategory');
-    if (parentSelect) parentSelect.innerHTML = '<option value="">Brak (główna kategoria)</option>' +
-      allCategories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
+    if (parentSelect) {
+      parentSelect.innerHTML = '<option value="">Brak (główna kategoria)</option>' +
+        allCategories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
+    }
 
+    // Wypełnij select w formularzu przypisywania moderatora
     const assignSelect = document.getElementById('assignCategory');
-    if (assignSelect) assignSelect.innerHTML = '<option value="">Wybierz kategorię...</option>' +
-      allCategories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
-
-    const list = document.getElementById('categoriesList');
+    if (assignSelect) {
+      assignSelect.innerHTML = '<option value="">Wybierz kategorię...</option>' +
+        allCategories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
+    }
 
     if (allCategories.length === 0) {
       list.innerHTML = '<div class="empty-state">Brak kategorii</div>';
@@ -163,14 +90,7 @@ async function loadCategories() {
 
     list.innerHTML = `
       <table class="data-table">
-        <thead>
-          <tr>
-            <th>Nazwa</th>
-            <th>Slug</th>
-            <th>Posty</th>
-            <th>Akcje</th>
-          </tr>
-        </thead>
+        <thead><tr><th>Nazwa</th><th>Slug</th><th>Posty</th><th>Akcje</th></tr></thead>
         <tbody>
           ${allCategories.map(cat => `
             <tr>
@@ -187,47 +107,165 @@ async function loadCategories() {
       </table>
     `;
   } catch (error) {
-    console.error('Failed to load categories:', error);
+    console.error('Błąd ładowania kategorii:', error);
+    const list = document.getElementById('categoriesList');
+    if (list) list.innerHTML = '<div class="error-state">Błąd połączenia z serwerem.</div>';
   }
 }
 
-function setupEventListeners() {
-  document.getElementById('submitCategoryBtn').addEventListener('click', async (e) => {
-    e.preventDefault();
+// --- SEKCJA 2: ZARZĄDZANIE UŻYTKOWNIKAMI (Awans/Degradacja) ---
 
-    const name = document.getElementById('categoryName').value.trim();
-    let slug = document.getElementById('categorySlug').value.trim();
-    const description = document.getElementById('categoryDescription').value.trim();
-    let parent_id = document.getElementById('parentCategory').value;
-    parent_id = parent_id === "" ? null : parseInt(parent_id);
+async function loadUsersManagement() {
+  const container = document.getElementById('usersManageList');
+  const loader = document.getElementById('usersListLoading');
 
-    if (!name || !slug) {
-      alert('Nazwa i slug są wymagane');
+  if (!container) return;
+
+  try {
+    const users = await fetchWithAuth('/api/admin/users');
+    if (loader) loader.style.display = 'none';
+
+    if (users.length === 0) {
+      container.innerHTML = '<div class="empty-state">Brak użytkowników.</div>';
       return;
     }
+
+    let html = `<table class="data-table"><thead><tr><th>ID</th><th>Użytkownik</th><th>Rola</th><th>Akcja</th></tr></thead><tbody>`;
+
+    html += users.map(u => {
+      let actionBtn = '';
+      // Logika przycisków zmiany roli
+      if (u.role === 'user') {
+        actionBtn = `<button onclick="window.changeRole(${u.id}, 'moderator')" class="btn btn-success btn-sm">⬆️ Awansuj</button>`;
+      } else if (u.role === 'moderator') {
+        actionBtn = `<button onclick="window.changeRole(${u.id}, 'user')" class="btn btn-danger btn-sm">⬇️ Degraduj</button>`;
+      } else if (u.role === 'admin') {
+        actionBtn = `<span style="color:#888; font-size:12px;">(Admin)</span>`;
+      }
+
+      let badgeColor = '#888';
+      if (u.role === 'moderator') badgeColor = '#FFD700';
+      if (u.role === 'admin') badgeColor = '#ff4444';
+
+      return `
+                <tr>
+                    <td>#${u.id}</td>
+                    <td><strong>${u.username}</strong><br><small>${u.email || ''}</small></td>
+                    <td><span class="role-badge" style="color:${badgeColor}; border:1px solid ${badgeColor};">${u.role}</span></td>
+                    <td>${actionBtn}</td>
+                </tr>
+            `;
+    }).join('');
+
+    html += `</tbody></table>`;
+    container.innerHTML = html;
+  } catch (e) {
+    console.error(e);
+    if (loader) loader.textContent = 'Błąd ładowania listy użytkowników.';
+  }
+}
+
+// Globalna funkcja zmiany roli (dostępna z HTML)
+window.changeRole = async (id, newRole) => {
+  if (!confirm(`Czy na pewno chcesz zmienić rolę tego użytkownika na ${newRole.toUpperCase()}?`)) return;
+
+  try {
+    await fetchWithAuth(`/api/admin/users/${id}/role`, {
+      method: 'PUT',
+      body: JSON.stringify({ role: newRole })
+    });
+
+    // Po zmianie roli odświeżamy obie listy: tabelę userów i dropdown moderatorów
+    await loadUsersManagement();
+    await loadModerators();
+
+  } catch (e) {
+    alert('Błąd: ' + e.message);
+  }
+};
+
+// --- SEKCJA 3: PRZYPISYWANIE MODERATORÓW ---
+
+async function loadModerators() {
+  try {
+    const users = await fetchWithAuth('/api/admin/users');
+    // Filtrujemy tylko moderatorów i adminów
+    const moderators = users.filter(u => u.role === 'moderator' || u.role === 'admin');
+
+    const select = document.getElementById('assignModerator');
+    if (!select) return;
+
+    if (moderators.length === 0) {
+      select.innerHTML = '<option value="">Brak dostępnych moderatorów</option>';
+    } else {
+      select.innerHTML = '<option value="">Wybierz moderatora...</option>' +
+        moderators.map(mod => `<option value="${mod.id}">${mod.username} (${mod.role})</option>`).join('');
+    }
+  } catch (e) {
+    console.error("Błąd ładowania moderatorów:", e);
+  }
+}
+
+async function loadAssignments(category_id) {
+  const list = document.getElementById('assignmentsList');
+  if (!list) return;
+
+  try {
+    const moderators = await fetchWithAuth(`/api/forum/categories/${category_id}/moderators`);
+
+    if (moderators.length === 0) {
+      list.innerHTML = '<p style="margin-top:20px; color:#888;">Brak przypisanych moderatorów do tej kategorii.</p>';
+      return;
+    }
+
+    list.innerHTML = `
+        <div style="margin-top:20px;">
+            <h3 style="font-size:16px; color:#FFD700;">Przypisani moderatorzy:</h3>
+            ${moderators.map(mod => `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; background:rgba(255,255,255,0.05); padding:8px; border-radius:4px;">
+                    <span>👤 ${mod.username}</span>
+                    <button class="btn btn-danger btn-sm" onclick="window.removeModerator(${category_id}, ${mod.id})">Usuń</button>
+                </div>
+            `).join('')}
+        </div>
+    `;
+  } catch (error) {
+    list.innerHTML = '<p class="error">Błąd pobierania przypisań.</p>';
+  }
+}
+
+// --- OBSŁUGA ZDARZEŃ I FORMULARZY ---
+
+function setupEventListeners() {
+  // 1. Tworzenie kategorii
+  document.getElementById('submitCategoryBtn')?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('categoryName').value.trim();
+    const slug = document.getElementById('categorySlug').value.trim();
+    const description = document.getElementById('categoryDescription').value.trim();
+    const parent_id = document.getElementById('parentCategory').value || null;
+
+    if (!name || !slug) return alert('Nazwa i slug są wymagane');
 
     try {
       await fetchWithAuth('/api/forum/categories', {
         method: 'POST',
         body: JSON.stringify({ name, slug, description, parent_id })
       });
-
       alert('✅ Kategoria utworzona');
+      // Reset formularza
       document.getElementById('categoryName').value = '';
       document.getElementById('categorySlug').value = '';
       document.getElementById('categoryDescription').value = '';
-      document.getElementById('parentCategory').value = '';
-
       loadCategories();
     } catch (error) {
-      console.error('Failed to create category:', error);
-      alert('❌ Błąd podczas tworzenia kategorii');
+      alert('Błąd tworzenia kategorii: ' + error.message);
     }
   });
 
-  document.getElementById('categoryName').addEventListener('input', (e) => {
-    const slug = e.target.value
-      .toLowerCase()
+  // Automatyczne generowanie sluga
+  document.getElementById('categoryName')?.addEventListener('input', (e) => {
+    const slug = e.target.value.toLowerCase()
       .replace(/ą/g, 'a').replace(/ć/g, 'c').replace(/ę/g, 'e')
       .replace(/ł/g, 'l').replace(/ń/g, 'n').replace(/ó/g, 'o')
       .replace(/ś/g, 's').replace(/ź|ż/g, 'z')
@@ -236,129 +274,108 @@ function setupEventListeners() {
     document.getElementById('categorySlug').value = slug;
   });
 
-  document.getElementById('assignBtn').addEventListener('click', async () => {
+  // 2. Przypisywanie moderatora
+  document.getElementById('assignBtn')?.addEventListener('click', async () => {
     const category_id = document.getElementById('assignCategory').value;
     const user_id = document.getElementById('assignModerator').value;
 
-    if (!category_id || !user_id) {
-      alert('Wybierz kategorię i moderatora');
-      return;
-    }
+    if (!category_id || !user_id) return alert('Wybierz kategorię i moderatora');
 
     try {
       await fetchWithAuth(`/api/forum/categories/${category_id}/moderators`, {
         method: 'POST',
         body: JSON.stringify({ user_id: parseInt(user_id) })
       });
-
-      alert('✅ Moderator przypisany');
+      alert('✅ Przypisano moderatora');
       loadAssignments(category_id);
     } catch (error) {
-      console.error('Failed to assign moderator:', error);
-      alert('❌ Błąd podczas przypisywania moderatora');
+      alert('Błąd przypisywania: ' + error.message);
     }
   });
 
-  document.getElementById('assignCategory').addEventListener('change', (e) => {
-    if (e.target.value) {
-      loadAssignments(e.target.value);
-    }
+  // Ładowanie listy przypisanych po zmianie kategorii w selectcie
+  document.getElementById('assignCategory')?.addEventListener('change', (e) => {
+    if (e.target.value) loadAssignments(e.target.value);
   });
 }
 
-async function loadAssignments(category_id) {
-  try {
-    const moderators = await fetchWithAuth(`/api/forum/categories/${category_id}/moderators`);
-    const list = document.getElementById('assignmentsList');
-
-    if (moderators.length === 0) {
-      list.innerHTML = '<p style="margin-top: 20px; color: rgba(255,255,255,0.5);">Brak przypisanych moderatorów</p>';
-      return;
-    }
-
-    list.innerHTML = `
-      <div style="margin-top: 20px;">
-        <h3 style="color:#FFD700; font-size:18px;">Przypisani moderatorzy:</h3>
-        <div class="moderators-list">
-          ${moderators.map(mod => `
-            <div class="moderator-item">
-              <span>👤 ${mod.name || mod.username}</span>
-              <button 
-                class="btn btn-danger btn-sm" 
-                onclick="window.removeModerator(${category_id}, ${mod.id})"
-              >
-                Usuń
-              </button>
-            </div>
-          `).join('')}
-        </div>
-      </div>
-    `;
-  } catch (error) {
-    console.error('Failed to load assignments:', error);
-    document.getElementById('assignmentsList').innerHTML = '<p class="error">Błąd ładowania listy moderatorów.</p>';
-  }
-}
+// --- FUNKCJE GLOBALNE (dla przycisków w HTML) ---
 
 window.editCategory = async (id) => {
   const category = allCategories.find(c => c.id === id);
   if (!category) return;
 
-  const newName = prompt('Nowa nazwa:', category.name);
-  if (!newName || newName === category.name) return;
-
-  const newSlug = prompt('Nowy slug:', category.slug);
-  if (!newSlug) return;
-
-  const newDescription = prompt('Nowy opis:', category.description || '');
-
-  try {
-    await fetchWithAuth(`/api/forum/categories/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify({
-        name: newName,
-        slug: newSlug,
-        description: newDescription
-      })
-    });
-
-    alert('✅ Kategoria zaktualizowana');
-    loadCategories();
-  } catch (error) {
-    console.error('Failed to update category:', error);
-    alert('❌ Błąd podczas aktualizacji kategorii');
+  const newName = prompt("Nowa nazwa:", category.name);
+  if (newName) {
+    try {
+      await fetchWithAuth(`/api/forum/categories/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ name: newName, slug: category.slug, description: category.description })
+      });
+      loadCategories();
+    } catch (e) { alert('Błąd edycji'); }
   }
 };
 
 window.deleteCategory = async (id) => {
-  const category = allCategories.find(c => c.id === id);
-  if (!category) return;
-
-  if (!confirm(`Czy na pewno chcesz usunąć kategorię "${category.name}"? Spowoduje to usunięcie wszystkich powiązanych postów!`)) {
-    return;
-  }
-
-  try {
-    await fetchWithAuth(`/api/forum/categories/${id}`, { method: 'DELETE' });
-    alert('✅ Kategoria usunięta');
-    loadCategories();
-  } catch (error) {
-    console.error('Failed to delete category:', error);
-    alert('❌ Błąd podczas usuwania kategorii');
+  if (confirm('Czy na pewno usunąć kategorię? Usunie to też wszystkie posty w niej!')) {
+    try {
+      await fetchWithAuth(`/api/forum/categories/${id}`, { method: 'DELETE' });
+      loadCategories();
+    } catch (e) { alert('Błąd usuwania'); }
   }
 };
 
-window.removeModerator = async (category_id, user_id) => {
-  if (!confirm('Czy na pewno chcesz usunąć tego moderatora z kategorii?')) return;
-
-  try {
-    await fetchWithAuth(`/api/forum/categories/${category_id}/moderators/${user_id}`, { method: 'DELETE' });
-    alert('✅ Moderator usunięty z kategorii');
-    loadAssignments(category_id);
-  } catch (error) {
-    console.error('Failed to remove moderator:', error);
-    alert('❌ Błąd podczas usuwania moderatora');
+window.removeModerator = async (cid, uid) => {
+  if (confirm('Odebrać uprawnienia do tej kategorii?')) {
+    try {
+      await fetchWithAuth(`/api/forum/categories/${cid}/moderators/${uid}`, { method: 'DELETE' });
+      loadAssignments(cid);
+    } catch (e) { alert('Błąd usuwania przypisania'); }
   }
 };
 
-init();
+// --- POWIADOMIENIA (Skrócona wersja dla zachowania spójności) ---
+async function loadNotifications() {
+  const btn = document.getElementById('notificationsBtn');
+  const badge = document.getElementById('notificationBadge');
+  const dropdown = document.getElementById('notificationsDropdown');
+  const list = document.getElementById('notificationsList');
+
+  if (!btn) return;
+
+  try {
+    const notifications = await fetchWithAuth('/api/user/notifications');
+    const unreadCount = notifications.filter(n => n.is_read === 0).length;
+
+    if (unreadCount > 0) {
+      badge.textContent = unreadCount;
+      badge.style.display = 'block';
+    } else {
+      badge.style.display = 'none';
+    }
+    btn.style.display = 'block';
+
+    if (notifications.length > 0) {
+      list.innerHTML = notifications.map(n => `
+        <div class="notification-item ${n.is_read === 0 ? 'unread' : ''}" onclick="window.handleNotificationClick(${n.id}, '${n.link || '#'}', ${n.is_read})">
+            <div class="notification-title">${n.title}</div>
+            <div class="notification-message">${n.message}</div>
+        </div>
+      `).join('');
+    }
+
+    btn.onclick = (e) => { e.stopPropagation(); dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block'; };
+    document.addEventListener('click', () => { dropdown.style.display = 'none'; });
+    document.getElementById('markAllReadBtn').onclick = async () => {
+      await fetchWithAuth('/api/user/notifications/read-all', { method: 'POST' });
+      loadNotifications();
+    };
+  } catch (e) { console.error('Błąd powiadomień', e); }
+}
+
+window.handleNotificationClick = async (id, link, isRead) => {
+  if (isRead === 0) await fetchWithAuth(`/api/user/notifications/${id}/read`, { method: 'POST' });
+  if (link && link !== '#') window.location.href = link;
+  else loadNotifications();
+};

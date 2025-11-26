@@ -1,4 +1,4 @@
-// public/dashboard.js (pełny kod z poprawką nawigacji)
+// public/dashboard.js
 
 // Slider
 let currentSlide = 0;
@@ -7,19 +7,13 @@ const sliderTrack = document.querySelector('.slider-track');
 const arrowLeft = document.querySelector('.slider-arrow-left');
 const arrowRight = document.querySelector('.slider-arrow-right');
 
-// --- NOWA FUNKCJA POPRAWIAJĄCA NAWIGACJĘ ---
+// --- FUNKCJA POPRAWIAJĄCA NAWIGACJĘ ---
 function setActiveNav() {
     const currentPath = window.location.pathname;
 
-    // Iteracja po wszystkich linkach w pasku nawigacyjnym
     document.querySelectorAll('.topbar-nav .nav-tab').forEach(link => {
-        // 1. Usuń klasę 'active' z każdego linku
         link.classList.remove('active');
-
-        // 2. Sprawdź, czy href linku pasuje do aktualnej ścieżki
         const linkPath = new URL(link.href).pathname;
-
-        // Specjalna obsługa dla "/" i "/dashboard.html"
         const isDashboardHome = (currentPath === '/' || currentPath === '/dashboard.html') && linkPath === '/dashboard.html';
 
         if (linkPath === currentPath || isDashboardHome) {
@@ -27,8 +21,6 @@ function setActiveNav() {
         }
     });
 }
-// ---------------------------------------------
-
 
 function goToSlide(index) {
     if (index < 0) index = slides.length - 1;
@@ -59,19 +51,25 @@ async function setupAuth() {
 
         document.getElementById('who').textContent = currentUser.display_name || currentUser.username;
 
+        // --- POPRAWKA TUTAJ ---
+        // Moderator i Admin widzą link "Moderacja" i "Zamówienia"
         if (currentUser.role === 'admin' || currentUser.role === 'moderator') {
-            document.getElementById('moderatorLink').style.display = 'block';
+            const modLink = document.getElementById('moderatorLink');
+            if (modLink) modLink.style.display = 'block';
+
+            const ordersLink = document.getElementById('ordersLink');
+            if (ordersLink) ordersLink.style.display = 'block';
+        }
+
+        // TYLKO Admin widzi link "Admin" i "Zarządzaj Galeriami"
+        if (currentUser.role === 'admin') {
+            const adminLink = document.getElementById('adminLink');
+            if (adminLink) adminLink.style.display = 'block';
 
             const galleryManageLink = document.getElementById('galleryManageLink');
             if (galleryManageLink) galleryManageLink.style.display = 'block';
         }
-        if (currentUser.role === 'admin') {
-            document.getElementById('adminLink').style.display = 'block';
-        }
-        if (currentUser.role === 'admin' || currentUser.role === 'moderator') {
-            const ordersLink = document.getElementById('ordersLink');
-            if (ordersLink) ordersLink.style.display = 'block';
-        }
+        // --- KONIEC POPRAWKI ---
 
         // LOGOUT HANDLER
         if (logoutBtn) {
@@ -98,7 +96,7 @@ async function setupAuth() {
     }
 }
 
-// DODANO: Logika Powiadomień (MIN REQUIREMENT)
+// Logika Powiadomień
 async function loadNotifications() {
     const btn = document.getElementById('notificationsBtn');
     const badge = document.getElementById('notificationBadge');
@@ -133,12 +131,10 @@ async function loadNotifications() {
             </div>
         `).join('');
 
-        // Obsługa otwierania/zamykania dropdown
         btn.onclick = () => {
             dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
         };
 
-        // Oznacz wszystkie jako przeczytane
         document.getElementById('markAllReadBtn').onclick = async () => {
             await fetch('/api/user/notifications/read-all', { method: 'POST' });
             loadNotifications();
@@ -150,7 +146,6 @@ async function loadNotifications() {
     }
 }
 
-// Obsługa kliknięcia powiadomienia
 window.handleNotificationClick = async (id, link, isRead) => {
     if (isRead === 0) {
         await fetch(`/api/user/notifications/${id}/read`, { method: 'POST' });
@@ -162,7 +157,6 @@ window.handleNotificationClick = async (id, link, isRead) => {
 };
 
 async function showPlayers(category, title) {
-    // ... (pozostała logika showPlayers)
     try {
         const res = await fetch(`/api/players/category/${category}`);
         const players = await res.json();
@@ -220,7 +214,6 @@ document.addEventListener('click', (e) => {
         else if (action === 'legends') showPlayers('legends', 'Legendy');
     }
 
-    // Ukryj dropdown powiadomień po kliknięciu poza nim
     const dropdown = document.getElementById('notificationsDropdown');
     const btn = document.getElementById('notificationsBtn');
     if (dropdown && dropdown.style.display === 'block' && !dropdown.contains(e.target) && !btn.contains(e.target)) {
@@ -231,7 +224,6 @@ document.addEventListener('click', (e) => {
 if (backBtn) backBtn.addEventListener('click', showMain);
 if (leaguesBackBtn) leaguesBackBtn.addEventListener('click', showMain);
 
-// Theme init
 function initTheme() {
     const div = document.createElement('div');
     div.className = 'theme-selector';
@@ -258,4 +250,4 @@ function initTheme() {
 }
 
 initTheme();
-setupAuth().then(setActiveNav); // Dodajemy wywołanie, by ustawić aktywny link po załadowaniu strony
+setupAuth().then(setActiveNav);

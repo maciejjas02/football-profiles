@@ -26,11 +26,9 @@ export function ensureSchema() {
         provider TEXT, 
         provider_id TEXT, 
         
-        -- 👇 NOWE KOLUMNY ADRESOWE 👇
         address TEXT,
         city TEXT,
         postal_code TEXT,
-        -- 👆 KONIEC NOWYCH KOLUMN 👆
 
         created_at TEXT DEFAULT (datetime('now')), 
         updated_at TEXT DEFAULT (datetime('now'))
@@ -449,7 +447,7 @@ export function updatePost(id, t, c, cat) { return db.prepare('UPDATE posts SET 
 export function approvePost(id) { return db.prepare("UPDATE posts SET status='approved' WHERE id=?").run(id); }
 export function rejectPost(id) { return db.prepare("UPDATE posts SET status='rejected' WHERE id=?").run(id); }
 export function deletePost(id) { return db.prepare("DELETE FROM posts WHERE id=?").run(id); }
-export function getPendingPosts() { return db.prepare("SELECT p.*, c.name as category_name, u.username as author_username FROM posts p LEFT JOIN categories c ON p.category_id=c.id LEFT JOIN users u ON p.author_id=u.id WHERE p.status='pending' ORDER BY p.created_at DESC").all(); }
+
 
 // --- COMMENTS (Z AKTUALIZACJĄ REPUTACJI I PENDING) ---
 export function getPostComments(pid, userId) {
@@ -495,6 +493,49 @@ export function rateComment(cid, uid, r) {
     transaction();
 }
 
+export function getAllUsers() {
+    return db.prepare('SELECT id, username, email, role FROM users ORDER BY id DESC').all();
+}
+
+export function updateUserRole(id, role) {
+    return db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, id);
+}
+
+export function getPendingPosts(userId, role) {
+    if (role === 'admin') {
+        return db.prepare(`
+            SELECT p.*, c.name as category_name, u.username as author_username 
+            FROM posts p 
+            LEFT JOIN categories c ON p.category_id=c.id 
+            LEFT JOIN users u ON p.author_id=u.id 
+            WHERE p.status='pending' 
+            ORDER BY p.created_at DESC
+        `).all();
+    }
+    else {
+        return db.prepare(`
+            SELECT p.*, c.name as category_name, u.username as author_username 
+            FROM posts p 
+            LEFT JOIN categories c ON p.category_id=c.id 
+            LEFT JOIN users u ON p.author_id=u.id 
+            JOIN moderator_categories mc ON p.category_id = mc.category_id
+            WHERE p.status='pending' AND mc.user_id = ?
+            ORDER BY p.created_at DESC
+        `).all(userId);
+    }
+}
+
+export function checkModPermission(userId, role, postId) {
+    if (role === 'admin') return true;
+
+    const row = db.prepare(`
+        SELECT 1 FROM posts p
+        JOIN moderator_categories mc ON p.category_id = mc.category_id
+        WHERE p.id = ? AND mc.user_id = ?
+    `).get(postId, userId);
+
+    return !!row;
+}
 export function createComment(pid, c, aid) { const user = getUserById(aid); const status = (user.role === 'admin' || user.role === 'moderator') ? 'approved' : 'pending'; return db.prepare("INSERT INTO post_comments (post_id, content, author_id, status) VALUES (?,?,?,?)").run(pid, c, aid, status); }
 export function getCommentById(id) { return db.prepare("SELECT * FROM post_comments WHERE id=?").get(id); }
 export function updateComment(id, content) { return db.prepare("UPDATE post_comments SET content=? WHERE id=?").run(content, id); }
@@ -560,4 +601,23 @@ export function getAllPurchases() {
         JOIN players pl ON p.player_id = pl.id 
         ORDER BY p.purchase_date DESC
     `).all();
+}
+
+
+
+export function isModOfCategory(userId, categoryId) {
+    const row = db.prepare('SELECT 1 FROM moderator_categories WHERE user_id = ? AND category_id = ?').get(userId, categoryId);
+    return !!row;
+}
+
+export function getUserAllowedCategories(userId, role) {
+
+    if (role === 'admin') {
+        return db.prepare('SELECT * FROM categories').all();
+    }
+    return db.prepare(`
+        SELECT c.* FROM categories c 
+        JOIN moderator_categories mc ON c.id = mc.category_id 
+        WHERE mc.user_id = ?
+    `).all(userId);
 }

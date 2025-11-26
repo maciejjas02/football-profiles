@@ -147,6 +147,16 @@ export async function ensureSchema() {
 
 /* ---------- USER FUNCTIONS ---------- */
 
+export async function getAllUsers() {
+  const result = await query('SELECT id, username, email, role FROM users ORDER BY id DESC');
+  return result.rows;
+}
+
+export async function updateUserRole(id, role) {
+  await query('UPDATE users SET role = $1 WHERE id = $2', [role, id]);
+  return { changes: 1 };
+}
+
 export async function getUserById(id) {
   const result = await query('SELECT * FROM users WHERE id = $1', [id]);
   return result.rows[0] || null;
@@ -597,6 +607,59 @@ export async function getPendingComments() {
         ORDER BY pc.created_at DESC
     `);
   return result.rows;
+}
+
+export async function getPendingPosts(userId, role) {
+  if (role === 'admin') {
+    const result = await query(`
+            SELECT p.*, c.name as category_name, u.username as author_username 
+            FROM posts p 
+            LEFT JOIN categories c ON p.category_id=c.id 
+            LEFT JOIN users u ON p.author_id=u.id 
+            WHERE p.status='pending' 
+            ORDER BY p.created_at DESC
+        `);
+    return result.rows;
+  } else {
+    const result = await query(`
+            SELECT p.*, c.name as category_name, u.username as author_username 
+            FROM posts p 
+            LEFT JOIN categories c ON p.category_id=c.id 
+            LEFT JOIN users u ON p.author_id=u.id 
+            JOIN moderator_categories mc ON p.category_id = mc.category_id
+            WHERE p.status='pending' AND mc.user_id = $1
+            ORDER BY p.created_at DESC
+        `, [userId]);
+    return result.rows;
+  }
+}
+
+export async function isModOfCategory(userId, categoryId) {
+  const result = await query('SELECT 1 FROM moderator_categories WHERE user_id = $1 AND category_id = $2', [userId, categoryId]);
+  return result.rows.length > 0;
+}
+
+export async function getUserAllowedCategories(userId, role) {
+  if (role === 'admin') {
+    const result = await query('SELECT * FROM categories');
+    return result.rows;
+  }
+  const result = await query(`
+        SELECT c.* FROM categories c 
+        JOIN moderator_categories mc ON c.id = mc.category_id 
+        WHERE mc.user_id = $1
+    `, [userId]);
+  return result.rows;
+}
+
+export async function checkModPermission(userId, role, postId) {
+  if (role === 'admin') return true;
+  const result = await query(`
+        SELECT 1 FROM posts p
+        JOIN moderator_categories mc ON p.category_id = mc.category_id
+        WHERE p.id = $1 AND mc.user_id = $2
+    `, [postId, userId]);
+  return result.rows.length > 0;
 }
 
 export async function rateComment(cid, uid, r) {
