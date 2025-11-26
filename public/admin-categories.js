@@ -7,13 +7,13 @@ let allCategories = [];
 document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
-  // Zabezpieczenie: jeśli init odpali się dwa razy (przez type=module i listener)
+  // Zabezpieczenie
   if (window.initStarted) return;
   window.initStarted = true;
 
   await checkAuth();
 
-  // Ładowanie danych - kolejność nie ma znaczenia, bo są niezależne
+  // Ładowanie danych 
   await loadUsersManagement();
   await loadModerators();
   await loadCategories();
@@ -60,7 +60,7 @@ async function checkAuth() {
 
 async function loadCategories() {
   try {
-    // Pobieranie elementu - jeśli go nie ma, kończymy funkcję (bez błędu w konsoli)
+
     const list = document.getElementById('categoriesList');
     if (!list) {
       console.warn("Element #categoriesList nie został znaleziony w HTML.");
@@ -69,14 +69,14 @@ async function loadCategories() {
 
     allCategories = await fetchWithAuth('/api/forum/categories');
 
-    // Wypełnij select w formularzu tworzenia
+
     const parentSelect = document.getElementById('parentCategory');
     if (parentSelect) {
       parentSelect.innerHTML = '<option value="">Brak (główna kategoria)</option>' +
         allCategories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
     }
 
-    // Wypełnij select w formularzu przypisywania moderatora
+
     const assignSelect = document.getElementById('assignCategory');
     if (assignSelect) {
       assignSelect.innerHTML = '<option value="">Wybierz kategorię...</option>' +
@@ -165,7 +165,7 @@ async function loadUsersManagement() {
   }
 }
 
-// Globalna funkcja zmiany roli (dostępna z HTML)
+// Globalna funkcja zmiany roli
 window.changeRole = async (id, newRole) => {
   if (!confirm(`Czy na pewno chcesz zmienić rolę tego użytkownika na ${newRole.toUpperCase()}?`)) return;
 
@@ -175,7 +175,7 @@ window.changeRole = async (id, newRole) => {
       body: JSON.stringify({ role: newRole })
     });
 
-    // Po zmianie roli odświeżamy obie listy: tabelę userów i dropdown moderatorów
+
     await loadUsersManagement();
     await loadModerators();
 
@@ -189,7 +189,7 @@ window.changeRole = async (id, newRole) => {
 async function loadModerators() {
   try {
     const users = await fetchWithAuth('/api/admin/users');
-    // Filtrujemy tylko moderatorów i adminów
+
     const moderators = users.filter(u => u.role === 'moderator' || u.role === 'admin');
 
     const select = document.getElementById('assignModerator');
@@ -237,7 +237,7 @@ async function loadAssignments(category_id) {
 // --- OBSŁUGA ZDARZEŃ I FORMULARZY ---
 
 function setupEventListeners() {
-  // 1. Tworzenie kategorii
+
   document.getElementById('submitCategoryBtn')?.addEventListener('click', async (e) => {
     e.preventDefault();
     const name = document.getElementById('categoryName').value.trim();
@@ -293,13 +293,13 @@ function setupEventListeners() {
     }
   });
 
-  // Ładowanie listy przypisanych po zmianie kategorii w selectcie
+
   document.getElementById('assignCategory')?.addEventListener('change', (e) => {
     if (e.target.value) loadAssignments(e.target.value);
   });
 }
 
-// --- FUNKCJE GLOBALNE (dla przycisków w HTML) ---
+// --- FUNKCJE GLOBALNE ---
 
 window.editCategory = async (id) => {
   const category = allCategories.find(c => c.id === id);
@@ -335,7 +335,7 @@ window.removeModerator = async (cid, uid) => {
   }
 };
 
-// --- POWIADOMIENIA (Skrócona wersja dla zachowania spójności) ---
+// --- POWIADOMIENIA ---
 async function loadNotifications() {
   const btn = document.getElementById('notificationsBtn');
   const badge = document.getElementById('notificationBadge');
