@@ -64,8 +64,9 @@
     </div>
 
     <div class="admin-panel" style="margin-top: 30px;">
-      <h2>Nowe zdjęcie</h2>
-      <div id="uploadZone" class="upload-zone">
+      <h2 id="formHeader">Nowe zdjęcie</h2>
+
+      <div id="fileInputContainer" class="upload-zone">
         <div class="upload-icon">🖼️</div>
         <p>Przeciągnij plik tutaj lub kliknij, aby wybrać.</p>
         <input type="file" id="fileInput" accept="image/*" hidden>
@@ -81,19 +82,15 @@
         <textarea id="imageDescription" class="form-textarea" rows="3" placeholder="Wpisz opis..."></textarea>
       </div>
 
-      <button id="submitUploadBtn" class="btn btn-primary" disabled>Upload</button>
+      <div style="display: flex; gap: 10px; margin-top: 15px;">
+        <button id="submitUploadBtn" class="btn btn-primary" disabled style="flex: 1;">Upload</button>
+        <button id="cancelEditBtn" class="btn btn-secondary" style="display: none;">Anuluj</button>
+      </div>
+
       <div id="message" class="success" style="margin-top: 15px;"></div>
     </div>
 
-    <div class="uploaded-section" id="uploadedSection">
-      <h2>Wszystkie przesłane zdjęcia</h2>
-      <div class="images-grid" id="imagesGrid">
-        <div class="loading">Ładowanie...</div>
-      </div>
-    </div>
-  </div>
-
-  <script src="/admin-gallery-upload.js" type="module"></script>
+    <script src="/admin-gallery-upload.js" type="module"></script>
 </body>
 
 </html>

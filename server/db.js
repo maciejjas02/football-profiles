@@ -538,6 +538,7 @@ export function addImageToCollection(d) { return db.prepare("INSERT INTO gallery
 export function getCollectionItems(id) { return db.prepare("SELECT gi.*, i.filename, i.title, i.description FROM gallery_items gi JOIN gallery_images i ON gi.image_id=i.id WHERE collection_id=? ORDER BY position").all(id); }
 export function removeImageFromCollection(id) { return db.prepare("DELETE FROM gallery_items WHERE id=?").run(id); }
 export function reorderCollectionItems(collectionId, items) { const update = db.prepare('UPDATE gallery_items SET position = ? WHERE id = ? AND collection_id = ?'); const transaction = db.transaction((items) => { for (const item of items) { update.run(item.position, item.itemId, collectionId); } }); return transaction(items); }
+export function updateGalleryImage(id, title, description) { return db.prepare("UPDATE gallery_images SET title=?, description=? WHERE id=?").run(title, description, id); }
 
 // --- KOSZYK ---
 export function getCartItems(userId) { return db.prepare(`SELECT ci.*, p.name, p.team, p.jersey_price, p.jersey_image_url, p.image_url as player_image FROM cart_items ci JOIN players p ON ci.player_id = p.id WHERE ci.user_id = ?`).all(userId); }

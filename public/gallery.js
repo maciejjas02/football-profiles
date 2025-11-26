@@ -27,7 +27,6 @@ function updateVisibleItemsCount() {
     else visibleItems = 3;
 }
 
-// --- PODŚWIETLANIE ŚRODKA ---
 function highlightCenterItem() {
     const items = document.querySelectorAll('.gallery-item');
     items.forEach(item => item.classList.remove('active-center'));
@@ -153,7 +152,7 @@ function renderGallery() {
         div.innerHTML = `
             <div class="gallery-card-inner">
                 <div class="card-image-wrapper">
-                    <img src="/uploads/gallery/${item.filename}" alt="${item.title}" loading="lazy" />
+                    <img src="/gallery-img/${item.filename}" alt="${item.title}" loading="lazy" />
                 </div>
                 <div class="card-content">
                     <h3 class="card-title">${item.title}</h3>
@@ -170,8 +169,6 @@ function getItemWidth() {
     return item ? item.getBoundingClientRect().width : 0;
 }
 
-// --- RUCH ---
-
 function moveNext() {
     if (isAnimating || galleryItems.length === 0) return;
     isAnimating = true;
@@ -180,7 +177,6 @@ function moveNext() {
     const itemWidth = getItemWidth();
 
     const items = document.querySelectorAll('.gallery-item');
-
     let centerIndex = Math.floor(visibleItems / 2);
     if (visibleItems === 2) centerIndex = 0;
 
@@ -232,15 +228,6 @@ function setupSliderEvents() {
 
     if (nextBtn) nextBtn.addEventListener('click', moveNext);
     if (prevBtn) prevBtn.addEventListener('click', movePrev);
-
-    /* Auto-play
-    setInterval(() => {
-        const container = document.querySelector('.gallery-slider-container');
-        if (container && !container.matches(':hover')) {
-            moveNext();
-        }
-    }, 5000);
-    */
 
     document.addEventListener('keydown', (e) => {
         if (e.key === 'ArrowLeft') movePrev();

@@ -194,7 +194,7 @@ async function loadCollectionItems(id) {
 
         list.innerHTML = currentItems.map(item => `
             <div class="slider-item" data-id="${item.id}" data-image-id="${item.image_id}" draggable="true">
-                <img src="/uploads/gallery/thumbnails/${item.filename}" alt="${item.title}" />
+                <img src="/gallery-img/${item.filename}" alt="${item.title}" />
                 <h4>${item.title}</h4>
                 <div class="position">Pozycja: ${item.position}</div>
                 <button onclick="removeImageFromCollection(${item.id})" class="btn btn-danger btn-sm btn-remove">Usuń</button>
