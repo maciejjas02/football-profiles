@@ -153,28 +153,48 @@ async function loadThemes() {
       return;
     }
 
-    list.innerHTML = allThemes.map(t => `
-            <div style="background: var(--card-bg); border: 1px solid var(--glass-border); padding: 10px; border-radius: 8px; margin-bottom: 10px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
-                    <strong>${t.name}</strong>
-                    <button class="btn btn-sm btn-primary" onclick="window.editTheme(${t.id})">Edytuj</button>
+    list.innerHTML = allThemes.map(t => {
+      // Nie pokazuj przycisku usuwania dla domyślnego motywu
+      const deleteBtn = t.is_default
+        ? ''
+        : `<button class="btn btn-sm btn-danger" onclick="window.deleteTheme(${t.id})" style="margin-left: 5px;">🗑️</button>`;
+
+      return `
+            <div style="background: var(--card-bg); border: 1px solid var(--glass-border); padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <strong>${t.name} ${t.is_default ? '⭐ (Domyślny)' : ''}</strong>
+                    <div>
+                        <button class="btn btn-sm btn-primary" onclick="window.editTheme(${t.id})">Edytuj</button>
+                        ${deleteBtn}
+                    </div>
                 </div>
-                <div class="theme-preview-box" style="
-                    background: linear-gradient(135deg, ${t.background_gradient_start}, ${t.background_gradient_end});
-                    color: ${t.text_color};
-                    border: 1px solid ${t.secondary_color};
-                    display: flex; align-items: center; justify-content: center;
-                    font-weight: bold;
-                ">
-                    <span style="color: ${t.primary_color}; text-shadow: 0 0 2px black;">Tekst Primary</span>
+                <div style="display:flex; gap:5px; height: 20px;">
+                    <div style="flex:1; background:${t.primary_color};" title="Primary"></div>
+                    <div style="flex:1; background:${t.secondary_color};" title="Secondary"></div>
+                    <div style="flex:1; background:${t.background_gradient_start};" title="Bg Start"></div>
                 </div>
             </div>
-        `).join('');
+        `;
+    }).join('');
   } catch (e) {
     console.error(e);
     list.innerHTML = '<div class="error-state">Błąd ładowania motywów</div>';
   }
 }
+
+// NOWA funkcja usuwania
+window.deleteTheme = async (id) => {
+  if (!confirm('Czy na pewno chcesz usunąć ten motyw? Użytkownicy z niego korzystający zostaną przywróceni do domyślnego.')) return;
+
+  try {
+    await fetchWithAuth(`/api/themes/${id}`, {
+      method: 'DELETE'
+    });
+    loadThemes();
+  } catch (e) {
+    alert('Błąd usuwania: ' + e.message);
+  }
+};
 
 window.editTheme = (id) => {
   const theme = allThemes.find(t => t.id === id);

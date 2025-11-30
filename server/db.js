@@ -27,13 +27,12 @@ export function ensureSchema() {
         address TEXT,
         city TEXT,
         postal_code TEXT,
-        theme_id INTEGER DEFAULT 0, -- +1.0 User Theme Selection
+        theme_id INTEGER DEFAULT 0,
         created_at TEXT DEFAULT (datetime('now')), 
         updated_at TEXT DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
-    -- +1.0 Themes Table
     CREATE TABLE IF NOT EXISTS themes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
@@ -46,8 +45,11 @@ export function ensureSchema() {
     );
 
     CREATE TABLE IF NOT EXISTS clubs (id TEXT PRIMARY KEY, name TEXT, full_name TEXT, country TEXT, league TEXT, founded INTEGER, stadium TEXT, logo_url TEXT, primary_color TEXT, secondary_color TEXT, created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now')));
+    
     CREATE TABLE IF NOT EXISTS players (id TEXT PRIMARY KEY, name TEXT, full_name TEXT, club_id TEXT, team TEXT, position TEXT, nationality TEXT, age INTEGER, height TEXT, weight TEXT, market_value TEXT, biography TEXT, jersey_price INTEGER, jersey_available BOOLEAN DEFAULT 1, jersey_image_url TEXT, image_url TEXT, team_logo TEXT, national_flag TEXT, category TEXT, deceased BOOLEAN DEFAULT 0, created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now')), FOREIGN KEY (club_id) REFERENCES clubs (id));
-    CREATE TABLE IF NOT EXISTS player_stats (id INTEGER PRIMARY KEY AUTOINCREMENT, player_id TEXT, goals INTEGER, assists INTEGER, matches INTEGER, trophies INTEGER);
+    
+    CREATE TABLE IF NOT EXISTS player_stats (id INTEGER PRIMARY KEY AUTOINCREMENT, player_id TEXT UNIQUE, goals INTEGER, assists INTEGER, matches INTEGER, trophies INTEGER);
+    
     CREATE TABLE IF NOT EXISTS player_achievements (id INTEGER PRIMARY KEY AUTOINCREMENT, player_id TEXT, achievement TEXT, year INTEGER, description TEXT);
     CREATE TABLE IF NOT EXISTS purchases (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, player_id TEXT, jersey_price INTEGER, purchase_date TEXT DEFAULT (datetime('now')), status TEXT DEFAULT 'pending');
     CREATE TABLE IF NOT EXISTS categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, slug TEXT UNIQUE, description TEXT, parent_id INTEGER);
@@ -63,10 +65,8 @@ export function ensureSchema() {
     CREATE TABLE IF NOT EXISTS gallery_items (id INTEGER PRIMARY KEY AUTOINCREMENT, collection_id INTEGER NOT NULL, image_id INTEGER NOT NULL, position INTEGER NOT NULL, created_at TEXT DEFAULT (datetime('now')), FOREIGN KEY (collection_id) REFERENCES gallery_collections (id) ON DELETE CASCADE, FOREIGN KEY (image_id) REFERENCES gallery_images (id) ON DELETE CASCADE);
   `);
 
-    // Migracja dla istniejącej bazy (dodanie theme_id)
     try { db.prepare('ALTER TABLE users ADD COLUMN theme_id INTEGER DEFAULT 0').run(); } catch (e) { }
 
-    // Seed default theme
     const defaultTheme = db.prepare("SELECT id FROM themes WHERE is_default = 1").get();
     if (!defaultTheme) {
         db.prepare(`INSERT INTO themes (name, primary_color, secondary_color, background_gradient_start, background_gradient_end, text_color, is_default) VALUES (?, ?, ?, ?, ?, ?, 1)`)
@@ -87,6 +87,14 @@ export function createTheme(t) {
 }
 export function updateTheme(id, t) {
     return db.prepare('UPDATE themes SET name=@name, primary_color=@primary_color, secondary_color=@secondary_color, background_gradient_start=@background_gradient_start, background_gradient_end=@background_gradient_end, text_color=@text_color WHERE id=@id').run({ ...t, id });
+}
+export function deleteTheme(id) {
+    const theme = db.prepare('SELECT is_default FROM themes WHERE id = ?').get(id);
+    if (theme && theme.is_default) {
+        throw new Error("Nie można usunąć motywu domyślnego!");
+    }
+    db.prepare('UPDATE users SET theme_id = 0 WHERE theme_id = ?').run(id);
+    return db.prepare('DELETE FROM themes WHERE id = ?').run(id);
 }
 export function setUserTheme(userId, themeId) {
     return db.prepare('UPDATE users SET theme_id = ? WHERE id = ?').run(themeId, userId);
@@ -377,6 +385,7 @@ export function ensureSeedPlayers() {
         const playerData = { ...rest, jersey_image_url: p.jersey_image_url || null };
         try {
             insertPlayer.run(playerData);
+            // Dzięki UNIQUE(player_id) w tabeli player_stats, INSERT OR REPLACE teraz zadziała poprawnie
             insertStats.run({ player_id: p.id, goals, assists, matches, trophies });
         } catch (error) { console.error("Błąd przy dodawaniu piłkarza:", p.name, error); }
     });
@@ -393,8 +402,61 @@ export function existsUserByUsername(u) { return !!db.prepare('SELECT 1 FROM use
 export function updateUserAddress(userId, address, city, postalCode) { return db.prepare('UPDATE users SET address = ?, city = ?, postal_code = ? WHERE id = ?').run(address, city, postalCode, userId); }
 
 // --- DATA ---
-export function getPlayerById(id) { /* ... */ return db.prepare('SELECT * FROM players WHERE id=?').get(id); }
-export function getPlayersByCategory(cat) { /* ... */ return []; } // Placeholder for brevity
+
+// ZMIANA: Dodano brakującą implementację getPlayerById
+export function getPlayerById(id) {
+    const player = db.prepare(`
+        SELECT p.*, 
+               s.goals, s.assists, s.matches, s.trophies
+        FROM players p
+        LEFT JOIN player_stats s ON p.id = s.player_id
+        WHERE p.id = ?
+    `).get(id);
+
+    if (!player) return null;
+
+    const achievements = db.prepare('SELECT achievement FROM player_achievements WHERE player_id = ?').all(id);
+
+    // Kluczowa zmiana: Mapowanie pól snake_case na camelCase dla frontendu
+    return {
+        ...player,
+        // Mapowanie pól dla frontendu (player.js oczekuje camelCase)
+        imageUrl: player.image_url,
+        jerseyImageUrl: player.jersey_image_url,
+        marketValue: player.market_value,
+        jerseyPrice: player.jersey_price,
+        jerseyAvailable: player.jersey_available,
+        fullName: player.full_name,
+        teamLogo: player.team_logo,
+        nationalFlag: player.national_flag,
+
+        stats: {
+            goals: player.goals || 0,
+            assists: player.assists || 0,
+            matches: player.matches || 0,
+            trophies: player.trophies || 0
+        },
+        achievements: achievements.map(a => a.achievement)
+    };
+}
+
+// ZMIANA: Dodano brakującą implementację getPlayersByCategory
+export function getPlayersByCategory(cat) {
+    const stmt = db.prepare(`
+        SELECT p.*, 
+               s.goals, s.assists, s.matches, s.trophies
+        FROM players p
+        LEFT JOIN player_stats s ON p.id = s.player_id
+        WHERE p.category = ?
+    `);
+
+    const players = stmt.all(cat);
+    return players.map(p => ({
+        ...p,
+        imageUrl: p.image_url // mapowanie dla dashboard.js
+    }));
+}
+
 export function getAllClubs() { return db.prepare('SELECT * FROM clubs').all(); }
 export function getClubById(id) { return db.prepare('SELECT * FROM clubs WHERE id=?').get(id); }
 export function createPurchase(u, p, j) { return db.prepare('INSERT INTO purchases (user_id, player_id, jersey_price) VALUES (?,?,?)').run(u, p, j); }
@@ -455,7 +517,22 @@ export function removeImageFromCollection(id) { return db.prepare("DELETE FROM g
 export function reorderCollectionItems(collectionId, items) { const update = db.prepare('UPDATE gallery_items SET position = ? WHERE id = ? AND collection_id = ?'); const transaction = db.transaction((items) => { for (const item of items) { update.run(item.position, item.itemId, collectionId); } }); return transaction(items); }
 export function updateGalleryImage(id, title, description) { return db.prepare("UPDATE gallery_images SET title=?, description=? WHERE id=?").run(title, description, id); }
 export function getCartItems(userId) { return db.prepare(`SELECT ci.*, p.name, p.team, p.jersey_price, p.jersey_image_url, p.image_url as player_image FROM cart_items ci JOIN players p ON ci.player_id = p.id WHERE ci.user_id = ?`).all(userId); }
-export function addToCart(userId, playerId) { const player = db.prepare('SELECT jersey_available FROM players WHERE id=?').get(playerId); if (!player) throw new Error("Błąd: Produkt niedostępny"); const initialStock = player.jersey_available; const soldStock = db.prepare("SELECT COUNT(*) AS sold FROM purchases WHERE player_id=? AND status NOT IN ('pending', 'cancelled')").get(playerId).sold || 0; if (initialStock - soldStock <= 0) throw new Error("Brak w magazynie"); return db.prepare(`INSERT INTO cart_items (user_id, player_id, quantity) VALUES (?, ?, 1) ON CONFLICT(user_id, player_id) DO UPDATE SET quantity = quantity + 1`).run(userId, playerId); }
+export function addToCart(userId, playerId) {
+    const player = db.prepare('SELECT jersey_available FROM players WHERE id=?').get(playerId);
+    if (!player) throw new Error("Błąd: Produkt niedostępny");
+
+    // Sprawdź dostępność
+    const soldStock = db.prepare("SELECT COUNT(*) AS sold FROM purchases WHERE player_id=? AND status NOT IN ('pending', 'cancelled')").get(playerId).sold || 0;
+    if (player.jersey_available - soldStock <= 0) throw new Error("Brak w magazynie");
+
+    // +0.5 Kumulacja: zwiększ quantity jeśli już jest w koszyku
+    return db.prepare(`
+        INSERT INTO cart_items (user_id, player_id, quantity) 
+        VALUES (?, ?, 1) 
+        ON CONFLICT(user_id, player_id) 
+        DO UPDATE SET quantity = quantity + 1
+    `).run(userId, playerId);
+}
 export function removeFromCart(userId, itemId) { return db.prepare('DELETE FROM cart_items WHERE id = ? AND user_id = ?').run(itemId, userId); }
 export function checkoutCart(userId) { const items = getCartItems(userId); if (items.length === 0) throw new Error("Koszyk pusty"); const now = new Date().toISOString(); const insert = db.prepare('INSERT INTO purchases (user_id, player_id, jersey_price, status, purchase_date) VALUES (?, ?, ?, ?, ?)'); const transaction = db.transaction(() => { for (const item of items) { for (let i = 0; i < item.quantity; i++) insert.run(userId, item.player_id, item.jersey_price, 'pending', now); } db.prepare('DELETE FROM cart_items WHERE user_id = ?').run(userId); }); transaction(); return items.length; }
 export function payForOrderByDate(userId, dateString) { return db.prepare("UPDATE purchases SET status='completed' WHERE user_id=? AND purchase_date=? AND status='pending'").run(userId, dateString); }

@@ -10,151 +10,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
   <link rel="icon" type="image/png" href="/images/logo.png" />
-  <style>
-    .collection-grid {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 30px;
-      margin-top: 20px;
-      margin-bottom: 20px;
-      width: 100%;
-    }
-
-    .jersey-card-item {
-      width: 320px;
-      background: linear-gradient(145deg, rgba(255, 255, 255, 0.05) 0%, rgba(0, 0, 0, 0.4) 100%);
-      border: 1px solid rgba(218, 165, 32, 0.2);
-      border-radius: 16px;
-      overflow: hidden;
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-      position: relative;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .jersey-card-item:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 10px 30px rgba(218, 165, 32, 0.15);
-      border-color: rgba(218, 165, 32, 0.5);
-    }
-
-    .jersey-img-container {
-      height: 260px;
-      background: radial-gradient(circle at center, rgba(255, 255, 255, 0.05) 0%, rgba(0, 0, 0, 0.3) 70%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      position: relative;
-    }
-
-    .jersey-img-container img {
-      max-height: 100%;
-      max-width: 100%;
-      object-fit: contain;
-      filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.5));
-      transition: transform 0.3s ease;
-    }
-
-    .jersey-card-item:hover .jersey-img-container img {
-      transform: scale(1.08) rotate(-2deg);
-    }
-
-    .jersey-details {
-      padding: 20px;
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      background: rgba(0, 0, 0, 0.2);
-    }
-
-    .jersey-title {
-      font-size: 20px;
-      font-weight: 700;
-      color: #fff;
-      margin-bottom: 5px;
-    }
-
-    .jersey-team {
-      color: #FFD700;
-      font-size: 13px;
-      font-weight: 600;
-      margin-bottom: 15px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-
-    .jersey-meta {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: auto;
-      padding-top: 15px;
-      border-top: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .jersey-price {
-      font-size: 18px;
-      font-weight: 700;
-      color: #fff;
-    }
-
-    .jersey-date {
-      font-size: 12px;
-      color: rgba(255, 255, 255, 0.5);
-    }
-
-    .status-badge {
-      position: absolute;
-      top: 15px;
-      right: 15px;
-      padding: 6px 12px;
-      border-radius: 20px;
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      backdrop-filter: blur(4px);
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-      z-index: 10;
-    }
-
-    .status-completed {
-      background: rgba(40, 167, 69, 0.2);
-      color: #4ade80;
-      border: 1px solid rgba(40, 167, 69, 0.4);
-    }
-
-    .status-pending {
-      background: rgba(255, 193, 7, 0.2);
-      color: #FFD700;
-      border: 1px solid rgba(255, 193, 7, 0.4);
-    }
-
-    .pay-btn {
-      width: 100%;
-      margin-top: 15px;
-      background: linear-gradient(135deg, #28a745 0%, #218838 100%);
-      color: white;
-      border: none;
-      padding: 12px;
-      border-radius: 8px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-    }
-
-    .pay-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
-    }
-  </style>
 </head>
 
 <body>
@@ -198,38 +53,42 @@
     </div>
   </header>
 
-  <div class="container" style="margin: 80px auto 40px; display: block; max-width: 1200px; padding: 0 20px;">
+  <div class="container" style="margin: 100px auto 40px; display: block; max-width: 1200px; padding: 0 20px;">
     <div class="page-header">
       <h1 class="page-title">💎 Moja Kolekcja</h1>
     </div>
 
-    <div class="admin-panel" style="margin-bottom: 40px; background: rgba(255,255,255,0.02); padding: 30px;">
-      <div class="panel-header">
+    <div class="admin-panel cart-panel">
+      <div class="panel-header"
+        style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
         <h2 style="margin:0;">🛒 Twój Koszyk</h2>
-        <button id="checkoutBtn" class="btn btn-success" style="display:none;">Złóż zamówienie (Checkout)</button>
+        <div style="display: flex; gap: 10px;">
+          <button id="editAddressBtn" class="btn btn-secondary">🏠 Mój adres dostawy</button>
+          <button id="checkoutBtn" class="btn btn-success" style="display:none;">Złóż zamówienie (Checkout)</button>
+        </div>
       </div>
+
       <div id="cartList" class="collection-grid">
         <div class="loading">Ładowanie koszyka...</div>
       </div>
+
       <div id="cartTotal"
-        style="text-align:right; font-size: 24px; font-weight:bold; color:#FFD700; margin-top:20px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.1); display:none;">
+        style="text-align:right; font-size: 24px; font-weight:bold; color:var(--primary-color); margin-top:20px; padding-top:20px; border-top:1px solid var(--glass-border); display:none;">
         Suma: <span id="totalAmount">0</span> zł
       </div>
     </div>
 
-    <div class="admin-panel" style="padding: 30px; background: transparent; border: none;">
-      <h2 style="text-align:center; margin-bottom:30px; font-size:28px;">📜 Historia Zakupów</h2>
+    <div class="admin-panel history-panel" style="margin-top: 40px;">
+      <h2 style="margin-bottom:30px;">📜 Historia Zakupów</h2>
       <div id="purchasesList" class="collection-grid">
         <div class="loading">Ładowanie historii...</div>
       </div>
     </div>
 
-    <div style="margin-top: 50px; text-align: center; padding-top: 30px; border-top: 1px solid rgba(255,255,255,0.1);">
+    <div style="margin-top: 50px; text-align: center; padding-top: 30px; border-top: 1px solid var(--glass-border);">
       <a href="dashboard.html" class="btn btn-secondary">← Wróć do Panelu</a>
     </div>
   </div>
-
-  <script type="module" src="my-collection.js"></script>
 
   <div id="addressModal" class="custom-modal-overlay" style="display: none; opacity: 0;">
     <div class="custom-modal" style="text-align: left; max-width: 500px;">
@@ -253,7 +112,7 @@
 
       <div class="modal-actions" style="margin-top: 25px;">
         <button id="addressCancelBtn" class="modal-btn cancel">Anuluj</button>
-        <button id="addressConfirmBtn" class="modal-btn confirm">Zapisz i Zamów</button>
+        <button id="addressConfirmBtn" class="modal-btn confirm">Zapisz</button>
       </div>
     </div>
   </div>
@@ -261,7 +120,8 @@
   <div id="paymentModal" class="custom-modal-overlay" style="display: none; opacity: 0;">
     <div class="custom-modal" style="max-width: 400px;">
       <h3>🔒 Płatność BLIK (Sandbox)</h3>
-      <p style="margin-bottom: 20px; color: #aaa;">Wpisz 6-cyfrowy kod BLIK, aby potwierdzić płatność.</p>
+      <p style="margin-bottom: 20px; color: var(--text-color); opacity: 0.7;">Wpisz 6-cyfrowy kod BLIK, aby potwierdzić
+        płatność.</p>
 
       <div class="form-group" style="text-align: center;">
         <input type="text" id="blikInput" class="form-input"
@@ -272,10 +132,13 @@
       <div class="modal-actions" style="margin-top: 25px;">
         <button id="paymentCancelBtn" class="modal-btn cancel">Anuluj</button>
         <button id="paymentConfirmBtn" class="modal-btn confirm"
-          style="background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);">Zapłać</button>
+          style="background: linear-gradient(135deg, var(--danger-color) 0%, #b91c1c 100%); color: white;">Zapłać</button>
       </div>
     </div>
   </div>
+
+  <script type="module" src="my-collection.js"></script>
+  <script type="module" src="theme-manager.js"></script>
 
 </body>
 

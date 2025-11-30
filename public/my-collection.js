@@ -1,4 +1,3 @@
-// public/my-collection.js
 import { showToast, showConfirm } from './utils/ui.js';
 import { fetchWithAuth } from './utils/api-client.js';
 
@@ -11,18 +10,49 @@ async function refreshUserData() {
       const data = await res.json();
       return data.user;
     }
-  } catch (e) { }
+  } catch (e) { console.error("Błąd pobierania usera:", e); }
   return null;
 }
 
 async function init() {
+  console.log("Inicjalizacja my-collection...");
   await setupAuth();
   await loadCart();
   await loadPurchases();
 
   const checkoutBtn = document.getElementById('checkoutBtn');
   if (checkoutBtn) {
-    checkoutBtn.addEventListener('click', checkout);
+    // Usuwamy stare listenery (na wszelki wypadek) i dodajemy nowy
+    const newBtn = checkoutBtn.cloneNode(true);
+    checkoutBtn.parentNode.replaceChild(newBtn, checkoutBtn);
+
+    newBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      console.log("Kliknięto przycisk Checkout");
+      checkout();
+    });
+  }
+
+  // Obsługa przycisku "Mój adres dostawy"
+  const editAddressBtn = document.getElementById('editAddressBtn');
+  if (editAddressBtn) {
+    editAddressBtn.addEventListener('click', async () => {
+      let user = await refreshUserData();
+      if (!user) return showToast("Musisz być zalogowany", "error");
+
+      const addressData = await openAddressModal(user);
+      if (!addressData) return;
+
+      try {
+        await fetchWithAuth('/api/user/address', {
+          method: 'PUT',
+          body: JSON.stringify(addressData)
+        });
+        showToast("Adres został zaktualizowany!", "success");
+      } catch (e) {
+        showToast("Nie udało się zapisać adresu: " + e.message, "error");
+      }
+    });
   }
 
   if (currentUser) {
@@ -30,293 +60,81 @@ async function init() {
   }
 }
 
-// --- AUTH ---
-async function setupAuth() {
-  try {
-    const res = await fetch('/api/auth/me'); // GET jest bezpieczny
-    if (res.ok) {
-      const data = await res.json();
-      currentUser = data.user;
-      document.getElementById('who').textContent = currentUser.display_name || currentUser.username;
+// --- LOGIKA ZAMÓWIENIA (CHECKOUT) ---
+async function checkout() {
+  const btn = document.getElementById('checkoutBtn');
+  console.log("Rozpoczynam procedurę checkout...");
 
-      // Linki nawigacyjne
-      if (currentUser.role === 'admin' || currentUser.role === 'moderator') {
-        const ordersLink = document.getElementById('ordersLink');
-        if (ordersLink) ordersLink.style.display = 'block';
-        const modLink = document.getElementById('moderatorLink');
-        if (modLink) modLink.style.display = 'block';
-      }
-      if (currentUser.role === 'admin') {
-        const adminLink = document.getElementById('adminLink');
-        if (adminLink) adminLink.style.display = 'block';
-        const galleryManageLink = document.getElementById('galleryManageLink');
-        if (galleryManageLink) galleryManageLink.style.display = 'block';
-      }
+  let user = await refreshUserData();
+  if (!user) {
+    showToast("Błąd sesji. Zaloguj się ponownie.", "error");
+    return;
+  }
 
-      document.getElementById('logoutBtn').addEventListener('click', async () => {
-        try {
-          // Wymagany fetchWithAuth dla POST
-          await fetchWithAuth('/api/auth/logout', { method: 'POST' });
-          window.location.href = '/';
-        } catch (e) { console.error("Logout failed", e); }
-      });
-    } else {
-      window.location.href = '/';
+  // 1. Sprawdzenie adresu (MIN)
+  if (!user.address || !user.city || !user.postal_code) {
+    console.log("Brak adresu, otwieram modal...");
+    const wantToFill = await showConfirm("Brak adresu", "Aby zamówić, musisz uzupełnić adres dostawy. Czy chcesz to zrobić teraz?");
+    if (!wantToFill) return;
+
+    const addressData = await openAddressModal(user);
+    if (!addressData) return; // Anulowano
+
+    try {
+      await fetchWithAuth('/api/user/address', { method: 'PUT', body: JSON.stringify(addressData) });
+      user = await refreshUserData(); // Odśwież dane usera
+      showToast("Adres zapisany!", "success");
+    } catch (e) {
+      return showToast("Błąd zapisu adresu: " + e.message, "error");
     }
-  } catch (error) { window.location.href = '/'; }
-}
+  }
 
-// --- NOTIFICATIONS ---
-async function loadNotifications() {
-  const btn = document.getElementById('notificationsBtn');
-  const badge = document.getElementById('notificationBadge');
-  const dropdown = document.getElementById('notificationsDropdown');
-  const list = document.getElementById('notificationsList');
+  // 2. Potwierdzenie
+  const confirmed = await showConfirm("Potwierdzenie", "Czy na pewno chcesz złożyć zamówienie z obowiązkiem zapłaty?");
+  if (!confirmed) {
+    console.log("Anulowano checkout.");
+    return;
+  }
 
-  if (!btn) return;
+  btn.disabled = true;
+  btn.textContent = "Przetwarzanie...";
 
   try {
-    const notifications = await fetchWithAuth('/api/user/notifications'); // GET jest bezpieczny
-    const unreadCount = notifications.filter(n => n.is_read === 0).length;
+    // 3. Wysłanie zamówienia do API (+0.5 Email)
+    console.log("Wysyłam request do API...");
+    const data = await fetchWithAuth('/api/cart/checkout', { method: 'POST' });
 
-    if (unreadCount > 0) {
-      badge.textContent = unreadCount;
-      badge.style.display = 'block';
-    } else {
-      badge.style.display = 'none';
-    }
+    showToast("✅ Zamówienie złożone! Sprawdź e-mail.", 'success');
 
-    btn.style.display = 'block';
+    // Odśwież widok
+    await loadCart();
+    await loadPurchases();
 
-    if (notifications.length === 0) {
-      list.innerHTML = '<div class="notification-empty">Brak powiadomień.</div>';
-    } else {
-      list.innerHTML = notifications.map(n => `
-                <div class="notification-item ${n.is_read === 0 ? 'unread' : ''}" 
-                     onclick="window.handleNotificationClick(${n.id}, '${n.link || '#'}', ${n.is_read})"
-                >
-                    <div class="notification-title">${n.title}</div>
-                    <div class="notification-message">${n.message}</div>
-                    <div class="notification-time">${new Date(n.created_at).toLocaleDateString()}</div>
-                </div>
-            `).join('');
-    }
-
-    btn.onclick = (e) => {
-      e.stopPropagation();
-      dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
-    };
-
-    document.addEventListener('click', (e) => {
-      if (dropdown.style.display === 'block' && !dropdown.contains(e.target) && !btn.contains(e.target)) {
-        dropdown.style.display = 'none';
+    // 4. Automatyczne przejście do płatności (Sandbox +1.0)
+    // Czekamy chwilę, żeby UI się odświeżyło
+    setTimeout(async () => {
+      if (await showConfirm("Płatność", "Czy chcesz opłacić zamówienie teraz (Sandbox BLIK)?")) {
+        // Znajdź najnowsze zamówienie
+        const purchases = await fetchWithAuth('/api/user/purchases');
+        if (purchases.length > 0) {
+          // Sortujemy, żeby wziąć najnowsze (po dacie)
+          purchases.sort((a, b) => new Date(b.purchase_date) - new Date(a.purchase_date));
+          const latestDate = purchases[0].purchase_date;
+          await window.payForOrderGroup(latestDate);
+        }
       }
-    });
-
-    const markReadBtn = document.getElementById('markAllReadBtn');
-    if (markReadBtn) {
-      markReadBtn.onclick = async () => {
-        // Wymagany fetchWithAuth dla POST
-        await fetchWithAuth('/api/user/notifications/read-all', { method: 'POST' });
-        loadNotifications();
-      };
-    }
-  } catch (e) {
-    console.error('Błąd powiadomień:', e);
-    badge.style.display = 'none';
-  }
-}
-
-window.handleNotificationClick = async (id, link, isRead) => {
-  if (isRead === 0) {
-    // Wymagany fetchWithAuth dla POST
-    await fetchWithAuth(`/api/user/notifications/${id}/read`, { method: 'POST' });
-  }
-  if (link && link !== '#') {
-    window.location.href = link;
-  } else {
-    loadNotifications();
-  }
-};
-
-// --- CART ---
-async function loadCart() {
-  const list = document.getElementById('cartList');
-  const checkoutBtn = document.getElementById('checkoutBtn');
-  const totalEl = document.getElementById('cartTotal');
-  const amountEl = document.getElementById('totalAmount');
-
-  try {
-    // Wymagany fetchWithAuth dla GET (choć GET jest bezpieczny, ułatwia to obsługę sesji)
-    const items = await fetchWithAuth('/api/cart');
-
-    if (items.length === 0) {
-      list.innerHTML = '<div class="empty-state" style="width:100%; text-align:center;">Twój koszyk jest pusty.</div>';
-      checkoutBtn.style.display = 'none';
-      totalEl.style.display = 'none';
-      return;
-    }
-
-    let total = 0;
-    list.innerHTML = items.map(item => {
-      const itemTotal = item.jersey_price * item.quantity;
-      total += itemTotal;
-      const img = item.jersey_image_url || item.player_image || 'https://via.placeholder.com/300x300/1a1a1a/FFFFFF?text=Brak+Zdjecia';
-
-      return `
-            <div class="jersey-card-item">
-                <div class="status-badge status-pending" style="background:rgba(255,255,255,0.2); color:#fff;">Ilość: ${item.quantity}</div>
-                <div class="jersey-img-container" style="height:180px;">
-                    <img src="${img}" alt="${item.name}">
-                </div>
-                <div class="jersey-details">
-                    <div class="jersey-title" style="font-size:16px;">${item.name}</div>
-                    <div class="jersey-team" style="margin-bottom:5px;">${item.team}</div>
-                    <div class="jersey-meta" style="border-top:none; padding-top:5px;">
-                        <div class="jersey-price">${item.jersey_price} zł x ${item.quantity}</div>
-                        <button class="btn btn-danger btn-sm" onclick="window.removeFromCart(${item.id})">Usuń</button>
-                    </div>
-                </div>
-            </div>
-            `;
-    }).join('');
-
-    amountEl.textContent = total;
-    checkoutBtn.style.display = 'block';
-    totalEl.style.display = 'block';
+    }, 500);
 
   } catch (e) {
-    list.innerHTML = '<div class="error-state">Błąd koszyka</div>';
+    console.error(e);
+    showToast("Błąd zamówienia: " + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Złóż zamówienie (Checkout)";
   }
 }
 
-window.removeFromCart = async (id) => {
-  const confirmed = await showConfirm("Usuwanie", "Czy na pewno chcesz usunąć ten produkt z koszyka?");
-  if (!confirmed) return;
-
-  try {
-    // Wymagany fetchWithAuth dla DELETE
-    await fetchWithAuth(`/api/cart/${id}`, { method: 'DELETE' });
-    showToast("Produkt usunięty z koszyka", 'info');
-    loadCart();
-  } catch (e) {
-    showToast("Błąd usuwania: " + e.message, 'error');
-  }
-};
-
-// --- PURCHASES ---
-async function loadPurchases() {
-  const list = document.getElementById('purchasesList');
-
-  try {
-    const purchases = await fetchWithAuth('/api/user/purchases');
-
-    if (purchases.length === 0) {
-      list.innerHTML = `
-        <div class="empty-state" style="width:100%; text-align:center;">
-            <p style="color: rgba(255,255,255,0.5);">Brak historii zakupów.</p>
-        </div>`;
-      return;
-    }
-
-    // 1. Grupowanie po dacie zakupu
-    const orders = {};
-    purchases.forEach(p => {
-      const dateKey = p.purchase_date;
-      if (!orders[dateKey]) {
-        orders[dateKey] = {
-          date: p.purchase_date,
-          status: p.status,
-          items: [],
-          total: 0
-        };
-      }
-      orders[dateKey].items.push(p);
-      orders[dateKey].total += p.jersey_price;
-    });
-
-    // 2. Sortowanie zamówień (od najnowszych)
-    const sortedDates = Object.keys(orders).sort((a, b) => new Date(b) - new Date(a));
-
-    // 3. Generowanie HTML dla Zamówień (Order Cards)
-    list.innerHTML = sortedDates.map(dateKey => {
-      const order = orders[dateKey];
-      const itemCount = order.items.length;
-      const dateDisplay = new Date(order.date).toLocaleString();
-      const status = order.status; // pending, completed, shipped, cancelled
-
-      // Generowanie odznaki statusu
-      let badgeHtml = '';
-      if (status === 'pending') {
-        badgeHtml = '<span class="status-badge status-pending">⏳ Oczekuje</span>';
-      } else if (status === 'completed') {
-        badgeHtml = '<span class="status-badge status-completed">✅ Opłacone</span>';
-      } else if (status === 'shipped') {
-        badgeHtml = '<span class="status-badge" style="background:rgba(59, 130, 246, 0.2); color:#60a5fa; border:1px solid #3b82f6;">📦 Wysłane</span>';
-      } else if (status === 'cancelled') {
-        badgeHtml = '<span class="status-badge" style="background:rgba(239, 68, 68, 0.2); color:#f87171; border:1px solid #ef4444;">❌ Anulowane</span>';
-      } else {
-        badgeHtml = `<span class="status-badge">${status}</span>`;
-      }
-
-      // Generowanie sekcji akcji (przycisk lub komunikat)
-      let actionHtml = '';
-      if (status === 'pending') {
-        actionHtml = `
-                    <button class="pay-btn" onclick="window.payForOrderGroup('${order.date}')">
-                        💳 Zapłać za całość (BLIK)
-                    </button>`;
-      } else if (status === 'completed') {
-        actionHtml = '<div style="color:#4ade80; font-size:13px; margin-top:10px;">Dziękujemy za zakup! Oczekiwanie na wysyłkę.</div>';
-      } else if (status === 'shipped') {
-        actionHtml = '<div style="color:#60a5fa; font-size:13px; margin-top:10px; font-weight:bold;">📦 Twoje zamówienie zostało wysłane! Spodziewaj się kuriera.</div>';
-      } else if (status === 'cancelled') {
-        actionHtml = '<div style="color:#f87171; font-size:13px; margin-top:10px;">To zamówienie zostało anulowane.</div>';
-      }
-
-      const itemsHtml = order.items.map(item => `
-                <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px; background:rgba(0,0,0,0.2); padding:5px; border-radius:4px;">
-                    <img src="${item.jersey_image_url || item.player_image}" style="width:30px; height:30px; object-fit:contain;">
-                    <div style="font-size:12px;">
-                        <div style="color:#fff;">${item.player_name}</div>
-                        <div style="color:#888;">${item.jersey_price} zł</div>
-                    </div>
-                </div>
-            `).join('');
-
-      return `
-            <div class="jersey-card-item" style="width: 100%; max-width: 600px; flex-direction: row; min-height: auto;">
-                <div style="padding: 20px; flex: 1; border-right: 1px solid rgba(255,255,255,0.1);">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                        <span style="color:#888; font-size:12px;">${dateDisplay}</span>
-                        ${badgeHtml}
-                    </div>
-                    
-                    <div class="jersey-title" style="font-size:18px;">Zamówienie (${itemCount} szt.)</div>
-                    <div class="jersey-price" style="font-size:22px; color:#FFD700; margin: 10px 0;">Suma: ${order.total} zł</div>
-
-                    ${actionHtml}
-                </div>
-
-                <div style="padding: 20px; width: 200px; background: rgba(0,0,0,0.2); overflow-y: auto; max-height: 250px;">
-                    <div style="font-size:11px; text-transform:uppercase; color:#888; margin-bottom:10px;">Produkty:</div>
-                    ${itemsHtml}
-                </div>
-            </div>
-            `;
-    }).join('');
-
-    list.style.flexDirection = 'column';
-    list.style.alignItems = 'center';
-
-  } catch (error) {
-    list.innerHTML = '<div class="error-state">Błąd ładowania historii zakupów.</div>';
-    console.error(error);
-  }
-}
-
-// --- MODALS HELPERS ---
-
+// --- MODALE (Pomocnicze) ---
 function openAddressModal(currentData) {
   return new Promise((resolve) => {
     const modal = document.getElementById('addressModal');
@@ -331,34 +149,25 @@ function openAddressModal(currentData) {
       zipIn.value = currentData.postal_code || '';
       cityIn.value = currentData.city || '';
     }
+    modal.style.display = 'flex'; setTimeout(() => modal.style.opacity = '1', 10);
 
-    modal.style.display = 'flex';
-    setTimeout(() => modal.style.opacity = '1', 10);
+    // Klonujemy przyciski, aby usunąć stare listenery
+    const newConfirm = confirmBtn.cloneNode(true);
+    const newCancel = cancelBtn.cloneNode(true);
+    confirmBtn.parentNode.replaceChild(newConfirm, confirmBtn);
+    cancelBtn.parentNode.replaceChild(newCancel, cancelBtn);
 
-    const cleanup = () => {
+    const close = (val) => {
       modal.style.opacity = '0';
       setTimeout(() => modal.style.display = 'none', 300);
-      confirmBtn.onclick = null;
-      cancelBtn.onclick = null;
+      resolve(val);
     };
 
-    confirmBtn.onclick = () => {
-      const addr = addressIn.value.trim();
-      const zip = zipIn.value.trim();
-      const city = cityIn.value.trim();
-
-      if (!addr || !zip || !city) {
-        showToast('Wypełnij wszystkie pola adresu!', 'error');
-        return;
-      }
-      cleanup();
-      resolve({ address: addr, postalCode: zip, city: city });
+    newConfirm.onclick = () => {
+      if (!addressIn.value || !zipIn.value || !cityIn.value) return showToast('Wypełnij wszystkie pola!', 'error');
+      close({ address: addressIn.value, postalCode: zipIn.value, city: cityIn.value });
     };
-
-    cancelBtn.onclick = () => {
-      cleanup();
-      resolve(null);
-    };
+    newCancel.onclick = () => close(null);
   });
 }
 
@@ -370,116 +179,205 @@ function openPaymentModal() {
     const cancelBtn = document.getElementById('paymentCancelBtn');
 
     input.value = '';
+    input.oninput = function () { this.value = this.value.replace(/[^0-9]/g, ''); };
 
-    // Zabezpieczenie: tylko cyfry
-    input.oninput = function () {
-      this.value = this.value.replace(/[^0-9]/g, '');
+    modal.style.display = 'flex'; setTimeout(() => { modal.style.opacity = '1'; input.focus(); }, 10);
+
+    const newConfirm = confirmBtn.cloneNode(true);
+    const newCancel = cancelBtn.cloneNode(true);
+    confirmBtn.parentNode.replaceChild(newConfirm, confirmBtn);
+    cancelBtn.parentNode.replaceChild(newCancel, cancelBtn);
+
+    const close = (val) => {
+      modal.style.opacity = '0'; setTimeout(() => modal.style.display = 'none', 300);
+      resolve(val);
     };
-
-
-    modal.style.display = 'flex';
-    setTimeout(() => {
-      modal.style.opacity = '1';
-      input.focus();
-    }, 10);
-
-    const cleanup = () => {
-      modal.style.opacity = '0';
-      setTimeout(() => modal.style.display = 'none', 300);
-      confirmBtn.onclick = null;
-      cancelBtn.onclick = null;
-      input.oninput = null; // Usuwamy nasłuchiwanie
-    };
-
-    confirmBtn.onclick = () => {
-      const code = input.value.trim();
-      if (code.length < 6) {
-        showToast('Kod BLIK musi mieć 6 znaków!', 'error');
-        return;
-      }
-      cleanup();
-      resolve(code);
-    };
-
-    cancelBtn.onclick = () => {
-      cleanup();
-      resolve(null);
-    };
+    newConfirm.onclick = () => { if (input.value.length < 6) return showToast('Kod BLIK: 6 cyfr', 'error'); close(input.value); };
+    newCancel.onclick = () => close(null);
   });
 }
 
-// --- CHECKOUT ---
-async function checkout() {
-  let user = await refreshUserData();
-
-  // 1. Adres
-  if (!user || !user.address || !user.city || !user.postal_code) {
-    const wantToFill = await showConfirm("Brak danych do wysyłki", "Aby złożyć zamówienie, musisz podać adres. Czy chcesz to zrobić teraz?");
-    if (!wantToFill) return;
-
-    const addressData = await openAddressModal(user);
-    if (!addressData) return;
-
-    try {
-      // Wymagany fetchWithAuth dla PUT
-      await fetchWithAuth('/api/user/address', {
-        method: 'PUT',
-        body: JSON.stringify(addressData)
-      });
-      showToast("Adres zapisany w profilu!", "success");
-    } catch (e) {
-      showToast("Nie udało się zapisać adresu: " + e.message, "error");
-      return;
-    }
-  }
-
-  // 2. Potwierdzenie
-  const confirmed = await showConfirm("Finalizacja", "Czy na pewno chcesz złożyć zamówienie z obowiązkiem zapłaty?");
-  if (!confirmed) return;
-
-  try {
-    // Wymagany fetchWithAuth dla POST
-    const data = await fetchWithAuth('/api/cart/checkout', { method: 'POST' });
-    showToast("✅ " + data.message, 'success');
-    loadCart();
-    loadPurchases();
-  } catch (e) {
-    showToast("Błąd zamówienia: " + e.message, 'error');
-  }
-}
-
-// --- PŁATNOŚĆ GRUPOWA ---
+// --- PŁATNOŚĆ (SANDBOX) ---
 window.payForOrderGroup = async (dateString) => {
-  const blikCode = await openPaymentModal();
-  if (!blikCode) {
-    showToast("Płatność anulowana.", "info");
-    return;
-  }
-
-  const btn = event.target;
-  let originalText = '';
-  if (btn) {
-    originalText = btn.textContent;
-    btn.textContent = "Przetwarzanie...";
-    btn.disabled = true;
-  }
+  const code = await openPaymentModal();
+  if (!code) return showToast("Płatność anulowana", "info");
 
   try {
-    // Wymagany fetchWithAuth dla POST na nowym endpoincie
     await fetchWithAuth(`/api/purchases/pay-order`, {
       method: 'POST',
       body: JSON.stringify({ purchaseDate: dateString })
     });
-
-    showToast("Sukces! Całe zamówienie opłacone.", 'success');
+    showToast("Sukces! Zamówienie opłacone.", 'success');
     loadPurchases();
-  } catch (e) {
-    showToast("Błąd płatności: " + e.message, 'error');
-    if (btn) {
-      btn.textContent = originalText;
-      btn.disabled = false;
+  } catch (e) { showToast(e.message, 'error'); }
+};
+
+// --- FUNKCJE POMOCNICZE (LOADERS, AUTH) ---
+async function setupAuth() {
+  try {
+    const res = await fetch('/api/auth/me');
+    if (res.ok) {
+      const data = await res.json();
+      currentUser = data.user;
+      document.getElementById('who').textContent = currentUser.display_name || currentUser.username;
+
+      if (['admin', 'moderator'].includes(currentUser.role)) {
+        document.getElementById('ordersLink')?.style.setProperty('display', 'block');
+        document.getElementById('moderatorLink')?.style.setProperty('display', 'block');
+      }
+      if (currentUser.role === 'admin') {
+        document.getElementById('adminLink')?.style.setProperty('display', 'block');
+        document.getElementById('galleryManageLink')?.style.setProperty('display', 'block');
+      }
+      document.getElementById('logoutBtn').onclick = async () => {
+        await fetchWithAuth('/api/auth/logout', { method: 'POST' });
+        window.location.href = '/';
+      };
+    } else { window.location.href = '/'; }
+  } catch (error) { window.location.href = '/'; }
+}
+
+async function loadCart() {
+  const list = document.getElementById('cartList');
+  const checkoutBtn = document.getElementById('checkoutBtn');
+  const totalEl = document.getElementById('cartTotal');
+  const amountEl = document.getElementById('totalAmount');
+
+  try {
+    const items = await fetchWithAuth('/api/cart');
+    if (items.length === 0) {
+      list.innerHTML = '<div class="empty-state" style="width:100%; text-align:center;">Twój koszyk jest pusty.</div>';
+      checkoutBtn.style.display = 'none';
+      totalEl.style.display = 'none';
+      return;
     }
-  }
+
+    let total = 0;
+    list.innerHTML = items.map(item => {
+      const itemTotal = item.jersey_price * item.quantity;
+      total += itemTotal;
+      const img = item.jersey_image_url || item.player_image || '/images/logo.png';
+      return `
+            <div class="jersey-card-item">
+                <div class="status-badge status-pending" style="background:rgba(255,255,255,0.2); color:#fff;">Ilość: ${item.quantity}</div>
+                <div class="jersey-img-container" style="height:180px;">
+                    <img src="${img}" alt="${item.name}">
+                </div>
+                <div class="jersey-details">
+                    <div class="jersey-title" style="font-size:16px;">${item.name}</div>
+                    <div class="jersey-team" style="margin-bottom:5px;">${item.team}</div>
+                    <div class="jersey-meta" style="border-top:none; padding-top:5px;">
+                        <div class="jersey-price">${item.jersey_price} zł x ${item.quantity}</div>
+                        <button class="btn btn-danger btn-sm" onclick="window.removeFromCart(${item.id})">Usuń</button>
+                    </div>
+                </div>
+            </div>`;
+    }).join('');
+
+    amountEl.textContent = total;
+    // WAŻNE: Upewnij się, że przycisk jest widoczny, ale nie ma inline-style block, który nadpisuje
+    // Po prostu usuwamy display:none
+    checkoutBtn.style.display = '';
+    totalEl.style.display = 'block';
+  } catch (e) { list.innerHTML = '<div class="error-state">Błąd koszyka</div>'; }
+}
+
+window.removeFromCart = async (id) => {
+  if (!await showConfirm("Usuwanie", "Usunąć produkt z koszyka?")) return;
+  try {
+    await fetchWithAuth(`/api/cart/${id}`, { method: 'DELETE' });
+    loadCart();
+  } catch (e) { showToast("Błąd usuwania", 'error'); }
+};
+
+async function loadPurchases() {
+  const list = document.getElementById('purchasesList');
+  try {
+    const purchases = await fetchWithAuth('/api/user/purchases');
+    if (purchases.length === 0) {
+      list.innerHTML = `<div class="empty-state" style="width:100%; text-align:center;"><p>Brak historii zakupów.</p></div>`;
+      return;
+    }
+    const orders = {};
+    purchases.forEach(p => {
+      const dateKey = p.purchase_date;
+      if (!orders[dateKey]) orders[dateKey] = { date: p.purchase_date, status: p.status, items: [], total: 0 };
+      orders[dateKey].items.push(p);
+      orders[dateKey].total += p.jersey_price;
+    });
+    const sortedDates = Object.keys(orders).sort((a, b) => new Date(b) - new Date(a));
+
+    list.innerHTML = sortedDates.map(dateKey => {
+      const order = orders[dateKey];
+      const status = order.status;
+      let badgeClass = 'status-badge';
+      let statusText = status;
+      let actionHtml = '';
+
+      if (status === 'pending') {
+        badgeClass += ' status-pending'; statusText = '⏳ Oczekuje';
+        actionHtml = `<button class="pay-btn" onclick="window.payForOrderGroup('${order.date}')">💳 Zapłać (BLIK Sandbox)</button>`;
+      } else if (status === 'completed') {
+        badgeClass += ' status-completed'; statusText = '✅ Opłacone';
+        actionHtml = '<div style="color:var(--success-color); font-size:13px; margin-top:10px;">Zamówienie opłacone. Oczekiwanie na wysyłkę.</div>';
+      } else if (status === 'shipped') {
+        statusText = '📦 Wysłane';
+        actionHtml = '<div style="color:var(--primary-color); font-size:13px; margin-top:10px;">Wysłano kurierem.</div>';
+      } else if (status === 'cancelled') {
+        statusText = '❌ Anulowane';
+        actionHtml = '<div style="color:var(--danger-color); font-size:13px; margin-top:10px;">Zamówienie anulowane.</div>';
+      }
+
+      return `
+            <div class="jersey-card-item" style="width: 100%; max-width: 600px; flex-direction: row; min-height: auto;">
+                <div style="padding: 20px; flex: 1; border-right: 1px solid var(--glass-border);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <span style="color:var(--text-color); opacity:0.6; font-size:12px;">${new Date(order.date).toLocaleString()}</span>
+                        <span class="${badgeClass}">${statusText}</span>
+                    </div>
+                    <div class="jersey-title" style="font-size:18px;">Zamówienie (${order.items.length} poz.)</div>
+                    <div class="jersey-price" style="font-size:22px; margin: 10px 0;">Suma: ${order.total} zł</div>
+                    ${actionHtml}
+                </div>
+                <div style="padding: 20px; width: 200px; background: rgba(0,0,0,0.2); overflow-y: auto; max-height: 250px;">
+                     ${order.items.map(i => `<div style="font-size:12px; margin-bottom:5px;">${i.player_name} (${i.jersey_price} zł)</div>`).join('')}
+                </div>
+            </div>`;
+    }).join('');
+    list.style.flexDirection = 'column';
+    list.style.alignItems = 'center';
+  } catch (e) { list.innerHTML = 'Błąd historii.'; }
+}
+
+// --- NOTIFICATIONS (Skrócone, bo były w poprzednich krokach) ---
+async function loadNotifications() {
+  const btn = document.getElementById('notificationsBtn');
+  const badge = document.getElementById('notificationBadge');
+  const list = document.getElementById('notificationsList');
+  if (!btn) return;
+  try {
+    const notifications = await fetchWithAuth('/api/user/notifications');
+    const unreadCount = notifications.filter(n => n.is_read === 0).length;
+    if (unreadCount > 0) { badge.textContent = unreadCount; badge.style.display = 'block'; }
+    else { badge.style.display = 'none'; }
+    btn.style.display = 'block';
+    if (notifications.length === 0) list.innerHTML = '<div class="notification-empty">Brak powiadomień.</div>';
+    else {
+      list.innerHTML = notifications.map(n => `
+        <div class="notification-item ${n.is_read === 0 ? 'unread' : ''}" onclick="window.handleNotificationClick(${n.id}, '${n.link || '#'}', ${n.is_read})">
+            <div class="notification-title">${n.title}</div><div class="notification-message">${n.message}</div>
+        </div>`).join('');
+    }
+    btn.onclick = (e) => { e.stopPropagation(); document.getElementById('notificationsDropdown').style.display = 'block'; };
+    document.addEventListener('click', () => document.getElementById('notificationsDropdown').style.display = 'none');
+    document.getElementById('markAllReadBtn').onclick = async () => {
+      await fetchWithAuth('/api/user/notifications/read-all', { method: 'POST' }); loadNotifications();
+    };
+  } catch (e) { }
+}
+window.handleNotificationClick = async (id, link, isRead) => {
+  if (isRead === 0) await fetchWithAuth(`/api/user/notifications/${id}/read`, { method: 'POST' });
+  if (link && link !== '#') window.location.href = link; else loadNotifications();
 };
 
 init();

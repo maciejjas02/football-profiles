@@ -164,6 +164,18 @@ app.put('/api/user/theme', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Usuń motyw (Tylko Admin)
+app.delete('/api/themes/:id', requireAdmin, async (req, res) => {
+  try {
+    // Wywołujemy nową funkcję z db.js
+    await dbFunctions.deleteTheme(req.params.id);
+    res.json({ success: true });
+  } catch (e) {
+    // Zwracamy błąd (np. przy próbie usunięcia domyślnego)
+    res.status(400).json({ error: e.message });
+  }
+});
+
 // Pobierz aktywny motyw użytkownika
 app.get('/api/user/theme', requireAuth, async (req, res) => {
   const theme = await dbFunctions.getUserTheme(req.user.id);
@@ -287,15 +299,34 @@ app.get('/api/players/category/:cat', (req, res) => res.json(getPlayersByCategor
 app.get('/api/cart', requireAuth, (req, res) => { res.json(getCartItems(getUserByIdFromReq(req))); });
 app.post('/api/cart', requireAuth, (req, res) => { addToCart(getUserByIdFromReq(req), req.body.playerId); res.json({ success: true, message: "Dodano do koszyka" }); });
 app.delete('/api/cart/:id', requireAuth, (req, res) => { removeFromCart(getUserByIdFromReq(req), req.params.id); res.json({ success: true }); });
+// W server/server.js
 app.post('/api/cart/checkout', requireAuth, async (req, res) => {
   try {
     const user = getUserById(req.user.id);
     if (!user.address || !user.city || !user.postal_code) return res.status(400).json({ error: 'Brak pełnych danych do wysyłki.' });
+
     const cartItems = getCartItems(user.id);
     if (cartItems.length === 0) throw new Error("Koszyk jest pusty");
+
     const total = cartItems.reduce((sum, item) => sum + (item.jersey_price * item.quantity), 0);
+
+    // Przenieś do zamówień
     checkoutCart(user.id);
-    await sendEmail(user.email, `Potwierdzenie zamówienia`, `<h1>Dziękujemy!</h1><p>Kwota: ${total} zł</p>`);
+
+    // +0.5 Email (Ethereal - Sandbox)
+    try {
+      await transporter.sendMail({
+        from: '"Football Profiles Shop" <shop@football-profiles.com>',
+        to: user.email,
+        subject: "Potwierdzenie zamówienia",
+        html: `<h1>Dziękujemy za zamówienie!</h1><p>Wartość: <b>${total} zł</b></p><p>Status: Oczekuje na płatność.</p>`
+      });
+      console.log(`📧 Email wysłany do ${user.email}`);
+    } catch (mailError) {
+      console.error("Błąd wysyłania maila:", mailError);
+      // Nie blokujemy checkoutu jeśli mail nie wyjdzie w sandboxie
+    }
+
     res.json({ success: true, message: "Zamówienie złożone!" });
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
