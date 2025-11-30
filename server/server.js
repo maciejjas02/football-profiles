@@ -132,6 +132,45 @@ await ensureSeedClubs();
 await ensureSeedPlayers();
 ensureSeedCategories();
 
+// --- THEMES API ---
+
+// Pobierz wszystkie motywy (dla admina i użytkownika do wyboru)
+app.get('/api/themes', async (req, res) => {
+  const themes = await dbFunctions.getAllThemes();
+  res.json(themes);
+});
+
+// Utwórz nowy motyw (Tylko Admin)
+app.post('/api/themes', requireAdmin, async (req, res) => {
+  try {
+    await dbFunctions.createTheme(req.body);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Aktualizuj motyw (Tylko Admin) - to spełnia wymóg edycji "na żywo" w bazie
+app.put('/api/themes/:id', requireAdmin, async (req, res) => {
+  try {
+    await dbFunctions.updateTheme(req.params.id, req.body);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Ustaw motyw użytkownika
+app.put('/api/user/theme', requireAuth, async (req, res) => {
+  try {
+    await dbFunctions.setUserTheme(req.user.id, req.body.themeId);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Pobierz aktywny motyw użytkownika
+app.get('/api/user/theme', requireAuth, async (req, res) => {
+  const theme = await dbFunctions.getUserTheme(req.user.id);
+  res.json(theme || await dbFunctions.getDefaultTheme());
+});
+
+
 // --- NODEMAILER SETUP ---
 const transporter = nodemailer.createTransport({
   host: 'smtp.ethereal.email',

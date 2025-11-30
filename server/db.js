@@ -51,7 +51,16 @@ export function ensureSchema() {
     CREATE TABLE IF NOT EXISTS comment_ratings (id INTEGER PRIMARY KEY AUTOINCREMENT, comment_id INTEGER, user_id INTEGER, rating INTEGER, UNIQUE(comment_id, user_id));
     CREATE TABLE IF NOT EXISTS notifications (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, type TEXT, title TEXT, message TEXT, link TEXT, is_read INTEGER DEFAULT 0, created_at TEXT DEFAULT (datetime('now')));
     CREATE TABLE IF NOT EXISTS user_discussions (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER, user_id INTEGER, message TEXT, sender_type TEXT, created_at TEXT DEFAULT (datetime('now')));
-    
+    CREATE TABLE IF NOT EXISTS themes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, -- (SERIAL w Postgres)
+    name TEXT NOT NULL,
+    primary_color TEXT NOT NULL,
+    secondary_color TEXT NOT NULL,
+    background_gradient_start TEXT NOT NULL,
+    background_gradient_end TEXT NOT NULL,
+    text_color TEXT NOT NULL,
+    is_default BOOLEAN DEFAULT 0
+);
     CREATE TABLE IF NOT EXISTS cart_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT, 
         user_id INTEGER, 

@@ -102,6 +102,40 @@
       </div>
 
       <div class="admin-panel">
+        <h2>🎨 Zarządzanie Motywami (+1.0 / +1.0)</h2>
+        <div id="themesList" class="themes-grid">Ładowanie...</div>
+
+        <hr style="border-color: rgba(255,255,255,0.1); margin: 20px 0;">
+
+        <h3>Edytuj / Dodaj Motyw</h3>
+        <form id="themeForm">
+          <input type="hidden" id="themeId">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Nazwa</label>
+              <input type="text" id="themeName" class="form-input" required>
+            </div>
+            <div class="form-group">
+              <label>Kolor Główny (Primary)</label>
+              <input type="color" id="themePrimary" class="form-input" value="#FFD700">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Tło Start (Gradient)</label>
+              <input type="color" id="themeBgStart" class="form-input" value="#000000">
+            </div>
+            <div class="form-group">
+              <label>Tło Koniec (Gradient)</label>
+              <input type="color" id="themeBgEnd" class="form-input" value="#2d1f0f">
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary">Zapisz Motyw</button>
+          <button type="button" id="previewThemeBtn" class="btn btn-secondary">Podgląd na żywo (bez zapisu)</button>
+        </form>
+      </div>
+
+      <div class="admin-panel">
         <h2>Przypisz Moderatora</h2>
         <div class="form-group">
           <label for="assignCategory">Wybierz kategorię</label>

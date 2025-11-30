@@ -241,9 +241,38 @@ async function loadPurchases() {
     // 3. Generowanie HTML dla Zamówień (Order Cards)
     list.innerHTML = sortedDates.map(dateKey => {
       const order = orders[dateKey];
-      const isCompleted = order.status === 'completed';
       const itemCount = order.items.length;
       const dateDisplay = new Date(order.date).toLocaleString();
+      const status = order.status; // pending, completed, shipped, cancelled
+
+      // Generowanie odznaki statusu
+      let badgeHtml = '';
+      if (status === 'pending') {
+        badgeHtml = '<span class="status-badge status-pending">⏳ Oczekuje</span>';
+      } else if (status === 'completed') {
+        badgeHtml = '<span class="status-badge status-completed">✅ Opłacone</span>';
+      } else if (status === 'shipped') {
+        badgeHtml = '<span class="status-badge" style="background:rgba(59, 130, 246, 0.2); color:#60a5fa; border:1px solid #3b82f6;">📦 Wysłane</span>';
+      } else if (status === 'cancelled') {
+        badgeHtml = '<span class="status-badge" style="background:rgba(239, 68, 68, 0.2); color:#f87171; border:1px solid #ef4444;">❌ Anulowane</span>';
+      } else {
+        badgeHtml = `<span class="status-badge">${status}</span>`;
+      }
+
+      // Generowanie sekcji akcji (przycisk lub komunikat)
+      let actionHtml = '';
+      if (status === 'pending') {
+        actionHtml = `
+                    <button class="pay-btn" onclick="window.payForOrderGroup('${order.date}')">
+                        💳 Zapłać za całość (BLIK)
+                    </button>`;
+      } else if (status === 'completed') {
+        actionHtml = '<div style="color:#4ade80; font-size:13px; margin-top:10px;">Dziękujemy za zakup! Oczekiwanie na wysyłkę.</div>';
+      } else if (status === 'shipped') {
+        actionHtml = '<div style="color:#60a5fa; font-size:13px; margin-top:10px; font-weight:bold;">📦 Twoje zamówienie zostało wysłane! Spodziewaj się kuriera.</div>';
+      } else if (status === 'cancelled') {
+        actionHtml = '<div style="color:#f87171; font-size:13px; margin-top:10px;">To zamówienie zostało anulowane.</div>';
+      }
 
       const itemsHtml = order.items.map(item => `
                 <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px; background:rgba(0,0,0,0.2); padding:5px; border-radius:4px;">
@@ -260,19 +289,13 @@ async function loadPurchases() {
                 <div style="padding: 20px; flex: 1; border-right: 1px solid rgba(255,255,255,0.1);">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                         <span style="color:#888; font-size:12px;">${dateDisplay}</span>
-                        <span class="status-badge ${isCompleted ? 'status-completed' : 'status-pending'}" style="position:static;">
-                            ${isCompleted ? '✅ Opłacone' : '⏳ Oczekuje'}
-                        </span>
+                        ${badgeHtml}
                     </div>
                     
                     <div class="jersey-title" style="font-size:18px;">Zamówienie (${itemCount} szt.)</div>
                     <div class="jersey-price" style="font-size:22px; color:#FFD700; margin: 10px 0;">Suma: ${order.total} zł</div>
 
-                    ${!isCompleted ? `
-                        <button class="pay-btn" onclick="window.payForOrderGroup('${order.date}')">
-                            💳 Zapłać za całość (BLIK)
-                        </button>
-                    ` : '<div style="color:#4ade80; font-size:13px; margin-top:10px;">Dziękujemy za zakup!</div>'}
+                    ${actionHtml}
                 </div>
 
                 <div style="padding: 20px; width: 200px; background: rgba(0,0,0,0.2); overflow-y: auto; max-height: 250px;">

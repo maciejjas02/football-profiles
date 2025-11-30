@@ -83,6 +83,8 @@ export async function ensureSchema() {
       )
     `);
 
+
+
     // Tabela statystyk piłkarzy
     await query(`
       CREATE TABLE IF NOT EXISTS player_stats (
