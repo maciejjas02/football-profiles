@@ -1,5 +1,4 @@
 // public/dashboard.js
-// DODAJ: Importujemy fetchWithAuth do obsługi CSRF
 import { fetchWithAuth } from './utils/api-client.js';
 
 // Slider

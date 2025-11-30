@@ -1,6 +1,32 @@
 ﻿/* ========================
-   Football Profiles - clean version
+   Football Profiles - FIXED Layout & Theme
    ======================== */
+
+:root {
+  /* --- GŁÓWNE KOLORY (HEX) --- */
+  --primary-color: #FFD700;
+  /* Złoty */
+  --secondary-color: #DAA520;
+  /* Ciemne złoto */
+
+  --bg-gradient-start: #0a0a0a;
+  --bg-gradient-end: #2d1f0f;
+  --text-color: #ffffff;
+
+  /* --- WAŻNE: KOLORY RGB (Dla przezroczystości/Glassmorphism) --- */
+  /* Bez tego tła kafelków będą niewidoczne! */
+  --primary-rgb: 255, 215, 0;
+  --secondary-rgb: 218, 165, 32;
+
+  /* --- STAŁE SYSTEMOWE --- */
+  --glass-bg: rgba(0, 0, 0, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --card-bg: rgba(0, 0, 0, 0.6);
+  --input-bg: rgba(0, 0, 0, 0.5);
+
+  --success-color: #28a745;
+  --danger-color: #dc3545;
+}
 
 /* RESET */
 * {
@@ -4543,4 +4569,58 @@ label:hover::before {
 
 .gallery-slider-container.static-mode .slider-nav-btn {
   display: none !important;
+}
+
+/* ... (reszta stylów wyżej) ... */
+
+/* --- THEME SWITCHER (Prawy dolny róg) --- */
+.theme-selector-panel {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  /* Po lewej stronie, żeby nie zasłaniać czatu/info */
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--secondary-color);
+  padding: 15px;
+  border-radius: 12px;
+  z-index: 9999;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.theme-selector-title {
+  font-size: 12px;
+  color: var(--text-color);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-align: center;
+  margin-bottom: 5px;
+}
+
+.theme-buttons-container {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.theme-btn-circle {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  position: relative;
+}
+
+.theme-btn-circle:hover {
+  transform: scale(1.2);
+  z-index: 2;
+}
+
+.theme-btn-circle.active {
+  border: 2px solid #fff;
+  box-shadow: 0 0 10px var(--primary-color);
 }

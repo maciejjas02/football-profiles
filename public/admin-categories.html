@@ -102,7 +102,9 @@
       </div>
 
       <div class="admin-panel">
-        <h2>🎨 Zarządzanie Motywami (+1.0 / +1.0)</h2>
+        <h2>🎨 Zarządzanie Motywami</h2>
+        <p style="font-size:12px; opacity:0.7;">Edytuj kolory lub dodaj nowy zestaw.</p>
+
         <div id="themesList" class="themes-grid">Ładowanie...</div>
 
         <hr style="border-color: rgba(255,255,255,0.1); margin: 20px 0;">
@@ -110,28 +112,39 @@
         <h3>Edytuj / Dodaj Motyw</h3>
         <form id="themeForm">
           <input type="hidden" id="themeId">
+          <div class="form-group">
+            <label>Nazwa Motywu</label>
+            <input type="text" id="themeName" class="form-input" required>
+          </div>
+
           <div class="form-row">
             <div class="form-group">
-              <label>Nazwa</label>
-              <input type="text" id="themeName" class="form-input" required>
+              <label>Główny (Primary)</label>
+              <input type="color" id="themePrimary" class="form-input" style="height:40px;">
             </div>
             <div class="form-group">
-              <label>Kolor Główny (Primary)</label>
-              <input type="color" id="themePrimary" class="form-input" value="#FFD700">
+              <label>Drugorzędny (Sec)</label>
+              <input type="color" id="themeSecondary" class="form-input" style="height:40px;">
             </div>
           </div>
+
           <div class="form-row">
             <div class="form-group">
               <label>Tło Start (Gradient)</label>
-              <input type="color" id="themeBgStart" class="form-input" value="#000000">
+              <input type="color" id="themeBgStart" class="form-input" style="height:40px;">
             </div>
             <div class="form-group">
               <label>Tło Koniec (Gradient)</label>
-              <input type="color" id="themeBgEnd" class="form-input" value="#2d1f0f">
+              <input type="color" id="themeBgEnd" class="form-input" style="height:40px;">
             </div>
           </div>
-          <button type="submit" class="btn btn-primary">Zapisz Motyw</button>
-          <button type="button" id="previewThemeBtn" class="btn btn-secondary">Podgląd na żywo (bez zapisu)</button>
+
+          <div class="form-group">
+            <label>Kolor Tekstu</label>
+            <input type="color" id="themeTextColor" class="form-input" style="height:40px;">
+          </div>
+
+          <button type="submit" class="btn btn-primary" style="width:100%;">Zapisz Motyw</button>
         </form>
       </div>
 
