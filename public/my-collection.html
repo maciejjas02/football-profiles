@@ -64,7 +64,7 @@
         <h2 style="margin:0;">🛒 Twój Koszyk</h2>
         <div style="display: flex; gap: 10px;">
           <button id="editAddressBtn" class="btn btn-secondary">🏠 Mój adres dostawy</button>
-          <button id="checkoutBtn" class="btn btn-success" style="display:none;">Złóż zamówienie (Checkout)</button>
+          <button id="checkoutBtn" class="btn btn-success" style="display:none;">Złóż zamówienie</button>
         </div>
       </div>
 
@@ -97,16 +97,19 @@
       <div class="form-group">
         <label for="modalAddress">Ulica i numer domu</label>
         <input type="text" id="modalAddress" class="form-input" placeholder="np. Kwiatowa 12/5">
+        <small id="error-modalAddress" class="error-text"></small>
       </div>
 
       <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
         <div class="form-group">
           <label for="modalZip">Kod pocztowy</label>
-          <input type="text" id="modalZip" class="form-input" placeholder="np. 00-001">
+          <input type="text" id="modalZip" class="form-input" placeholder="00-000" maxlength="6">
+          <small id="error-modalZip" class="error-text"></small>
         </div>
         <div class="form-group">
           <label for="modalCity">Miasto</label>
           <input type="text" id="modalCity" class="form-input" placeholder="np. Warszawa">
+          <small id="error-modalCity" class="error-text"></small>
         </div>
       </div>
 

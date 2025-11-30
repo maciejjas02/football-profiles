@@ -66,5 +66,7 @@ export function showConfirm(title, message) {
         overlay.addEventListener('click', (e) => {
             if (e.target === overlay) close(false);
         });
+
     });
+
 }

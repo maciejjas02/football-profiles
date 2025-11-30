@@ -317,3 +317,10 @@ function setupPagination() {
 }
 
 init();
+
+const logoSection = document.querySelector('.logo-section');
+if (logoSection) {
+  logoSection.addEventListener('click', () => {
+    window.location.href = '/dashboard.html';
+  });
+}

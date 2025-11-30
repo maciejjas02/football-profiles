@@ -442,6 +442,12 @@ function setupEventListeners() {
       alert('Podgląd włączony! (Odśwież stronę, aby przywrócić obecny motyw)');
     });
   }
+  const logoSection = document.querySelector('.logo-section');
+  if (logoSection) {
+    logoSection.addEventListener('click', () => {
+      window.location.href = '/dashboard.html';
+    });
+  }
 }
 
 // ==========================================
@@ -494,3 +500,4 @@ window.handleNotificationClick = async (id, link, isRead) => {
   if (link && link !== '#') window.location.href = link;
   else loadNotifications();
 };
+

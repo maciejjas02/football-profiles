@@ -208,6 +208,12 @@ document.addEventListener('click', (e) => {
         dropdown.style.display = 'none';
     }
 });
+const logoSection = document.querySelector('.logo-section');
+if (logoSection) {
+    logoSection.addEventListener('click', () => {
+        window.location.href = '/dashboard.html';
+    });
+}
 
 if (backBtn) backBtn.addEventListener('click', showMain);
 if (leaguesBackBtn) leaguesBackBtn.addEventListener('click', showMain);

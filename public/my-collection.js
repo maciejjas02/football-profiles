@@ -139,7 +139,51 @@ function openAddressModal(currentData) {
       zipIn.value = currentData.postal_code || '';
       cityIn.value = currentData.city || '';
     }
-    modal.style.display = 'flex'; setTimeout(() => modal.style.opacity = '1', 10);
+
+    const clearErrors = () => {
+      document.querySelectorAll('.error-text').forEach(el => el.textContent = '');
+      document.querySelectorAll('.form-input').forEach(el => el.classList.remove('input-error'));
+    };
+
+    const setError = (inputId, message) => {
+      const input = document.getElementById(inputId);
+      const errorEl = document.getElementById('error-' + inputId);
+      if (input && errorEl) {
+        input.classList.add('input-error');
+        errorEl.textContent = message;
+      }
+    };
+
+    clearErrors();
+
+    zipIn.oninput = (e) => {
+      let val = e.target.value.replace(/\D/g, '');
+
+      if (val.length > 5) val = val.slice(0, 5);
+
+      if (val.length > 2) {
+        val = val.slice(0, 2) + '-' + val.slice(2);
+      }
+
+      e.target.value = val;
+
+      if (zipIn.classList.contains('input-error')) {
+        zipIn.classList.remove('input-error');
+        document.getElementById('error-modalZip').textContent = '';
+      }
+    };
+
+    [addressIn, cityIn].forEach(input => {
+      input.oninput = () => {
+        if (input.classList.contains('input-error')) {
+          input.classList.remove('input-error');
+          document.getElementById('error-' + input.id).textContent = '';
+        }
+      };
+    });
+
+    modal.style.display = 'flex';
+    setTimeout(() => modal.style.opacity = '1', 10);
 
     const newConfirm = confirmBtn.cloneNode(true);
     const newCancel = cancelBtn.cloneNode(true);
@@ -153,9 +197,43 @@ function openAddressModal(currentData) {
     };
 
     newConfirm.onclick = () => {
-      if (!addressIn.value || !zipIn.value || !cityIn.value) return showToast('Wypełnij wszystkie pola!', 'error');
-      close({ address: addressIn.value, postalCode: zipIn.value, city: cityIn.value });
+      clearErrors();
+
+      const addressVal = addressIn.value.trim();
+      const zipVal = zipIn.value.trim();
+      const cityVal = cityIn.value.trim();
+      let isValid = true;
+
+      if (!addressVal) {
+        setError('modalAddress', 'Adres jest wymagany.');
+        isValid = false;
+      } else if (addressVal.length < 3) {
+        setError('modalAddress', 'Adres jest za krótki.');
+        isValid = false;
+      }
+
+      const zipRegex = /^\d{2}-\d{3}$/;
+      if (!zipVal) {
+        setError('modalZip', 'Kod pocztowy wymagany.');
+        isValid = false;
+      } else if (!zipRegex.test(zipVal)) {
+        setError('modalZip', 'Format: 00-000');
+        isValid = false;
+      }
+
+      if (!cityVal) {
+        setError('modalCity', 'Miasto jest wymagane.');
+        isValid = false;
+      } else if (cityVal.length < 2) {
+        setError('modalCity', 'Nazwa miasta za krótka.');
+        isValid = false;
+      }
+
+      if (isValid) {
+        close({ address: addressVal, postalCode: zipVal, city: cityVal });
+      }
     };
+
     newCancel.onclick = () => close(null);
   });
 }
@@ -368,3 +446,10 @@ window.handleNotificationClick = async (id, link, isRead) => {
 };
 
 init();
+
+const logoSection = document.querySelector('.logo-section');
+if (logoSection) {
+  logoSection.addEventListener('click', () => {
+    window.location.href = '/dashboard.html';
+  });
+}

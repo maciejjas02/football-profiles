@@ -108,4 +108,10 @@ export async function handleLogout() {
     } catch (error) {
         console.error('Logout error:', error);
     }
+    const logoSection = document.querySelector('.logo-section');
+    if (logoSection) {
+        logoSection.addEventListener('click', () => {
+            window.location.href = '/dashboard.html';
+        });
+    }
 }

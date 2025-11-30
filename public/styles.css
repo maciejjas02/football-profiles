@@ -71,6 +71,15 @@ body::before {
   box-shadow: 0 4px 20px rgba(218, 165, 32, 0.1);
 }
 
+.logo-section {
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.logo-section:hover {
+  opacity: 0.8;
+}
+
 .brand-mini {
   display: flex;
   align-items: center;
@@ -4708,4 +4717,18 @@ input[type="color"]::-moz-color-swatch {
     opacity: 1;
     transform: scale(1);
   }
+}
+
+/* --- WALIDACJA FORMULARZY --- */
+.form-input.input-error {
+  border-color: var(--danger-color) !important;
+  background-color: rgba(220, 53, 69, 0.1) !important;
+}
+
+.error-text {
+  color: var(--danger-color);
+  font-size: 12px;
+  margin-top: 4px;
+  display: block;
+  min-height: 18px;
 }

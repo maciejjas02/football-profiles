@@ -230,3 +230,10 @@ document.getElementById('dashboard-btn')?.addEventListener('click', () => window
 document.getElementById('error-dashboard-btn')?.addEventListener('click', () => window.location.href = '/dashboard.html');
 
 init();
+
+const logoSection = document.querySelector('.logo-section');
+if (logoSection) {
+    logoSection.addEventListener('click', () => {
+        window.location.href = '/dashboard.html';
+    });
+}

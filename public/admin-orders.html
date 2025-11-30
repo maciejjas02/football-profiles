@@ -348,8 +348,17 @@
             window.location.href = '/';
         };
 
+
         init();
+
+        const logoSection = document.querySelector('.logo-section');
+        if (logoSection) {
+            logoSection.addEventListener('click', () => {
+                window.location.href = '/dashboard.html';
+            });
+        }
     </script>
+
     <script type="module" src="/theme-manager.js"></script>
 </body>
 

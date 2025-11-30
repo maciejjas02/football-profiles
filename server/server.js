@@ -134,13 +134,11 @@ ensureSeedCategories();
 
 // --- THEMES API ---
 
-// Pobierz wszystkie motywy (dla admina i użytkownika do wyboru)
 app.get('/api/themes', async (req, res) => {
   const themes = await dbFunctions.getAllThemes();
   res.json(themes);
 });
 
-// Utwórz nowy motyw (Tylko Admin)
 app.post('/api/themes', requireAdmin, async (req, res) => {
   try {
     await dbFunctions.createTheme(req.body);
@@ -148,7 +146,6 @@ app.post('/api/themes', requireAdmin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Aktualizuj motyw (Tylko Admin) - to spełnia wymóg edycji "na żywo" w bazie
 app.put('/api/themes/:id', requireAdmin, async (req, res) => {
   try {
     await dbFunctions.updateTheme(req.params.id, req.body);
@@ -156,7 +153,6 @@ app.put('/api/themes/:id', requireAdmin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Ustaw motyw użytkownika
 app.put('/api/user/theme', requireAuth, async (req, res) => {
   try {
     await dbFunctions.setUserTheme(req.user.id, req.body.themeId);
@@ -164,19 +160,15 @@ app.put('/api/user/theme', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Usuń motyw (Tylko Admin)
 app.delete('/api/themes/:id', requireAdmin, async (req, res) => {
   try {
-    // Wywołujemy nową funkcję z db.js
     await dbFunctions.deleteTheme(req.params.id);
     res.json({ success: true });
   } catch (e) {
-    // Zwracamy błąd (np. przy próbie usunięcia domyślnego)
     res.status(400).json({ error: e.message });
   }
 });
 
-// Pobierz aktywny motyw użytkownika
 app.get('/api/user/theme', requireAuth, async (req, res) => {
   const theme = await dbFunctions.getUserTheme(req.user.id);
   res.json(theme || await dbFunctions.getDefaultTheme());
@@ -184,17 +176,41 @@ app.get('/api/user/theme', requireAuth, async (req, res) => {
 
 
 // --- NODEMAILER SETUP ---
+let testAccount;
+try {
+  testAccount = await nodemailer.createTestAccount();
+  console.log('✅ Utworzono testowe konto email (Ethereal):', testAccount.user);
+} catch (e) {
+  console.error('❌ Błąd tworzenia konta Ethereal:', e);
+}
 const transporter = nodemailer.createTransport({
   host: 'smtp.ethereal.email',
   port: 587,
+  secure: false,
   auth: {
-    user: 'ethereal.user@ethereal.email',
-    pass: 'ethereal.pass'
+    user: testAccount ? testAccount.user : 'missing',
+    pass: testAccount ? testAccount.pass : 'missing'
   }
 });
 
 const sendEmail = async (to, subject, html) => {
-  console.log(`📧 [EMAIL SYSTEM] Do: ${to} | Temat: ${subject}`);
+  console.log(`📧 [EMAIL SYSTEM LOG] Do: ${to} | Temat: ${subject}`);
+
+  if (testAccount) {
+    try {
+      const info = await transporter.sendMail({
+        from: '"Football Profiles Shop" <shop@football-profiles.com>',
+        to,
+        subject,
+        html
+      });
+      console.log(`📨 Zobacz wysłany e-mail tutaj: ${nodemailer.getTestMessageUrl(info)}`);
+    } catch (e) {
+      console.error('Błąd wysyłki przez Nodemailer:', e.message);
+    }
+  } else {
+    console.warn('⚠️ Brak konfiguracji SMTP - e-mail tylko w logach konsoli.');
+  }
 };
 
 // --- JWT & MIDDLEWARE ---
