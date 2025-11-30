@@ -1,4 +1,5 @@
 // public/moderator-posts.js
+import { fetchWithAuth, getCurrentUser, handleLogout } from './utils/api-client.js';
 
 let currentUser = null;
 let editingPostId = null;
@@ -10,7 +11,7 @@ async function init() {
   await loadMyPosts();
   initEditor();
   setupEventListeners();
-  // Dodano: ładowanie powiadomień
+  // Ładowanie powiadomień
   if (currentUser) {
     await loadNotifications();
   }
@@ -18,38 +19,43 @@ async function init() {
 
 async function setupAuth() {
   try {
-    const res = await fetch('/api/auth/me');
-    if (res.ok) {
-      const data = await res.json();
-      currentUser = data.user;
-      document.getElementById('who').textContent = currentUser.display_name || currentUser.username;
+    currentUser = await getCurrentUser();
 
-      if (currentUser.role !== 'moderator' && currentUser.role !== 'admin') {
-        window.location.href = 'dashboard.html';
-        return;
-      }
+    if (!currentUser) {
+      window.location.href = 'index.html';
+      return;
+    }
 
-      // === POPRAWKA: Odkrywanie linku Zamówienia ===
-      if (currentUser.role === 'admin' || currentUser.role === 'moderator') {
-        const ordersLink = document.getElementById('ordersLink');
-        if (ordersLink) ordersLink.style.display = 'block';
-      }
+    document.getElementById('who').textContent = currentUser.display_name || currentUser.username;
 
-      // Logika pokazywania ukrytych linków Admina
-      if (currentUser.role === 'admin') {
-        const adminLink = document.getElementById('adminLink');
-        if (adminLink) adminLink.style.display = 'block';
+    if (currentUser.role !== 'moderator' && currentUser.role !== 'admin') {
+      window.location.href = 'dashboard.html';
+      return;
+    }
 
-        const galleryManageLink = document.getElementById('galleryManageLink');
-        if (galleryManageLink) galleryManageLink.style.display = 'block';
-      }
+    // === Odkrywanie linków w menu ===
+    if (currentUser.role === 'admin' || currentUser.role === 'moderator') {
+      const ordersLink = document.getElementById('ordersLink');
+      if (ordersLink) ordersLink.style.display = 'block';
+    }
 
-      document.getElementById('logoutBtn').addEventListener('click', async () => {
-        await fetch('/api/auth/logout', { method: 'POST' });
-        window.location.href = '/';
-      });
-    } else window.location.href = 'index.html';
-  } catch (error) { window.location.href = 'index.html'; }
+    if (currentUser.role === 'admin') {
+      const adminLink = document.getElementById('adminLink');
+      if (adminLink) adminLink.style.display = 'block';
+
+      const galleryManageLink = document.getElementById('galleryManageLink');
+      if (galleryManageLink) galleryManageLink.style.display = 'block';
+    }
+
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await handleLogout();
+      window.location.href = '/';
+    });
+
+  } catch (error) {
+    console.error(error);
+    window.location.href = 'index.html';
+  }
 }
 
 // --- POWIADOMIENIA ---
@@ -62,9 +68,7 @@ async function loadNotifications() {
   if (!btn) return;
 
   try {
-    const res = await fetch('/api/user/notifications');
-    const notifications = await res.json();
-
+    const notifications = await fetchWithAuth('/api/user/notifications');
     const unreadCount = notifications.filter(n => n.is_read === 0).length;
 
     if (unreadCount > 0) {
@@ -80,14 +84,14 @@ async function loadNotifications() {
       list.innerHTML = '<div class="notification-empty">Brak powiadomień.</div>';
     } else {
       list.innerHTML = notifications.map(n => `
-                <div class="notification-item ${n.is_read === 0 ? 'unread' : ''}" 
-                     onclick="window.handleNotificationClick(${n.id}, '${n.link || '#'}', ${n.is_read})"
-                >
-                    <div class="notification-title">${n.title}</div>
-                    <div class="notification-message">${n.message}</div>
-                    <div class="notification-time">${new Date(n.created_at).toLocaleDateString()}</div>
-                </div>
-            `).join('');
+        <div class="notification-item ${n.is_read === 0 ? 'unread' : ''}" 
+             onclick="window.handleNotificationClick(${n.id}, '${n.link || '#'}', ${n.is_read})"
+        >
+            <div class="notification-title">${n.title}</div>
+            <div class="notification-message">${n.message}</div>
+            <div class="notification-time">${new Date(n.created_at).toLocaleDateString()}</div>
+        </div>
+      `).join('');
     }
 
     btn.onclick = (e) => {
@@ -104,7 +108,7 @@ async function loadNotifications() {
     const markReadBtn = document.getElementById('markAllReadBtn');
     if (markReadBtn) {
       markReadBtn.onclick = async () => {
-        await fetch('/api/user/notifications/read-all', { method: 'POST' });
+        await fetchWithAuth('/api/user/notifications/read-all', { method: 'POST' });
         loadNotifications();
       };
     }
@@ -117,7 +121,7 @@ async function loadNotifications() {
 
 window.handleNotificationClick = async (id, link, isRead) => {
   if (isRead === 0) {
-    await fetch(`/api/user/notifications/${id}/read`, { method: 'POST' });
+    await fetchWithAuth(`/api/user/notifications/${id}/read`, { method: 'POST' });
   }
   if (link && link !== '#') {
     window.location.href = link;
@@ -147,22 +151,23 @@ function initEditor() {
 
 async function loadCategories() {
   try {
-    const res = await fetch('/api/forum/categories');
-    const categories = await res.json();
+    const categories = await fetchWithAuth('/api/forum/categories');
     document.getElementById('postCategory').innerHTML = '<option value="">Wybierz...</option>' +
       categories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
-  } catch (error) { }
+  } catch (error) { console.error('Błąd ładowania kategorii:', error); }
 }
 
 async function loadPendingPosts() {
   try {
-    const res = await fetch('/api/forum/posts/pending/list');
-    const posts = await res.json();
+    const posts = await fetchWithAuth('/api/forum/posts/pending/list');
     const countEl = document.getElementById('pendingCount');
     if (countEl) countEl.textContent = posts.length;
 
     const list = document.getElementById('pendingPostsList');
-    if (posts.length === 0) { list.innerHTML = '<div class="empty-state">Brak postów do zatwierdzenia</div>'; return; }
+    if (posts.length === 0) {
+      list.innerHTML = '<div class="empty-state">Brak postów do zatwierdzenia</div>';
+      return;
+    }
 
     list.innerHTML = posts.map(p => `
       <div class="pending-item" style="background:rgba(255,255,255,0.05); padding:15px; border-radius:8px; margin-bottom:10px; border: 1px solid var(--border-color);">
@@ -180,14 +185,12 @@ async function loadPendingPosts() {
         </div>
       </div>
     `).join('');
-  } catch (error) { }
+  } catch (error) { console.error('Błąd pending posts:', error); }
 }
 
 async function loadMyPosts() {
   try {
-    const res = await fetch('/api/forum/posts?limit=50&t=' + Date.now());
-    const allPosts = await res.json();
-
+    const allPosts = await fetchWithAuth('/api/forum/posts?limit=50&t=' + Date.now());
     const list = document.getElementById('myPostsList');
 
     if (allPosts.length === 0) {
@@ -209,14 +212,12 @@ async function loadMyPosts() {
           </div>
         </div>
       `).join('');
-  } catch (error) { }
+  } catch (error) { console.error('Błąd my posts:', error); }
 }
 
 window.startEdit = async (id) => {
   try {
-    const res = await fetch(`/api/forum/posts/${id}`);
-    if (!res.ok) return alert("Nie można pobrać danych posta.");
-    const post = await res.json();
+    const post = await fetchWithAuth(`/api/forum/posts/${id}`);
 
     document.getElementById('postTitle').value = post.title;
     document.getElementById('postCategory').value = post.category_id;
@@ -256,6 +257,7 @@ function resetForm() {
 }
 
 function setupEventListeners() {
+  // OBSŁUGA UPLOADU ZDJĘĆ
   document.getElementById('uploadImageBtn').addEventListener('click', async () => {
     const fileInput = document.getElementById('postImageInput');
     const file = fileInput.files[0];
@@ -265,16 +267,20 @@ function setupEventListeners() {
     formData.append('image', file);
 
     try {
-      const res = await fetch('/api/forum/upload', { method: 'POST', body: formData });
-      const data = await res.json();
-      if (res.ok) {
-        const imgHtml = `<img src="${data.location}" alt="Obrazek" style="max-width:100%; height:auto; border-radius:8px; margin:10px 0;" />`;
-        if (typeof tinymce !== 'undefined' && tinymce.get('postContent')) tinymce.get('postContent').insertContent(imgHtml);
-        else document.getElementById('postContent').value += imgHtml;
-        alert('✅ Zdjęcie wstawione!');
-        fileInput.value = '';
-      } else alert('Błąd uploadu');
-    } catch (e) { alert('Błąd połączenia'); }
+      // fetchWithAuth obsługuje FormData poprawnie (nie ustawia Content-Type, dodaje CSRF)
+      const data = await fetchWithAuth('/api/forum/upload', { method: 'POST', body: formData });
+
+      const imgHtml = `<img src="${data.location}" alt="Obrazek" style="max-width:100%; height:auto; border-radius:8px; margin:10px 0;" />`;
+      if (typeof tinymce !== 'undefined' && tinymce.get('postContent')) {
+        tinymce.get('postContent').insertContent(imgHtml);
+      } else {
+        document.getElementById('postContent').value += imgHtml;
+      }
+      alert('✅ Zdjęcie wstawione!');
+      fileInput.value = '';
+    } catch (e) {
+      alert('Błąd uploadu: ' + e.message);
+    }
   });
 
   document.getElementById('resetPostBtn').addEventListener('click', (e) => {
@@ -282,6 +288,7 @@ function setupEventListeners() {
     resetForm();
   });
 
+  // TWORZENIE / EDYCJA POSTA
   document.getElementById('submitPostBtn').addEventListener('click', async (e) => {
     e.preventDefault();
 
@@ -298,42 +305,42 @@ function setupEventListeners() {
     const method = isEdit ? 'PUT' : 'POST';
 
     try {
-      const res = await fetch(url, {
+      await fetchWithAuth(url, {
         method: method,
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, category_id, content })
       });
 
-      if (res.ok) {
-        alert(isEdit ? '✅ Post zaktualizowany!' : '✅ Post utworzony!');
-        resetForm();
-        loadMyPosts();
-        loadPendingPosts();
-      } else {
-        const err = await res.json();
-        alert('Błąd: ' + (err.error || 'Nieznany'));
-      }
-    } catch (e) { alert('Błąd połączenia'); }
+      alert(isEdit ? '✅ Post zaktualizowany!' : '✅ Post utworzony!');
+      resetForm();
+      loadMyPosts();
+      loadPendingPosts();
+    } catch (e) { alert('Błąd: ' + e.message); }
   });
 }
 
 window.approvePost = async (id) => {
   if (!confirm('Zatwierdzić ten post?')) return;
-  await fetch(`/api/forum/posts/${id}/approve`, { method: 'POST' });
-  loadPendingPosts();
-  loadMyPosts();
+  try {
+    await fetchWithAuth(`/api/forum/posts/${id}/approve`, { method: 'POST' });
+    loadPendingPosts();
+    loadMyPosts();
+  } catch (e) { alert('Błąd: ' + e.message); }
 };
 
 window.rejectPost = async (id) => {
   if (!confirm('Odrzucić ten post?')) return;
-  await fetch(`/api/forum/posts/${id}/reject`, { method: 'POST' });
-  loadPendingPosts();
+  try {
+    await fetchWithAuth(`/api/forum/posts/${id}/reject`, { method: 'POST' });
+    loadPendingPosts();
+  } catch (e) { alert('Błąd: ' + e.message); }
 };
 
 window.deletePost = async (id) => {
   if (!confirm('Czy na pewno chcesz usunąć ten post bezpowrotnie?')) return;
-  await fetch(`/api/forum/posts/${id}`, { method: 'DELETE' });
-  loadMyPosts();
+  try {
+    await fetchWithAuth(`/api/forum/posts/${id}`, { method: 'DELETE' });
+    loadMyPosts();
+  } catch (e) { alert('Błąd: ' + e.message); }
 }
 
 init();

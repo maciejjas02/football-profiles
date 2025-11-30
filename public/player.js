@@ -1,5 +1,7 @@
 // public/player.js
 import { showToast, showConfirm } from './utils/ui.js';
+// DODANO: Importujemy fetchWithAuth, który obsługuje tokeny CSRF
+import { fetchWithAuth } from './utils/api-client.js';
 
 const loading = document.getElementById('loading');
 const errorState = document.getElementById('error-state');
@@ -13,13 +15,11 @@ let currentUser = null;
 function getId() { return new URLSearchParams(window.location.search).get('id'); }
 
 async function init() {
-    await setupAuth(); // Nowa funkcja obsługi autoryzacji i navbara
-
+    await setupAuth();
     const id = getId();
     if (id) loadPlayer(id);
     else showError();
 
-    // Ładowanie powiadomień jeśli użytkownik zalogowany
     if (currentUser) {
         await loadNotifications();
     }
@@ -37,7 +37,6 @@ async function setupAuth() {
                 if (ordersLink) ordersLink.style.display = 'block';
             }
 
-            // Logika odkrywania linków w menu (Admin/Moderator)
             if (currentUser.role === 'moderator' || currentUser.role === 'admin') {
                 const modLink = document.getElementById('moderatorLink');
                 if (modLink) modLink.style.display = 'block';
@@ -57,14 +56,13 @@ async function setupAuth() {
         } else {
             document.getElementById('who').textContent = "Gość";
             logoutBtn.style.display = 'none';
-            // Ukryj dzwonek dla gościa
             const notifBtn = document.getElementById('notificationsBtn');
             if (notifBtn) notifBtn.style.display = 'none';
         }
     } catch (e) { console.log(e); }
 }
 
-// --- LOGIKA POWIADOMIEŃ ---
+// --- POWIADOMIENIA ---
 async function loadNotifications() {
     const btn = document.getElementById('notificationsBtn');
     const badge = document.getElementById('notificationBadge');
@@ -76,7 +74,6 @@ async function loadNotifications() {
     try {
         const res = await fetch('/api/user/notifications');
         const notifications = await res.json();
-
         const unreadCount = notifications.filter(n => n.is_read === 0).length;
 
         if (unreadCount > 0) {
@@ -85,7 +82,6 @@ async function loadNotifications() {
         } else {
             badge.style.display = 'none';
         }
-
         btn.style.display = 'block';
 
         if (notifications.length === 0) {
@@ -120,24 +116,14 @@ async function loadNotifications() {
                 loadNotifications();
             };
         }
-
-    } catch (e) {
-        console.error('Błąd powiadomień:', e);
-        badge.style.display = 'none';
-    }
+    } catch (e) { console.error(e); badge.style.display = 'none'; }
 }
 
 window.handleNotificationClick = async (id, link, isRead) => {
-    if (isRead === 0) {
-        await fetch(`/api/user/notifications/${id}/read`, { method: 'POST' });
-    }
-    if (link && link !== '#') {
-        window.location.href = link;
-    } else {
-        loadNotifications();
-    }
+    if (isRead === 0) await fetch(`/api/user/notifications/${id}/read`, { method: 'POST' });
+    if (link && link !== '#') window.location.href = link;
+    else loadNotifications();
 };
-// --- KONIEC POWIADOMIEŃ ---
 
 async function loadPlayer(id) {
     try {
@@ -155,7 +141,8 @@ function showError() {
 
 function displayPlayer(p) {
     document.title = p.name;
-    document.getElementById('player-breadcrumb').textContent = p.name;
+    // Poprawiony breadcrumb z linkiem
+    document.getElementById('player-breadcrumb').innerHTML = p.name;
     document.getElementById('player-name').textContent = p.name;
     document.getElementById('player-team').textContent = p.team;
     document.getElementById('player-position').textContent = p.position;
@@ -196,6 +183,7 @@ function displayPlayer(p) {
     playerContent.classList.remove('hidden');
 }
 
+// --- POPRAWIONA FUNKCJA KUPOWANIA (UŻYWA fetchWithAuth) ---
 async function buyJersey() {
     if (!currentUser) {
         showToast("Zaloguj się, aby dodać do koszyka!", 'error');
@@ -208,40 +196,38 @@ async function buyJersey() {
     btn.disabled = true;
 
     try {
-        const res = await fetch('/api/cart', {
+        // ZMIANA: Używamy fetchWithAuth zamiast zwykłego fetch
+        // fetchWithAuth automatycznie dodaje token CSRF i rzuca błąd, jeśli status != 200
+        const data = await fetchWithAuth('/api/cart', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ playerId: currentPlayer.id })
         });
-        const data = await res.json();
 
-        if (res.ok) {
-            showToast("Produkt pomyślnie dodany do koszyka!", 'success');
+        // Jeśli kod dotarł tutaj, to znaczy że sukces (nie trzeba sprawdzać res.ok)
+        showToast("Produkt pomyślnie dodany do koszyka!", 'success');
 
-            btn.textContent = "✅ Dodano!";
-            btn.style.background = "#22c55e";
+        btn.textContent = "✅ Dodano!";
+        btn.style.background = "#22c55e";
 
-            const shouldGoToCart = await showConfirm(
-                "Dodano do koszyka",
-                "Produkt został dodany. Czy chcesz przejść teraz do koszyka?"
-            );
+        const shouldGoToCart = await showConfirm(
+            "Dodano do koszyka",
+            "Produkt został dodany. Czy chcesz przejść teraz do koszyka?"
+        );
 
-            if (shouldGoToCart) {
-                window.location.href = '/my-collection.html';
-            } else {
-                setTimeout(() => {
-                    btn.textContent = originalText;
-                    btn.disabled = false;
-                    btn.style.background = "";
-                }, 2000);
-            }
+        if (shouldGoToCart) {
+            window.location.href = '/my-collection.html';
         } else {
-            showToast("Błąd: " + data.error, 'error');
-            btn.disabled = false;
-            btn.textContent = originalText;
+            setTimeout(() => {
+                btn.textContent = originalText;
+                btn.disabled = false;
+                btn.style.background = "";
+            }, 2000);
         }
+
     } catch (e) {
-        showToast("Wystąpił błąd połączenia z serwerem.", 'error');
+        // fetchWithAuth rzuca błędy, które łapiemy tutaj
+        console.error(e);
+        showToast("Błąd: " + (e.message || "Nie udało się dodać do koszyka"), 'error');
         btn.disabled = false;
         btn.textContent = originalText;
     }

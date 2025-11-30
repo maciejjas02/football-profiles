@@ -147,7 +147,7 @@ export function ensureSeedPlayers() {
             market_value: '15M €',
             biography: 'Portugalski piłkarz występujący na pozycji napastnika, kapitan reprezentacji Portugalii. Legenda Realu Madryt i Manchesteru United.',
             jersey_price: 459,
-            jersey_available: 100,
+            jersey_available: 2,
             jersey_image_url: 'https://assets.adidas.com/images/w_600,f_auto,q_auto/92103a27abea4abbb23ccc98cbbd2c4c_9366/Koszulka_Al_Nassr_FC_24-25_Ronaldo_Home_Zolty_JP0459_02_laydown.jpg',
             category: 'legends',
             image_url: 'https://b.fssta.com/uploads/application/soccer/headshots/885.vresize.350.350.medium.14.png',
@@ -449,11 +449,12 @@ export function rejectPost(id) { return db.prepare("UPDATE posts SET status='rej
 export function deletePost(id) { return db.prepare("DELETE FROM posts WHERE id=?").run(id); }
 
 
+
 // --- COMMENTS (Z AKTUALIZACJĄ REPUTACJI I PENDING) ---
 export function getPostComments(pid, userId) {
     const uid = userId || -1;
     return db.prepare(`
-        SELECT pc.*, u.username as author_username, u.reputation as author_reputation,
+        SELECT pc.*, u.username as author_username, u.reputation as author_reputation, u.role as author_role,
         (SELECT COUNT(*) FROM comment_ratings WHERE comment_id = pc.id AND rating = 1) as likes,
         (SELECT COUNT(*) FROM comment_ratings WHERE comment_id = pc.id AND rating = -1) as dislikes,
         (SELECT rating FROM comment_ratings WHERE comment_id = pc.id AND user_id = ?) as user_vote
@@ -556,7 +557,7 @@ export function getDiscussionUsers(postId) {
     return db.prepare(`SELECT DISTINCT u.id, u.username FROM user_discussions ud JOIN users u ON ud.user_id = u.id WHERE ud.post_id = ?`).all(postId);
 }
 
-// --- POWIADOMIENIA (Z PAGINACJĄ) ---
+// --- POWIADOMIENIA ---
 export function createNotification(userId, type, title, message, link) { if (userId === null) return; return db.prepare('INSERT INTO notifications (user_id, type, title, message, link) VALUES (?,?,?,?,?)').run(userId, type, title, message, link); }
 export function getUserNotifications(userId, limit = 10, offset = 0) {
     return db.prepare(`SELECT * FROM notifications WHERE user_id=? ORDER BY created_at DESC LIMIT ? OFFSET ?`).all(userId, limit, offset);
@@ -583,14 +584,63 @@ export function updateGalleryImage(id, title, description) { return db.prepare("
 
 // --- KOSZYK ---
 export function getCartItems(userId) { return db.prepare(`SELECT ci.*, p.name, p.team, p.jersey_price, p.jersey_image_url, p.image_url as player_image FROM cart_items ci JOIN players p ON ci.player_id = p.id WHERE ci.user_id = ?`).all(userId); }
-export function addToCart(userId, playerId) { return db.prepare(`INSERT INTO cart_items (user_id, player_id, quantity) VALUES (?, ?, 1) ON CONFLICT(user_id, player_id) DO UPDATE SET quantity = quantity + 1`).run(userId, playerId); }
+
+//FUNKCJA addToCart Z GLOBALNĄ KONTROLĄ STANU
+export function addToCart(userId, playerId) {
+    const player = db.prepare('SELECT jersey_available FROM players WHERE id=?').get(playerId);
+
+    if (!player) {
+        throw new Error("Błąd: Produkt niedostępny (Niepoprawny ID gracza)");
+    }
+
+    const initialStock = player.jersey_available;
+
+    const soldStockResult = db.prepare("SELECT COUNT(*) AS sold FROM purchases WHERE player_id=? AND status NOT IN ('pending', 'cancelled')").get(playerId);
+    const soldStock = soldStockResult.sold || 0;
+
+    const remainingStock = initialStock - soldStock;
+
+    const cartItem = db.prepare('SELECT quantity FROM cart_items WHERE user_id=? AND player_id=?').get(userId, playerId);
+    const currentQuantityInCart = cartItem ? cartItem.quantity : 0;
+
+    const newQuantityInCart = currentQuantityInCart + 1;
+
+    if (newQuantityInCart > remainingStock) {
+        throw new Error(`Brak wystarczającej ilości w magazynie. Proszę oczekiwania na nową dostawę.`);
+    }
+
+    return db.prepare(`INSERT INTO cart_items (user_id, player_id, quantity) VALUES (?, ?, 1) ON CONFLICT(user_id, player_id) DO UPDATE SET quantity = quantity + 1`).run(userId, playerId);
+}
+
 export function removeFromCart(userId, itemId) { return db.prepare('DELETE FROM cart_items WHERE id = ? AND user_id = ?').run(itemId, userId); }
 export function clearCart(userId) { return db.prepare('DELETE FROM cart_items WHERE user_id = ?').run(userId); }
+
+//FUNKCJA CHECKOUT
 export function checkoutCart(userId) {
-    const items = getCartItems(userId); if (items.length === 0) throw new Error("Koszyk jest pusty");
-    const insertPurchase = db.prepare('INSERT INTO purchases (user_id, player_id, jersey_price, status) VALUES (?, ?, ?, ?)');
-    const transaction = db.transaction(() => { for (const item of items) { for (let i = 0; i < item.quantity; i++) { insertPurchase.run(userId, item.player_id, item.jersey_price, 'pending'); } } db.prepare('DELETE FROM cart_items WHERE user_id = ?').run(userId); });
-    transaction(); return items.length;
+    const items = getCartItems(userId);
+    if (items.length === 0) throw new Error("Koszyk jest pusty");
+
+    const now = new Date().toISOString();
+
+    const insertPurchase = db.prepare('INSERT INTO purchases (user_id, player_id, jersey_price, status, purchase_date) VALUES (?, ?, ?, ?, ?)');
+
+    const transaction = db.transaction(() => {
+        for (const item of items) {
+            for (let i = 0; i < item.quantity; i++) {
+                // Wstawiamy 'now' jako datę zakupu
+                insertPurchase.run(userId, item.player_id, item.jersey_price, 'pending', now);
+            }
+        }
+        db.prepare('DELETE FROM cart_items WHERE user_id = ?').run(userId);
+    });
+
+    transaction();
+    return items.length;
+}
+
+// NOWA FUNKCJA: PŁATNOŚĆ GRUPOWA
+export function payForOrderByDate(userId, dateString) {
+    return db.prepare("UPDATE purchases SET status='completed' WHERE user_id=? AND purchase_date=? AND status='pending'").run(userId, dateString);
 }
 
 export function getAllPurchases() {

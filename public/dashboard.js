@@ -1,4 +1,6 @@
 // public/dashboard.js
+// DODAJ: Importujemy fetchWithAuth do obsługi CSRF
+import { fetchWithAuth } from './utils/api-client.js';
 
 // Slider
 let currentSlide = 0;
@@ -44,7 +46,7 @@ let currentUser = null;
 
 async function setupAuth() {
     try {
-        const res = await fetch('/api/auth/me');
+        const res = await fetch('/api/auth/me'); // GET jest bezpieczny
         if (!res.ok) throw new Error('Not auth');
         const data = await res.json();
         currentUser = data.user;
@@ -74,8 +76,14 @@ async function setupAuth() {
         // LOGOUT HANDLER
         if (logoutBtn) {
             logoutBtn.addEventListener('click', async () => {
-                await fetch('/api/auth/logout', { method: 'POST' });
-                window.location.href = '/';
+                // UŻYCIE: fetchWithAuth (POST wymaga CSRF)
+                try {
+                    await fetchWithAuth('/api/auth/logout', { method: 'POST' });
+                    window.location.href = '/';
+                } catch (e) {
+                    // W przypadku błędu CSRF, zazwyczaj wystarczy przekierowanie
+                    window.location.href = '/';
+                }
             });
         }
 
@@ -136,7 +144,8 @@ async function loadNotifications() {
         };
 
         document.getElementById('markAllReadBtn').onclick = async () => {
-            await fetch('/api/user/notifications/read-all', { method: 'POST' });
+            // UŻYCIE: fetchWithAuth (POST wymaga CSRF)
+            await fetchWithAuth('/api/user/notifications/read-all', { method: 'POST' });
             loadNotifications();
         };
 
@@ -148,13 +157,15 @@ async function loadNotifications() {
 
 window.handleNotificationClick = async (id, link, isRead) => {
     if (isRead === 0) {
-        await fetch(`/api/user/notifications/${id}/read`, { method: 'POST' });
+        // UŻYCIE: fetchWithAuth (POST wymaga CSRF)
+        await fetchWithAuth(`/api/user/notifications/${id}/read`, { method: 'POST' });
         loadNotifications();
     }
     if (link && link !== '#') {
         window.location.href = link;
     }
 };
+
 
 async function showPlayers(category, title) {
     try {

@@ -43,11 +43,11 @@ const {
   rateComment, getUserCommentRating, createNotification, getUserNotifications, markNotificationAsRead, markAllNotificationsAsRead,
   createDiscussion, getDiscussionMessages, getDiscussionUsers, checkModPermission, isModOfCategory, getUserAllowedCategories,
   // --- GALERIA ---
-  createGalleryImage, getAllGalleryImages, getGalleryImageById, deleteGalleryImage, updateGalleryImage, // <--- DODANO TUTAJ
+  createGalleryImage, getAllGalleryImages, getGalleryImageById, deleteGalleryImage, updateGalleryImage,
   createGalleryCollection, getAllGalleryCollections, getGalleryCollectionById, getActiveGalleryCollection, setActiveGalleryCollection, deleteGalleryCollection,
   addImageToCollection, getCollectionItems, removeImageFromCollection, reorderCollectionItems, getAllUsers, updateUserRole,
   // --- USER ---
-  updateUserAddress
+  updateUserAddress, payForOrderByDate
 } = dbFunctions;
 
 const __filename = fileURLToPath(import.meta.url);
@@ -58,7 +58,6 @@ const PORT = process.env.PORT || 5173;
 
 // KONFIGURACJA ŚCIEŻEK UPLOADU
 const postsUploadDir = path.join(__dirname, '..', 'public', 'uploads', 'posts');
-// Zmiana folderu na gallery-img zgodnie z Twoją strukturą
 const galleryUploadDir = path.join(__dirname, '..', 'public', 'gallery-img');
 const galleryThumbDir = path.join(galleryUploadDir, 'thumbnails');
 
@@ -267,6 +266,24 @@ app.post('/api/purchases/:id/pay', requireAuth, async (req, res) => {
   const user = getUserById(req.user.id);
   await sendEmail(user.email, 'Płatność zaksięgowana!', `<h1>Zamówienie #${req.params.id} opłacone!</h1>`);
   res.json({ success: true });
+});
+
+// NOWY ENDPOINT: Opłacanie całego zamówienia (grupowe)
+app.post('/api/purchases/pay-order', requireAuth, async (req, res) => {
+  const { purchaseDate } = req.body;
+  if (!purchaseDate) return res.status(400).json({ error: "Brak daty zamówienia" });
+
+  try {
+    payForOrderByDate(req.user.id, purchaseDate);
+
+    // Wyślij e-mail potwierdzający
+    const user = getUserById(req.user.id);
+    await sendEmail(user.email, 'Zamówienie opłacone!', `<h1>Twoje zamówienie z dnia ${new Date(purchaseDate).toLocaleString()} zostało opłacone!</h1>`);
+
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // --- ADMIN ORDERS ---

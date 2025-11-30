@@ -1,4 +1,5 @@
 // public/admin-gallery-manage.js
+import { fetchWithAuth, getCurrentUser, handleLogout } from './utils/api-client.js';
 
 let currentCollectionId = null;
 let currentItems = [];
@@ -18,41 +19,44 @@ async function init() {
 
 async function setupAuth() {
     try {
-        const res = await fetch('/api/auth/me');
-        if (!res.ok) throw new Error('Not auth');
-        const data = await res.json();
-        currentUser = data.user;
+        currentUser = await getCurrentUser();
+
+        if (!currentUser) {
+            window.location.href = 'index.html';
+            return;
+        }
 
         // Sprawdzenie uprawnień
         if (currentUser.role !== 'admin' && currentUser.role !== 'moderator') {
             window.location.href = 'dashboard.html';
             return;
         }
+
+        // Logika odkrywania linków w menu
         if (currentUser.role === 'admin' || currentUser.role === 'moderator') {
             const ordersLink = document.getElementById('ordersLink');
+            const modLink = document.getElementById('moderatorLink');
             if (ordersLink) ordersLink.style.display = 'block';
+            if (modLink) modLink.style.display = 'block';
+        }
+
+        if (currentUser.role === 'admin') {
+            const adminLink = document.getElementById('adminLink');
+            const galleryManageLink = document.getElementById('galleryManageLink');
+            if (adminLink) adminLink.style.display = 'block';
+            if (galleryManageLink) galleryManageLink.style.display = 'block';
         }
 
         document.getElementById('who').textContent = currentUser.display_name || currentUser.username;
 
-        // Logika odkrywania linków w menu
-        if (currentUser.role === 'moderator' || currentUser.role === 'admin') {
-            const modLink = document.getElementById('moderatorLink');
-            if (modLink) modLink.style.display = 'block';
-        }
-        if (currentUser.role === 'admin') {
-            const adminLink = document.getElementById('adminLink');
-            if (adminLink) adminLink.style.display = 'block';
-
-            const galleryManageLink = document.getElementById('galleryManageLink');
-            if (galleryManageLink) galleryManageLink.style.display = 'block';
-        }
-
         document.getElementById('logoutBtn').addEventListener('click', async () => {
-            await fetch('/api/auth/logout', { method: 'POST' });
+            await handleLogout();
             window.location.href = '/';
         });
-    } catch (error) { window.location.href = 'index.html'; }
+    } catch (error) {
+        console.error(error);
+        window.location.href = 'index.html';
+    }
 }
 
 // --- LOGIKA POWIADOMIEŃ ---
@@ -65,9 +69,7 @@ async function loadNotifications() {
     if (!btn) return;
 
     try {
-        const res = await fetch('/api/user/notifications');
-        const notifications = await res.json();
-
+        const notifications = await fetchWithAuth('/api/user/notifications');
         const unreadCount = notifications.filter(n => n.is_read === 0).length;
 
         if (unreadCount > 0) {
@@ -108,7 +110,7 @@ async function loadNotifications() {
         const markReadBtn = document.getElementById('markAllReadBtn');
         if (markReadBtn) {
             markReadBtn.onclick = async () => {
-                await fetch('/api/user/notifications/read-all', { method: 'POST' });
+                await fetchWithAuth('/api/user/notifications/read-all', { method: 'POST' });
                 loadNotifications();
             };
         }
@@ -121,7 +123,7 @@ async function loadNotifications() {
 
 window.handleNotificationClick = async (id, link, isRead) => {
     if (isRead === 0) {
-        await fetch(`/api/user/notifications/${id}/read`, { method: 'POST' });
+        await fetchWithAuth(`/api/user/notifications/${id}/read`, { method: 'POST' });
     }
     if (link && link !== '#') {
         window.location.href = link;
@@ -137,8 +139,7 @@ async function loadCollections() {
     list.innerHTML = '<div class="loading">Ładowanie kolekcji...</div>';
 
     try {
-        const res = await fetch('/api/gallery/collections?t=' + Date.now());
-        const collections = await res.json();
+        const collections = await fetchWithAuth('/api/gallery/collections?t=' + Date.now());
 
         if (collections.length === 0) {
             list.innerHTML = '<div class="empty-state">Brak kolekcji.</div>';
@@ -150,9 +151,9 @@ async function loadCollections() {
                 <h3 style="margin-bottom: 5px;">${c.name} ${c.is_active ? '✨ (Aktywna)' : ''}</h3>
                 <p>${c.description || '-'}</p>
                 <div class="collection-actions">
-                    <button onclick="selectCollection(${c.id}, '${c.name}')" class="btn btn-secondary btn-sm" style="flex:1;">⚙️ Zarządzaj</button>
-                    ${c.is_active ? '' : `<button onclick="activateCollection(${c.id})" class="btn btn-success btn-sm" style="flex:1;">✅ Aktywuj</button>`}
-                    <button onclick="deleteCollection(${c.id})" class="btn btn-danger btn-sm" style="width:50px;">🗑️</button>
+                    <button onclick="window.selectCollection(${c.id}, '${c.name}')" class="btn btn-secondary btn-sm" style="flex:1;">⚙️ Zarządzaj</button>
+                    ${c.is_active ? '' : `<button onclick="window.activateCollection(${c.id})" class="btn btn-success btn-sm" style="flex:1;">✅ Aktywuj</button>`}
+                    <button onclick="window.deleteCollection(${c.id})" class="btn btn-danger btn-sm" style="width:50px;">🗑️</button>
                 </div>
             </div>
         `).join('');
@@ -165,8 +166,7 @@ async function loadAvailableImages() {
     select.innerHTML = '<option value="">Ładowanie obrazów...</option>';
 
     try {
-        const res = await fetch('/api/gallery/images?t=' + Date.now());
-        const images = await res.json();
+        const images = await fetchWithAuth('/api/gallery/images?t=' + Date.now());
 
         select.innerHTML = '<option value="">Wybierz obrazek do dodania...</option>' +
             images.map(img => `<option value="${img.id}">${img.title} (ID: ${img.id})</option>`).join('');
@@ -184,8 +184,8 @@ async function loadCollectionItems(id) {
     list.innerHTML = '<div class="loading">Ładowanie elementów...</div>';
 
     try {
-        const res = await fetch(`/api/gallery/collections/${id}/items?t=` + Date.now());
-        currentItems = await res.json();
+        const currentItemsData = await fetchWithAuth(`/api/gallery/collections/${id}/items?t=` + Date.now());
+        currentItems = currentItemsData;
 
         if (currentItems.length === 0) {
             list.innerHTML = '<div class="empty-state">Brak elementów w tej kolekcji.</div>';
@@ -197,7 +197,7 @@ async function loadCollectionItems(id) {
                 <img src="/gallery-img/${item.filename}" alt="${item.title}" />
                 <h4>${item.title}</h4>
                 <div class="position">Pozycja: ${item.position}</div>
-                <button onclick="removeImageFromCollection(${item.id})" class="btn btn-danger btn-sm btn-remove">Usuń</button>
+                <button onclick="window.removeImageFromCollection(${item.id})" class="btn btn-danger btn-sm btn-remove">Usuń</button>
             </div>
         `).join('');
 
@@ -232,7 +232,7 @@ function setupDragAndDrop() {
 window.deleteCollection = async (id) => {
     if (!confirm('Usunąć kolekcję? Spowoduje to usunięcie wszystkich jej elementów, ale zdjęcia pozostaną w bazie.')) return;
     try {
-        await fetch(`/api/gallery/collections/${id}`, { method: 'DELETE' });
+        await fetchWithAuth(`/api/gallery/collections/${id}`, { method: 'DELETE' });
         loadCollections();
         if (currentCollectionId === id) {
             currentCollectionId = null;
@@ -243,7 +243,7 @@ window.deleteCollection = async (id) => {
 
 window.activateCollection = async (id) => {
     try {
-        await fetch(`/api/gallery/collections/${id}/activate`, { method: 'PUT' });
+        await fetchWithAuth(`/api/gallery/collections/${id}/activate`, { method: 'PUT' });
         loadCollections();
         alert('✅ Kolekcja aktywowana pomyślnie!');
     } catch (e) { alert('Błąd aktywacji.'); }
@@ -252,7 +252,7 @@ window.activateCollection = async (id) => {
 window.removeImageFromCollection = async (itemId) => {
     if (!confirm('Usunąć element z tej kolekcji? (Zdjęcie pozostanie w bazie)')) return;
     try {
-        await fetch(`/api/gallery/items/${itemId}`, { method: 'DELETE' });
+        await fetchWithAuth(`/api/gallery/items/${itemId}`, { method: 'DELETE' });
         loadCollectionItems(currentCollectionId);
     } catch (e) { alert('Błąd usuwania elementu.'); }
 };
@@ -264,9 +264,9 @@ function setupEventListeners() {
         if (!name) return alert('Nazwa jest wymagana.');
 
         try {
-            await fetch('/api/gallery/collections', {
+            await fetchWithAuth('/api/gallery/collections', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                // fetchWithAuth automatycznie ustawi Content-Type: application/json
                 body: JSON.stringify({ name, description })
             });
             alert('✅ Kolekcja utworzona!');
@@ -283,9 +283,8 @@ function setupEventListeners() {
         if (!imageId) return alert('Wybierz obrazek z listy.');
 
         try {
-            await fetch(`/api/gallery/collections/${currentCollectionId}/items`, {
+            await fetchWithAuth(`/api/gallery/collections/${currentCollectionId}/items`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ image_id: parseInt(imageId) })
             });
             alert('✅ Obrazek dodany!');
@@ -302,9 +301,8 @@ function setupEventListeners() {
         }));
 
         try {
-            await fetch(`/api/gallery/collections/${currentCollectionId}/reorder`, {
+            await fetchWithAuth(`/api/gallery/collections/${currentCollectionId}/reorder`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ items: updatedOrder })
             });
             alert('✅ Kolejność zapisana!');

@@ -1,5 +1,8 @@
 // public/post.js
 
+// DODANO: Importujemy fetchWithAuth do obsługi CSRF
+import { fetchWithAuth } from './utils/api-client.js';
+
 let currentUser = null;
 let postId = null;
 
@@ -30,7 +33,12 @@ async function setupAuth() {
       if (logoutBtn) {
         logoutBtn.style.display = 'block';
         logoutBtn.onclick = async () => {
-          await fetch('/api/auth/logout', { method: 'POST' });
+          // Używamy fetchWithAuth dla POST
+          try {
+            await fetchWithAuth('/api/auth/logout', { method: 'POST' });
+          } catch (e) {
+            console.error('Logout error (CSRF likely):', e);
+          }
           window.location.href = '/';
         };
       }
@@ -61,7 +69,7 @@ async function setupAuth() {
   } catch (error) { }
 }
 
-// --- POWIADOMIENIA ---
+// --- POWIADOMIENIA (Poprawiono CSRF) ---
 async function loadNotifications() {
   const btn = document.getElementById('notificationsBtn');
   const badge = document.getElementById('notificationBadge');
@@ -113,7 +121,8 @@ async function loadNotifications() {
     const markReadBtn = document.getElementById('markAllReadBtn');
     if (markReadBtn) {
       markReadBtn.onclick = async () => {
-        await fetch('/api/user/notifications/read-all', { method: 'POST' });
+        // Używamy fetchWithAuth dla POST
+        await fetchWithAuth('/api/user/notifications/read-all', { method: 'POST' });
         loadNotifications();
       };
     }
@@ -126,7 +135,8 @@ async function loadNotifications() {
 
 window.handleNotificationClick = async (id, link, isRead) => {
   if (isRead === 0) {
-    await fetch(`/api/user/notifications/${id}/read`, { method: 'POST' });
+    // Używamy fetchWithAuth dla POST
+    await fetchWithAuth(`/api/user/notifications/${id}/read`, { method: 'POST' });
   }
   if (link && link !== '#') {
     window.location.href = link;
@@ -144,6 +154,7 @@ async function loadPost() {
     // Przycisk Zgłoś / Dyskusja
     let actionButton = '';
     if (currentUser) {
+      // Używamy fetchWithAuth do sprawdzenia uprawnień (przykład)
       if (currentUser.role === 'admin' || currentUser.role === 'moderator') {
         actionButton = `<button onclick="openModPanel(${post.id})" class="btn btn-secondary btn-sm" style="float:right; margin-left:10px;">🛡️ Zgłoszenia</button>`;
       } else {
@@ -169,13 +180,19 @@ async function loadPost() {
 }
 
 // --- KOMENTARZE ---
-function getRank(reputation) {
+
+function getRank(reputation, role) {
+  if (role === 'admin')
+    return '<span style="color:#ff4444; font-weight:bold; border: 1px solid #ff4444; padding: 2px 6px; border-radius: 4px;">ADMINISTRATOR 👑</span>';
+  if (role === 'moderator')
+    return '<span style="color:#00eaff; font-weight:bold; border: 1px solid #00eaff; padding: 2px 6px; border-radius: 4px;">MODERATOR 🛡️</span>';
+
+
   if (reputation < 0) return '<span style="color:red;">Troll 👹</span>';
-  if (reputation < 10) return '<span style="color:#ccc;">Nowicjusz 🌱</span>';
-  if (reputation < 50) return '<span style="color:#FFD700;">Kibic 🎗️</span>';
+  if (reputation === 0) return '<span style="color:#ccc;">Nowicjusz 🌱</span>';
+  if (reputation > 0 && reputation < 2) return '<span style="color:#FFD700;">Kibic 🎗️</span>';
   return '<span style="color:#00eaff; text-shadow:0 0 5px cyan;">Ekspert 💎</span>';
 }
-
 async function loadComments() {
   try {
     const res = await fetch(`/api/forum/posts/${postId}/comments?t=${Date.now()}`);
@@ -207,7 +224,7 @@ async function loadComments() {
         : '';
 
       // Ranga
-      const rank = getRank(c.author_reputation || 0);
+      const rank = getRank(c.author_reputation || 0, c.author_role);
 
       return `
           <div class="comment-card" id="comment-${c.id}" style="${cardStyle}">
@@ -239,28 +256,27 @@ async function loadComments() {
 window.rateComment = async (id, rating) => {
   if (!currentUser) return alert('Zaloguj się!');
   try {
-    const res = await fetch(`/api/forum/comments/${id}/rate`, {
+    // Używamy fetchWithAuth dla POST
+    const res = await fetchWithAuth(`/api/forum/comments/${id}/rate`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ rating })
     });
-    if (res.ok) await loadComments();
+    if (res.success) await loadComments();
     else alert('Błąd oceniania');
-  } catch (e) { alert('Błąd połączenia'); }
+  } catch (e) { alert('Błąd połączenia: ' + e.message); }
 };
 
 window.editComment = async (id, oldContent) => {
   const newContent = prompt("Edytuj swój komentarz:", oldContent);
   if (newContent && newContent !== oldContent) {
     try {
-      const res = await fetch(`/api/forum/comments/${id}/user-edit`, {
+      // Używamy fetchWithAuth dla PUT
+      await fetchWithAuth(`/api/forum/comments/${id}/user-edit`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: newContent })
       });
-      if (res.ok) loadComments();
-      else alert('Błąd edycji');
-    } catch (e) { alert('Błąd połączenia'); }
+      loadComments();
+    } catch (e) { alert('Błąd edycji: ' + e.message); }
   }
 };
 
@@ -269,29 +285,38 @@ if (submitBtn) {
   submitBtn.addEventListener('click', async () => {
     const content = document.getElementById('commentContent').value.trim();
     if (!content) return;
-    await fetch(`/api/forum/posts/${postId}/comments`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content })
-    });
-    document.getElementById('commentContent').value = '';
-    loadComments();
+
+    try {
+      // Używamy fetchWithAuth dla POST
+      await fetchWithAuth(`/api/forum/posts/${postId}/comments`, {
+        method: 'POST',
+        body: JSON.stringify({ content })
+      });
+
+      document.getElementById('commentContent').value = '';
+      loadComments();
+    } catch (e) {
+      alert('Błąd wysyłania komentarza: ' + e.message);
+    }
   });
 }
 
 // --- MODAL CZATU (ZGŁOSZENIA) ---
+
+// Używamy fetchWithAuth dla wszystkich POST/PUT/DELETE w modalach czatu
+
 window.openUserDiscussion = async (pid) => {
-  const messages = await (await fetch(`/api/discussion/${pid}/my`)).json();
+  const messages = await (await fetchWithAuth(`/api/discussion/${pid}/my`)).json();
   showChatModal(pid, null, messages, 'Zgłoszenie / Rozmowa z Moderatorem');
 };
 
 window.openModPanel = async (pid) => {
-  const users = await (await fetch(`/api/discussion/${pid}/users`)).json();
+  const users = await (await fetchWithAuth(`/api/discussion/${pid}/users`)).json();
   if (users.length === 0) return alert("Brak zgłoszeń dla tego posta.");
   const userList = users.map(u => `${u.id}: ${u.username}`).join('\n');
   const userId = prompt(`Wybierz ID użytkownika do rozmowy:\n${userList}`);
   if (userId) {
-    const messages = await (await fetch(`/api/discussion/${pid}/user/${userId}`)).json();
+    const messages = await (await fetchWithAuth(`/api/discussion/${pid}/user/${userId}`)).json();
     showChatModal(pid, userId, messages, `Rozmowa z userem ID: ${userId}`);
   }
 };
@@ -353,16 +378,19 @@ function showChatModal(pid, targetUserId, messages, title) {
       : `/api/discussion/${pid}`;
 
     try {
-      await fetch(url, {
+      // Używamy fetchWithAuth dla POST
+      await fetchWithAuth(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: txt })
       });
+
+      // Ponowne ładowanie dyskusji (unikamy alertu, jeśli się uda)
       modal.remove();
       if (targetUserId) window.openModPanel(pid);
       else window.openUserDiscussion(pid);
+
     } catch (e) {
-      alert("Błąd wysyłania");
+      alert("Błąd wysyłania: " + e.message);
       btn.disabled = false;
       btn.textContent = 'Wyślij';
     }

@@ -1,22 +1,26 @@
 // public/forum.js
 
+import { fetchWithAuth } from './utils/api-client.js';
+
 let currentUser = null;
 let currentPage = 1;
 let selectedCategory = null;
 let currentParentId = null; // Śledzi, w której kategorii nadrzędnej jesteśmy
+let currentCategoryPath = [{ id: null, name: 'Główne' }]; // NOWY STAN ŚCIEŻKI
 const POSTS_PER_PAGE = 20;
 
 async function init() {
   await setupAuth();
-  await loadCategories(null); // Na start ładujemy tylko GŁÓWNE kategorie (parent_id = null)
+  await loadCategories(null);
   await loadPosts();
   setupPagination();
 
-  // Ładowanie powiadomień (jeśli user zalogowany)
   if (currentUser) {
     await loadNotifications();
   }
 }
+
+// --- FUNKCJE AUTH/NOTIFICATIONS (pominięto, brak zmian CSRF) ---
 
 async function setupAuth() {
   try {
@@ -27,15 +31,18 @@ async function setupAuth() {
       document.getElementById('who').textContent = currentUser.display_name || currentUser.username;
 
       document.getElementById('logoutBtn').addEventListener('click', async () => {
-        await fetch('/api/auth/logout', { method: 'POST' });
-        window.location.href = '/';
+        try {
+          await fetchWithAuth('/api/auth/logout', { method: 'POST' });
+          window.location.href = '/';
+        } catch (e) {
+          window.location.href = '/';
+        }
       });
       if (currentUser.role === 'admin' || currentUser.role === 'moderator') {
         const ordersLink = document.getElementById('ordersLink');
         if (ordersLink) ordersLink.style.display = 'block';
       }
 
-      // Odkrywanie linków Admina/Moderatora
       if (currentUser.role === 'moderator' || currentUser.role === 'admin') {
         const modLink = document.getElementById('moderatorLink');
         if (modLink) modLink.style.display = 'block';
@@ -51,80 +58,45 @@ async function setupAuth() {
       document.getElementById('who').textContent = "Gość";
       const logoutBtn = document.getElementById('logoutBtn');
       if (logoutBtn) logoutBtn.style.display = 'none';
-      // Ukryj dzwonek dla gościa
       const notifBtn = document.getElementById('notificationsBtn');
       if (notifBtn) notifBtn.style.display = 'none';
     }
   } catch (error) { }
 }
 
-// --- LOGIKA POWIADOMIEŃ ---
 async function loadNotifications() {
   const btn = document.getElementById('notificationsBtn');
   const badge = document.getElementById('notificationBadge');
   const dropdown = document.getElementById('notificationsDropdown');
   const list = document.getElementById('notificationsList');
-
   if (!btn) return;
-
   try {
-    const res = await fetch('/api/user/notifications');
-    const notifications = await res.json();
-
+    const notifications = await fetchWithAuth('/api/user/notifications');
     const unreadCount = notifications.filter(n => n.is_read === 0).length;
-
-    if (unreadCount > 0) {
-      badge.textContent = unreadCount;
-      badge.style.display = 'block';
-    } else {
-      badge.style.display = 'none';
-    }
-
-    // Pokaż dzwoneczek
+    if (unreadCount > 0) { badge.textContent = unreadCount; badge.style.display = 'block'; } else { badge.style.display = 'none'; }
     btn.style.display = 'block';
-
-    if (notifications.length === 0) {
-      list.innerHTML = '<div class="notification-empty">Brak powiadomień.</div>';
-    } else {
-      list.innerHTML = notifications.map(n => `
-                <div class="notification-item ${n.is_read === 0 ? 'unread' : ''}" 
-                     onclick="window.handleNotificationClick(${n.id}, '${n.link || '#'}', ${n.is_read})"
-                >
-                    <div class="notification-title">${n.title}</div>
-                    <div class="notification-message">${n.message}</div>
-                    <div class="notification-time">${new Date(n.created_at).toLocaleDateString()}</div>
-                </div>
-            `).join('');
-    }
-
-    btn.onclick = (e) => {
-      e.stopPropagation();
-      dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+    if (notifications.length === 0) { list.innerHTML = '<div class="notification-empty">Brak powiadomień.</div>'; return; }
+    list.innerHTML = notifications.map(n => `
+            <div class="notification-item ${n.is_read === 0 ? 'unread' : ''}" 
+                 onclick="window.handleNotificationClick(${n.id}, '${n.link || '#'}', ${n.is_read})"
+            >
+                <div class="notification-title">${n.title}</div>
+                <div class="notification-message">${n.message}</div>
+                <div class="notification-time">${new Date(n.created_at).toLocaleDateString()}</div>
+            </div>
+        `).join('');
+    btn.onclick = (e) => { e.stopPropagation(); dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block'; };
+    document.addEventListener('click', (e) => { if (dropdown.style.display === 'block' && !dropdown.contains(e.target) && !btn.contains(e.target)) { dropdown.style.display = 'none'; } });
+    document.getElementById('markAllReadBtn').onclick = async () => {
+      await fetchWithAuth('/api/user/notifications/read-all', { method: 'POST' });
+      loadNotifications();
     };
-
-    document.addEventListener('click', (e) => {
-      if (dropdown.style.display === 'block' && !dropdown.contains(e.target) && !btn.contains(e.target)) {
-        dropdown.style.display = 'none';
-      }
-    });
-
-    const markReadBtn = document.getElementById('markAllReadBtn');
-    if (markReadBtn) {
-      markReadBtn.onclick = async () => {
-        await fetch('/api/user/notifications/read-all', { method: 'POST' });
-        loadNotifications();
-      };
-    }
-
-  } catch (e) {
-    console.error('Błąd powiadomień:', e);
-    badge.style.display = 'none';
-  }
+  } catch (e) { console.error('Błąd powiadomień:', e); badge.style.display = 'none'; }
 }
 
 window.handleNotificationClick = async (id, link, isRead) => {
   if (isRead === 0) {
-    await fetch(`/api/user/notifications/${id}/read`, { method: 'POST' });
+    await fetchWithAuth(`/api/user/notifications/${id}/read`, { method: 'POST' });
   }
   if (link && link !== '#') {
     window.location.href = link;
@@ -132,25 +104,57 @@ window.handleNotificationClick = async (id, link, isRead) => {
     loadNotifications();
   }
 };
-// --- KONIEC LOGIKI POWIADOMIEŃ ---
 
-// Funkcja ładująca kategorie (Główne lub Podkategorie)
+// --- FUNKCJA RENDERUJĄCA BREADCRUMBS ---
+function renderBreadcrumbs() {
+  const breadcrumbEl = document.getElementById('forumBreadcrumbs');
+  if (!breadcrumbEl) return;
+
+  let pathHtml = '<a href="dashboard.html" style="color: inherit; text-decoration: none;">Panel</a> › ';
+
+  currentCategoryPath.forEach((cat, index) => {
+    const isLast = index === currentCategoryPath.length - 1;
+    const isFirst = index === 0;
+
+    if (isLast) {
+      pathHtml += `<strong style="color: #FFD700;">${cat.name}</strong>`;
+    } else {
+      // W przypadku kategorii nadrzędnej (którą mamy w stanie ścieżki)
+      // Użyjemy handleCategoryClick, aby wrócić do widoku tej kategorii
+      pathHtml += `
+                <span onclick="goBackToPath(${index})" style="cursor: pointer; color: inherit; text-decoration: none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
+                    ${cat.name}
+                </span>
+                ${index < currentCategoryPath.length - 1 ? ' › ' : ''}
+            `;
+    }
+  });
+
+  breadcrumbEl.innerHTML = pathHtml;
+}
+
+// Funkcja ładująca kategorie
 async function loadCategories(parentId = null) {
   try {
     let categories = [];
+    let endpoint = '/api/forum/categories';
 
     if (parentId) {
-      // Pobieramy podkategorie konkretnego rodzica
-      const res = await fetch(`/api/forum/categories/${parentId}/subcategories`);
+      endpoint = `/api/forum/categories/${parentId}/subcategories`;
+    }
+
+    const res = await fetch(endpoint);
+
+    if (parentId) {
       categories = await res.json();
     } else {
-      // Pobieramy wszystko i filtrujemy tylko główne (bez rodzica)
-      const res = await fetch('/api/forum/categories');
       const allCats = await res.json();
+      // Na start ładujemy tylko GŁÓWNE kategorie (bez rodzica)
       categories = allCats.filter(c => !c.parent_id);
     }
 
     renderCategoriesList(categories, parentId);
+    renderBreadcrumbs(); // RENDERUJEMY BREADCRUMBS
 
   } catch (error) { console.error(error); }
 }
@@ -161,25 +165,18 @@ function renderCategoriesList(categories, parentId) {
 
   let html = '';
 
-  // Jeśli jesteśmy "głębiej" (parentId istnieje), dodaj przycisk powrotu
-  if (parentId) {
-    html += `
-            <div class="category-card back-card" onclick="goBackToMain()" style="cursor: pointer; border: 1px dashed var(--primary-color); display:flex; align-items:center; justify-content:center; background: rgba(255,255,255,0.05);">
-                <h3 style="margin:0;">⬅️ Wróć do głównych</h3>
-            </div>
-        `;
-  }
-
-  if (categories.length === 0 && !parentId) {
-    categoriesList.innerHTML = '<p>Brak kategorii.</p>';
+  // W tej wersji nie renderujemy już przycisku "Wróć", polegamy na breadcrumbs
+  if (parentId && categories.length === 0) {
+    // Jeśli brak podkategorii w widoku zagnieżdżonym, po prostu wyświetlamy posty (na dole)
+    // i ukrywamy sekcję kategorii.
+    document.getElementById('categoriesSection').style.display = 'none';
     return;
   }
 
-  // Jeśli brak podkategorii, ale jesteśmy w trybie "drążenia", nic nie wyświetlamy (poza przyciskiem wstecz),
-  // bo zaraz pod spodem załadują się posty.
+  document.getElementById('categoriesSection').style.display = 'block';
 
   html += categories.map(cat => `
-      <div class="category-card" style="cursor: pointer;" onclick="handleCategoryClick(${cat.id}, '${cat.name}')">
+      <div class="category-card" style="cursor: pointer;" onclick="handleCategoryClick(${cat.id}, '${cat.name}', ${cat.parent_id || null})">
         <h3>${cat.name}</h3>
         <p>${cat.description || ''}</p>
         <div class="category-stats"><span>📄 ${cat.post_count || 0} postów</span></div>
@@ -190,34 +187,74 @@ function renderCategoriesList(categories, parentId) {
 }
 
 // Główna logika "wchodzenia" w kategorie
-window.handleCategoryClick = async (catId, catName) => {
+window.handleCategoryClick = async (catId, catName, parentId) => {
+  // 1. Aktualizujemy ścieżkę
+  const newPath = { id: catId, name: catName };
+
+  // Sprawdzamy, czy wchodzimy głębiej czy wracamy na wcześniejszą pozycję
+  const existingIndex = currentCategoryPath.findIndex(c => c.id === catId);
+  if (existingIndex !== -1) {
+    // Wracamy do istniejącego punktu w ścieżce (nie powinno się zdarzyć, gdy klikamy kafelki, ale dla bezpieczeństwa)
+    currentCategoryPath.splice(existingIndex + 1);
+  } else {
+    // Idziemy głębiej (usuwamy 'Główne' z początku, jeśli tam jest)
+    if (currentCategoryPath.length === 1 && currentCategoryPath[0].name === 'Główne') {
+      currentCategoryPath = [];
+    }
+    currentCategoryPath.push(newPath);
+  }
+
+  currentParentId = catId; // Używane do ładowania podkategorii/postów
+
+  // 2. Ładujemy podkategorie/posty
   try {
-    // 1. Sprawdź czy ta kategoria ma podkategorie
     const res = await fetch(`/api/forum/categories/${catId}/subcategories`);
     const subcategories = await res.json();
 
     if (subcategories.length > 0) {
       // SĄ podkategorie -> Wchodzimy głębiej (podmieniamy kafelki)
-      currentParentId = catId;
       renderCategoriesList(subcategories, catId);
-
-      // Opcjonalnie: filtrujemy też posty dla tej kategorii nadrzędnej
       filterByCategory(catId);
     } else {
       // BRAK podkategorii -> To jest kategoria końcowa, tylko filtrujemy posty
+      renderCategoriesList([], catId); // Czyścimy kafelki
       filterByCategory(catId);
     }
   } catch (e) {
     console.error("Błąd sprawdzania podkategorii", e);
     filterByCategory(catId);
   }
+
+  renderBreadcrumbs(); // Rerenderujemy breadcrumbs na podstawie nowej ścieżki
 };
+
+// Funkcja powrotu przez Breadcrumbs (kliknięcie elementu innego niż ostatni)
+window.goBackToPath = (index) => {
+  // Jeśli kliknięto 'Główne' (index 0)
+  if (index === 0) {
+    goBackToMain();
+    return;
+  }
+
+  const targetCategory = currentCategoryPath[index];
+
+  // Ucinamy ścieżkę do miejsca kliknięcia
+  currentCategoryPath.splice(index + 1);
+
+  // Ustawiamy bieżący parent ID i ładujemy dane
+  currentParentId = targetCategory.id;
+  loadCategories(targetCategory.id);
+  filterByCategory(targetCategory.id);
+};
+
 
 window.goBackToMain = () => {
   currentParentId = null;
-  loadCategories(null); // Załaduj główne
-  filterByCategory(null); // Pokaż wszystkie posty (lub zresetuj filtr)
+  currentCategoryPath = [{ id: null, name: 'Główne' }];
+  loadCategories(null);
+  filterByCategory(null);
 };
+
 
 window.filterByCategory = (categoryId) => {
   selectedCategory = categoryId;
@@ -233,6 +270,7 @@ window.filterByCategory = (categoryId) => {
 };
 
 async function loadPosts() {
+  // ... (logika ładowania postów pozostaje bez zmian) ...
   const postsList = document.getElementById('postsList');
   if (!postsList) return;
 

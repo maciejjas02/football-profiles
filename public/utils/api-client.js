@@ -1,15 +1,15 @@
+// public/utils/api-client.js
+
 // Pominięto zaawansowany cache PlayerCache, by utrzymać minimalizm
 const apiClient = {
     // Mock Cache - nieużywany, ale zachowany dla kompatybilności
     cache: {
         get: () => null,
-        set: () => {},
-        clear: () => {}
+        set: () => { },
+        clear: () => { }
     },
-    
+
     async request(endpoint, options = {}) {
-        // Pominięto logikę cache'owania
-        
         try {
             const response = await fetch(endpoint, {
                 credentials: 'include',
@@ -39,7 +39,7 @@ const apiClient = {
 
     async logout() {
         const csrfResponse = await this.request('/api/auth/csrf-token');
-        
+
         const result = await this.request('/api/auth/logout', {
             method: 'POST',
             headers: {
@@ -55,14 +55,27 @@ const apiClient = {
 
 
 export async function fetchWithAuth(endpoint, options = {}) {
+    const headers = {
+        ...options.headers
+    };
+
+    // WAŻNE: Tylko dodaj Content-Type: application/json, jeśli NIE jest to FormData.
+    // Dla FormData przeglądarka musi sama ustawić boundary.
+    if (!(options.body instanceof FormData)) {
+        headers['Content-Type'] = 'application/json';
+    }
+
+    // Automatycznie dodaj CSRF token dla metod zmieniających stan (POST, PUT, DELETE)
+    if (options.method !== 'GET' && options.method !== 'HEAD' && !headers['CSRF-Token']) {
+        const token = await getCsrfToken();
+        if (token) {
+            headers['CSRF-Token'] = token;
+        }
+    }
+
     const response = await fetch(endpoint, {
         credentials: 'include',
-        headers: {
-            'Content-Type': 'application/json',
-            // W przypadku POST/PUT/DELETE bez formularzy, ręcznie dodaj CSRF
-            ...(options.method !== 'GET' && options.method !== 'HEAD' && !options.headers?.['CSRF-Token'] ? { 'CSRF-Token': await getCsrfToken() } : {}),
-            ...options.headers
-        },
+        headers,
         ...options
     });
 
@@ -77,6 +90,7 @@ export async function fetchWithAuth(endpoint, options = {}) {
 async function getCsrfToken() {
     try {
         const r = await fetch('/api/auth/csrf-token', { credentials: 'include' });
+        if (!r.ok) return '';
         const j = await r.json();
         return j.csrfToken;
     } catch (e) {

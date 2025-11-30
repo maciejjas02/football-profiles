@@ -1,4 +1,5 @@
 // public/admin-gallery-upload.js
+import { fetchWithAuth, getCurrentUser, handleLogout } from './utils/api-client.js';
 
 let currentUser = null;
 let selectedFile = null;
@@ -25,19 +26,23 @@ async function initGalleryUpload() {
 
 async function setupAuth() {
     try {
-        const res = await fetch('/api/auth/me');
-        if (!res.ok) throw new Error('Not auth');
-        const data = await res.json();
-        currentUser = data.user;
+        // Używamy helpera z api-client
+        currentUser = await getCurrentUser();
 
-        document.getElementById('who').textContent = currentUser.display_name || currentUser.username;
+        if (!currentUser) {
+            window.location.href = 'index.html';
+            return;
+        }
+
+        const whoEl = document.getElementById('who');
+        if (whoEl) whoEl.textContent = currentUser.display_name || currentUser.username;
 
         if (currentUser.role !== 'admin' && currentUser.role !== 'moderator') {
             window.location.href = 'dashboard.html';
             return;
         }
 
-        // Nawigacja dla admina
+        // Nawigacja dla admina/moderatora
         if (currentUser.role === 'admin') {
             const adminLink = document.getElementById('adminLink');
             if (adminLink) adminLink.style.display = 'block';
@@ -46,7 +51,7 @@ async function setupAuth() {
             if (galleryManageLink) galleryManageLink.style.display = 'block';
         }
 
-        if (currentUser.role === 'admin' || currentUser.role === 'moderator') {
+        if (['admin', 'moderator'].includes(currentUser.role)) {
             const modLink = document.getElementById('moderatorLink');
             if (modLink) modLink.style.display = 'block';
 
@@ -57,30 +62,33 @@ async function setupAuth() {
         const logoutBtn = document.getElementById('logoutBtn');
         if (logoutBtn) {
             logoutBtn.addEventListener('click', async () => {
-                await fetch('/api/auth/logout', { method: 'POST' });
+                await handleLogout();
                 window.location.href = '/';
             });
         }
-    } catch (error) { window.location.href = 'index.html'; }
+    } catch (error) {
+        console.error('Auth error:', error);
+        window.location.href = 'index.html';
+    }
 }
 
-// --- ŁADOWANIE LISTY ZDJĘĆ (UCINANIE PO 100 ZNAKACH) ---
+// --- ŁADOWANIE LISTY ZDJĘĆ ---
 async function loadImages() {
     if (!imagesGrid) return;
 
     try {
-        const res = await fetch('/api/gallery/images?t=' + Date.now());
-        loadedImages = await res.json();
+        // Używamy fetchWithAuth (GET też obsłuży poprawnie)
+        const data = await fetchWithAuth('/api/gallery/images?t=' + Date.now());
+        loadedImages = data;
 
         if (loadedImages.length === 0) {
             imagesGrid.innerHTML = '<div class="empty-state">Brak zdjęć w bazie.</div>';
             return;
         }
 
-        // Generowanie widoku listy z ucinaniem tekstu w JS
+        // Generowanie widoku listy
         imagesGrid.innerHTML = loadedImages.map(img => {
             const fullDesc = img.description || '';
-            // TUTAJ JEST ZMIANA: Ucinamy tekst jeśli ma więcej niż 100 znaków
             const truncatedDesc = fullDesc.length > 100
                 ? fullDesc.substring(0, 100) + '...'
                 : (fullDesc || '<em style="opacity:0.5">Brak opisu</em>');
@@ -203,23 +211,20 @@ if (submitBtn) {
             submitBtn.disabled = true;
 
             try {
-                const res = await fetch(`/api/gallery/images/${editingImageId}`, {
+                // Używamy fetchWithAuth - doda CSRF i ustawi JSON Content-Type
+                await fetchWithAuth(`/api/gallery/images/${editingImageId}`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ title, description }),
-                    credentials: 'include'
+                    body: JSON.stringify({ title, description })
                 });
 
-                if (res.ok) {
-                    messageEl.textContent = '✅ Zaktualizowano pomyślnie!';
-                    messageEl.className = 'success';
-                    resetForm();
-                    loadImages();
-                } else {
-                    alert('Błąd aktualizacji');
-                    submitBtn.disabled = false;
-                }
-            } catch (e) { alert('Błąd połączenia'); submitBtn.disabled = false; }
+                messageEl.textContent = '✅ Zaktualizowano pomyślnie!';
+                messageEl.className = 'success';
+                resetForm();
+                loadImages();
+            } catch (e) {
+                alert('Błąd aktualizacji: ' + e.message);
+                submitBtn.disabled = false;
+            }
             return;
         }
 
@@ -235,26 +240,19 @@ if (submitBtn) {
         submitBtn.disabled = true;
 
         try {
-            const res = await fetch('/api/gallery/upload', {
+            // WAŻNE: fetchWithAuth wykryje FormData i NIE ustawi Content-Type: application/json
+            // oraz doda CSRF token.
+            await fetchWithAuth('/api/gallery/upload', {
                 method: 'POST',
-                body: formData,
-                credentials: 'include'
+                body: formData
             });
 
-            if (res.ok) {
-                messageEl.textContent = '✅ Zdjęcie dodane!';
-                messageEl.className = 'success';
-                resetForm();
-                loadImages();
-            } else {
-                const err = await res.json();
-                messageEl.textContent = `❌ ${err.error || 'Błąd'}`;
-                messageEl.className = 'error';
-                submitBtn.textContent = 'Upload';
-                submitBtn.disabled = false;
-            }
+            messageEl.textContent = '✅ Zdjęcie dodane!';
+            messageEl.className = 'success';
+            resetForm();
+            loadImages();
         } catch (e) {
-            messageEl.textContent = '❌ Błąd połączenia';
+            messageEl.textContent = `❌ ${e.message || 'Błąd połączenia'}`;
             messageEl.className = 'error';
             submitBtn.textContent = 'Upload';
             submitBtn.disabled = false;
@@ -266,16 +264,13 @@ if (submitBtn) {
 window.deleteImage = async (id) => {
     if (!confirm('Usunąć to zdjęcie? Zostanie ono usunięte również ze sliderów.')) return;
     try {
-        const res = await fetch(`/api/gallery/images/${id}`, {
-            method: 'DELETE',
-            credentials: 'include'
+        await fetchWithAuth(`/api/gallery/images/${id}`, {
+            method: 'DELETE'
         });
-        if (res.ok) {
-            loadImages();
-        } else {
-            alert('Błąd usuwania');
-        }
-    } catch (e) { alert('Błąd połączenia'); }
+        loadImages();
+    } catch (e) {
+        alert('Błąd usuwania: ' + e.message);
+    }
 };
 
 // --- OBSŁUGA PLIKÓW ---
