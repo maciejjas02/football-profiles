@@ -1,6 +1,6 @@
 // public/post.js
 import { fetchWithAuth } from './utils/api-client.js';
-import { showToast } from './utils/ui.js'; // Opcjonalnie, jeśli masz ui.js
+import { showToast } from './utils/ui.js';
 
 let currentUser = null;
 let postId = null;
@@ -32,7 +32,6 @@ async function setupAuth() {
       const commentForm = document.getElementById('commentFormSection');
       if (commentForm) commentForm.classList.remove('hidden');
 
-      // Linki w menu
       if (['admin', 'moderator'].includes(currentUser.role)) {
         document.getElementById('moderatorLink')?.style.setProperty('display', 'block');
         document.getElementById('ordersLink')?.style.setProperty('display', 'block');
@@ -148,7 +147,7 @@ async function loadPost() {
   }
 }
 
-// --- COMMENTS SYSTEM (PEŁNY KOD) ---
+// --- COMMENTS SYSTEM ---
 
 function getRank(reputation, role) {
   if (role === 'admin') return '<span style="color:#ff4444; font-weight:bold; border: 1px solid #ff4444; padding: 2px 6px; border-radius: 4px;">ADMINISTRATOR 👑</span>';
@@ -161,7 +160,6 @@ function getRank(reputation, role) {
 
 async function loadComments() {
   try {
-    // Używamy timestamp, aby uniknąć cache
     const res = await fetch(`/api/forum/posts/${postId}/comments?t=${Date.now()}`);
     const comments = await res.json();
 
@@ -182,12 +180,10 @@ async function loadComments() {
       const colorDislike = isDisliked ? 'var(--danger-color)' : 'var(--text-color)';
       const opacityBtn = (isLiked || isDisliked) ? '1' : '0.5';
 
-      // Status Pending
       const isPending = c.status === 'pending';
       const pendingBadge = isPending ? '<span style="color:orange; border:1px solid orange; font-size:10px; padding:1px 4px; border-radius:4px; margin-left:5px;">⏳ Oczekuje</span>' : '';
       const cardStyle = isPending ? 'opacity: 0.7; border: 1px dashed orange;' : '';
 
-      // Edycja (dla autora gdy pending)
       const canEdit = isPending && currentUser && currentUser.id === c.author_id;
       const editButton = canEdit
         ? `<button onclick="window.editComment(${c.id}, '${c.content.replace(/'/g, "\\'")}')" class="btn-text" style="color:orange; margin-left:10px;">✏️ Edytuj</button>`
@@ -232,7 +228,7 @@ window.rateComment = async (id, rating) => {
       method: 'POST',
       body: JSON.stringify({ rating })
     });
-    await loadComments(); // Odśwież, aby pokazać nowe liczniki
+    await loadComments();
   } catch (e) { alert('Błąd: ' + e.message); }
 };
 
@@ -255,7 +251,6 @@ if (submitBtn) {
     const content = document.getElementById('commentContent').value.trim();
     if (!content) return;
 
-    // Blokada przycisku
     const originalText = submitBtn.textContent;
     submitBtn.disabled = true;
     submitBtn.textContent = "Wysyłanie...";
@@ -276,11 +271,10 @@ if (submitBtn) {
   });
 }
 
-// --- CHAT & MODERATION SYSTEM (NAPRAWIONE) ---
+// --- CHAT & MODERATION SYSTEM ---
 
 window.openUserDiscussion = async (pid) => {
   try {
-    // Użytkownik pobiera swoje wiadomości dla tego posta
     const messages = await fetchWithAuth(`/api/discussion/${pid}/my`);
     showChatModal(pid, null, messages, 'Zgłoszenie / Rozmowa z Moderatorem');
   } catch (e) { alert("Błąd czatu: " + e.message); }
@@ -288,12 +282,10 @@ window.openUserDiscussion = async (pid) => {
 
 window.openModPanel = async (pid) => {
   try {
-    // Moderator pobiera listę użytkowników, którzy zgłosili ten post
     const users = await fetchWithAuth(`/api/discussion/${pid}/users`);
 
     if (users.length === 0) return alert("Brak otwartych dyskusji dla tego posta.");
 
-    // Prosty wybór ID (można by to zrobić ładniej, ale prompt wystarczy dla MVP)
     const userList = users.map(u => `ID ${u.id}: ${u.username}`).join('\n');
     const userId = prompt(`Wybierz ID użytkownika do rozmowy:\n${userList}`);
 
@@ -305,11 +297,9 @@ window.openModPanel = async (pid) => {
 };
 
 function showChatModal(pid, targetUserId, initialMessages, title) {
-  // Usuń stary modal jeśli istnieje
   const old = document.getElementById('chatModal');
   if (old) old.remove();
 
-  // Funkcja renderująca wiadomości (używana przy otwarciu i odświeżaniu)
   const renderMessages = (msgs) => {
     if (!msgs || msgs.length === 0) {
       return '<div style="text-align:center; padding:20px; color:var(--text-color); opacity:0.5;">Brak wiadomości. Napisz coś!</div>';
@@ -319,9 +309,6 @@ function showChatModal(pid, targetUserId, initialMessages, title) {
       const isMod = (currentUser.role === 'admin' || currentUser.role === 'moderator');
       const senderIsMod = m.sender_type === 'moderator';
 
-      // Logika: "Ja" to prawa strona.
-      // Jeśli jestem modem i wysłał mod -> Ja.
-      // Jeśli jestem userem i wysłał user -> Ja.
       const isMe = (isMod && senderIsMod) || (!isMod && !senderIsMod);
 
       const senderLabel = senderIsMod ? '🛡️ Moderator' : '👤 Użytkownik';
@@ -371,8 +358,6 @@ function showChatModal(pid, targetUserId, initialMessages, title) {
     btn.disabled = true;
     btn.textContent = '...';
 
-    // Jeśli targetUserId jest ustawiony, to znaczy że pisze Moderator do Usera
-    // Jeśli null, to User pisze do Moderacji (ogólny wątek tego posta)
     let url = targetUserId
       ? `/api/discussion/${pid}/reply/${targetUserId}`
       : `/api/discussion/${pid}`;
@@ -383,19 +368,16 @@ function showChatModal(pid, targetUserId, initialMessages, title) {
         body: JSON.stringify({ message: txt })
       });
 
-      // NAPRAWA UX: Zamiast zamykać modal, czyścimy input i odświeżamy listę
       input.value = '';
 
-      // Pobierz nowe wiadomości
       const refreshUrl = targetUserId
         ? `/api/discussion/${pid}/user/${targetUserId}`
         : `/api/discussion/${pid}/my`;
 
       const newMessages = await fetchWithAuth(refreshUrl);
 
-      // Zaktualizuj HTML wiadomości
       chatBox.innerHTML = renderMessages(newMessages);
-      chatBox.scrollTop = chatBox.scrollHeight; // Przewiń na dół
+      chatBox.scrollTop = chatBox.scrollHeight;
 
     } catch (e) {
       alert("Błąd wysyłania: " + e.message);

@@ -15,6 +15,23 @@
             width: 100%;
             display: block;
         }
+
+        .order-items-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            font-size: 13px;
+        }
+
+        .order-items-list li {
+            margin-bottom: 4px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .order-items-list li:last-child {
+            border-bottom: none;
+        }
     </style>
 </head>
 
@@ -78,7 +95,7 @@
             const user = await setupNavbar();
             if (user) {
                 loadOrders();
-                loadNotifications(); // Załaduj powiadomienia
+                loadNotifications();
             }
         }
 
@@ -121,7 +138,7 @@
             }
         }
 
-        // --- LOGIKA POWIADOMIEŃ ---
+        // --- POWIADOMIENIA ---
         async function loadNotifications() {
             const btn = document.getElementById('notificationsBtn');
             const badge = document.getElementById('notificationBadge');
@@ -131,9 +148,7 @@
             if (!btn) return;
 
             try {
-                // Używamy fetchWithAuth, który zwraca JSON
                 const notifications = await fetchWithAuth('/api/user/notifications');
-
                 const unreadCount = notifications.filter(n => n.is_read === 0).length;
 
                 if (unreadCount > 0) {
@@ -142,8 +157,7 @@
                 } else {
                     badge.style.display = 'none';
                 }
-
-                btn.style.display = 'block'; // Pokaż dzwonek
+                btn.style.display = 'block';
 
                 if (notifications.length === 0) {
                     list.innerHTML = '<div class="notification-empty">Brak powiadomień.</div>';
@@ -154,25 +168,19 @@
                         >
                             <div class="notification-title">${n.title}</div>
                             <div class="notification-message">${n.message}</div>
-                            <div class="notification-time">${new Date(n.created_at).toLocaleDateString()}</div>
                         </div>
                     `).join('');
                 }
 
-                // Obsługa kliknięcia w dzwonek
                 btn.onclick = (e) => {
                     e.stopPropagation();
                     dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
                 };
-
-                // Kliknięcie poza dropdownem zamyka go
                 document.addEventListener('click', (e) => {
                     if (dropdown.style.display === 'block' && !dropdown.contains(e.target) && !btn.contains(e.target)) {
                         dropdown.style.display = 'none';
                     }
                 });
-
-                // Przycisk "Oznacz wszystkie jako przeczytane"
                 const markReadBtn = document.getElementById('markAllReadBtn');
                 if (markReadBtn) {
                     markReadBtn.onclick = async () => {
@@ -180,68 +188,122 @@
                         loadNotifications();
                     };
                 }
-
             } catch (e) {
                 console.error('Błąd powiadomień:', e);
                 badge.style.display = 'none';
             }
         }
 
-        // Funkcja globalna do obsługi kliknięcia w powiadomienie
         window.handleNotificationClick = async (id, link, isRead) => {
-            if (isRead === 0) {
-                await fetchWithAuth(`/api/user/notifications/${id}/read`, { method: 'POST' });
-            }
-            if (link && link !== '#') {
-                window.location.href = link;
-            } else {
-                loadNotifications();
-            }
+            if (isRead === 0) await fetchWithAuth(`/api/user/notifications/${id}/read`, { method: 'POST' });
+            if (link && link !== '#') window.location.href = link;
+            else loadNotifications();
         };
-        // --- KONIEC LOGIKI POWIADOMIEŃ ---
 
+        // --- ZARZĄDZANIE ZAMÓWIENIAMI (GRUPOWANIE) ---
         async function loadOrders() {
             try {
-                const orders = await fetchWithAuth('/api/admin/orders');
+                const purchases = await fetchWithAuth('/api/admin/orders');
                 const list = document.getElementById('ordersList');
 
-                if (!orders || orders.length === 0) {
+                if (!purchases || purchases.length === 0) {
                     list.innerHTML = '<div class="empty-state">Brak zamówień.</div>';
                     return;
                 }
+
+                const groupedOrders = {};
+
+                purchases.forEach(item => {
+                    const groupKey = `${item.purchase_date}_${item.user_id}`;
+
+                    if (!groupedOrders[groupKey]) {
+                        groupedOrders[groupKey] = {
+                            ids: [],
+                            username: item.username,
+                            email: item.email,
+                            address: item.address,
+                            city: item.city,
+                            postal_code: item.postal_code,
+                            date: item.purchase_date,
+                            status: item.status,
+                            items: [],
+                            totalPrice: 0
+                        };
+                    }
+                    groupedOrders[groupKey].ids.push(item.id);
+                    groupedOrders[groupKey].items.push({
+                        name: item.player_name,
+                        team: item.team,
+                        price: item.jersey_price
+                    });
+                    groupedOrders[groupKey].totalPrice += item.jersey_price;
+                });
+
+                const sortedOrders = Object.values(groupedOrders).sort((a, b) => new Date(b.date) - new Date(a.date));
 
                 list.innerHTML = `
           <table class="data-table">
             <thead>
               <tr>
-                <th>ID</th>
+                <th style="width: 50px;">Data</th>
                 <th>Użytkownik</th>
-                <th>Produkt</th>
-                <th>Cena</th>
-                <th>Data</th>
+                <th>Adres dostawy</th>
+                <th>Produkty (Lista)</th>
+                <th>Suma</th>
                 <th>Status</th>
                 <th>Akcja</th>
               </tr>
             </thead>
             <tbody>
-              ${orders.map(o => `
+              ${sortedOrders.map((order, index) => `
                 <tr>
-                  <td>#${o.id}</td>
-                  <td>${o.username}<br><small>${o.email || ''}</small></td>
-                  <td>${o.player_name} (${o.team})</td>
-                  <td>${o.jersey_price} zł</td>
-                  <td>${new Date(o.purchase_date).toLocaleDateString()}</td>
                   <td>
-                    <span class="status-badge ${o.status === 'completed' ? 'status-completed' : 'status-pending'}">
-                        ${o.status}
+                    <div style="font-size:12px; color:#aaa; white-space:nowrap;">
+                        ${new Date(order.date).toLocaleDateString()}
+                        <br>
+                        ${new Date(order.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </td>
+
+                  <td>
+                    <strong>${order.username}</strong>
+                    <br><small>${order.email || ''}</small>
+                  </td>
+
+                  <td>
+                    <small style="color: #ccc; font-style: italic;">
+                        ${order.address ?
+                        `${order.address}<br>${order.postal_code} ${order.city}`
+                        : '<span style="opacity:0.5">Brak adresu</span>'}
+                    </small>
+                  </td>
+
+                  <td>
+                    <ul class="order-items-list">
+                        ${order.items.map(item => `
+                            <li>• ${item.name} (${item.team}) - <b>${item.price} zł</b></li>
+                        `).join('')}
+                    </ul>
+                  </td>
+
+                  <td style="font-weight:bold; color:var(--primary-color);">
+                    ${order.totalPrice} zł
+                  </td>
+
+                  <td>
+                    <span class="status-badge ${order.status === 'completed' ? 'status-completed' : 'status-pending'}">
+                        ${order.status}
                     </span>
                   </td>
+
                   <td>
-                    <select onchange="window.updateStatus(${o.id}, this.value)" class="form-select" style="padding:5px; font-size:12px;">
-                        <option value="pending" ${o.status === 'pending' ? 'selected' : ''}>Oczekujące</option>
-                        <option value="completed" ${o.status === 'completed' ? 'selected' : ''}>Opłacone</option>
-                        <option value="shipped" ${o.status === 'shipped' ? 'selected' : ''}>Wysłane</option>
-                        <option value="cancelled" ${o.status === 'cancelled' ? 'selected' : ''}>Anulowane</option>
+                    <select onchange="window.updateGroupStatus('${order.ids.join(',')}', this.value)" 
+                            class="form-select" 
+                            style="padding:5px; font-size:12px; width:120px;">
+                        <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>Oczekujące</option>
+                        <option value="completed" ${order.status === 'completed' ? 'selected' : ''}>Opłacone</option>
+                        <option value="shipped" ${order.status === 'shipped' ? 'selected' : ''}>Wysłane</option>
+                        <option value="cancelled" ${order.status === 'cancelled' ? 'selected' : ''}>Anulowane</option>
                     </select>
                   </td>
                 </tr>
@@ -255,16 +317,29 @@
             }
         }
 
-        window.updateStatus = async (id, status) => {
-            if (!confirm(`Zmienić status na ${status}?`)) return;
+        window.updateGroupStatus = async (idsString, status) => {
+            if (!confirm(`Zmienić status całego zamówienia na: ${status}?`)) {
+                loadOrders();
+                return;
+            }
+
+            const ids = idsString.split(',');
+            let successCount = 0;
+
             try {
-                await fetchWithAuth(`/api/admin/orders/${id}/status`, {
-                    method: 'PUT',
-                    body: JSON.stringify({ status })
-                });
-                loadOrders(); // Odśwież listę
+                const updates = ids.map(id =>
+                    fetchWithAuth(`/api/admin/orders/${id}/status`, {
+                        method: 'PUT',
+                        body: JSON.stringify({ status })
+                    }).then(() => successCount++)
+                );
+
+                await Promise.all(updates);
+
+                loadOrders();
             } catch (e) {
-                alert("Błąd aktualizacji statusu");
+                alert("Błąd aktualizacji: " + e.message);
+                loadOrders();
             }
         };
 

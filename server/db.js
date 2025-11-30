@@ -521,11 +521,10 @@ export function addToCart(userId, playerId) {
     const player = db.prepare('SELECT jersey_available FROM players WHERE id=?').get(playerId);
     if (!player) throw new Error("Błąd: Produkt niedostępny");
 
-    // Sprawdź dostępność
     const soldStock = db.prepare("SELECT COUNT(*) AS sold FROM purchases WHERE player_id=? AND status NOT IN ('pending', 'cancelled')").get(playerId).sold || 0;
     if (player.jersey_available - soldStock <= 0) throw new Error("Brak w magazynie");
 
-    // +0.5 Kumulacja: zwiększ quantity jeśli już jest w koszyku
+
     return db.prepare(`
         INSERT INTO cart_items (user_id, player_id, quantity) 
         VALUES (?, ?, 1) 
@@ -536,6 +535,16 @@ export function addToCart(userId, playerId) {
 export function removeFromCart(userId, itemId) { return db.prepare('DELETE FROM cart_items WHERE id = ? AND user_id = ?').run(itemId, userId); }
 export function checkoutCart(userId) { const items = getCartItems(userId); if (items.length === 0) throw new Error("Koszyk pusty"); const now = new Date().toISOString(); const insert = db.prepare('INSERT INTO purchases (user_id, player_id, jersey_price, status, purchase_date) VALUES (?, ?, ?, ?, ?)'); const transaction = db.transaction(() => { for (const item of items) { for (let i = 0; i < item.quantity; i++) insert.run(userId, item.player_id, item.jersey_price, 'pending', now); } db.prepare('DELETE FROM cart_items WHERE user_id = ?').run(userId); }); transaction(); return items.length; }
 export function payForOrderByDate(userId, dateString) { return db.prepare("UPDATE purchases SET status='completed' WHERE user_id=? AND purchase_date=? AND status='pending'").run(userId, dateString); }
-export function getAllPurchases() { return db.prepare(`SELECT p.*, u.username, u.email, pl.name as player_name, pl.team FROM purchases p JOIN users u ON p.user_id = u.id JOIN players pl ON p.player_id = pl.id ORDER BY p.purchase_date DESC`).all(); }
+export function getAllPurchases() {
+    return db.prepare(`
+        SELECT p.*, 
+               u.username, u.email, u.address, u.city, u.postal_code, 
+               pl.name as player_name, pl.team 
+        FROM purchases p 
+        JOIN users u ON p.user_id = u.id 
+        JOIN players pl ON p.player_id = pl.id 
+        ORDER BY p.purchase_date DESC
+    `).all();
+}
 export function isModOfCategory(userId, categoryId) { return !!db.prepare('SELECT 1 FROM moderator_categories WHERE user_id = ? AND category_id = ?').get(userId, categoryId); }
 export function getUserAllowedCategories(userId, role) { if (role === 'admin') return db.prepare('SELECT * FROM categories').all(); return db.prepare(`SELECT c.* FROM categories c JOIN moderator_categories mc ON c.id = mc.category_id WHERE mc.user_id = ?`).all(userId); }

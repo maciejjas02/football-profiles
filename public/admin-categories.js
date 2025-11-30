@@ -2,23 +2,20 @@ import { fetchWithAuth, getCurrentUser, handleLogout } from './utils/api-client.
 
 let currentUser = null;
 let allCategories = [];
-let allThemes = []; // Tablica na motywy
+let allThemes = [];
 
-// Czekamy na pełne załadowanie DOM
 document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
-  // Zabezpieczenie przed podwójnym odpaleniem
   if (window.initStarted) return;
   window.initStarted = true;
 
   await checkAuth();
 
-  // Ładowanie wszystkich sekcji
   await loadUsersManagement();
   await loadModerators();
   await loadCategories();
-  await loadThemes(); // NOWE: Ładowanie motywów
+  await loadThemes();
 
   setupEventListeners();
 
@@ -38,7 +35,6 @@ async function checkAuth() {
     const whoEl = document.getElementById('who');
     if (whoEl) whoEl.textContent = (currentUser.name || currentUser.username).toLowerCase();
 
-    // Odkrywanie linków w nawigacji
     if (['admin', 'moderator'].includes(currentUser.role)) {
       document.getElementById('ordersLink')?.style.setProperty('display', 'block');
       document.getElementById('moderatorLink')?.style.setProperty('display', 'block');
@@ -69,7 +65,6 @@ async function loadCategories() {
 
     allCategories = await fetchWithAuth('/api/forum/categories');
 
-    // Wypełnij selecty (rodzic, przypisywanie moda)
     const parentSelect = document.getElementById('parentCategory');
     if (parentSelect) {
       parentSelect.innerHTML = '<option value="">Brak (główna kategoria)</option>' +
@@ -154,7 +149,6 @@ async function loadThemes() {
     }
 
     list.innerHTML = allThemes.map(t => {
-      // Nie pokazuj przycisku usuwania dla domyślnego motywu
       const deleteBtn = t.is_default
         ? ''
         : `<button class="btn btn-sm btn-danger" onclick="window.deleteTheme(${t.id})" style="margin-left: 5px;">🗑️</button>`;
@@ -182,7 +176,6 @@ async function loadThemes() {
   }
 }
 
-// NOWA funkcja usuwania
 window.deleteTheme = async (id) => {
   if (!confirm('Czy na pewno chcesz usunąć ten motyw? Użytkownicy z niego korzystający zostaną przywróceni do domyślnego.')) return;
 
@@ -200,7 +193,6 @@ window.editTheme = (id) => {
   const theme = allThemes.find(t => t.id === id);
   if (!theme) return;
 
-  // Wypełnij formularz danymi
   document.getElementById('themeId').value = theme.id;
   document.getElementById('themeName').value = theme.name;
   document.getElementById('themePrimary').value = theme.primary_color;
@@ -209,7 +201,6 @@ window.editTheme = (id) => {
   document.getElementById('themeBgEnd').value = theme.background_gradient_end;
   document.getElementById('themeTextColor').value = theme.text_color;
 
-  // Scroll do formularza
   const form = document.getElementById('themeForm');
   if (form) form.scrollIntoView({ behavior: 'smooth' });
 };
@@ -348,7 +339,6 @@ window.removeModerator = async (cid, uid) => {
 
 function setupEventListeners() {
 
-  // 1. Tworzenie Kategorii
   document.getElementById('submitCategoryBtn')?.addEventListener('click', async (e) => {
     e.preventDefault();
     const name = document.getElementById('categoryName').value.trim();
@@ -373,7 +363,6 @@ function setupEventListeners() {
     }
   });
 
-  // 2. Automatyczny Slug
   document.getElementById('categoryName')?.addEventListener('input', (e) => {
     const slug = e.target.value.toLowerCase()
       .replace(/ą/g, 'a').replace(/ć/g, 'c').replace(/ę/g, 'e')
@@ -407,7 +396,6 @@ function setupEventListeners() {
     if (e.target.value) loadAssignments(e.target.value);
   });
 
-  // 4. Formularz Motywów (NOWE)
   const themeForm = document.getElementById('themeForm');
   if (themeForm) {
     themeForm.addEventListener('submit', async (e) => {
@@ -425,16 +413,13 @@ function setupEventListeners() {
 
       try {
         if (id) {
-          // Aktualizacja
           await fetchWithAuth(`/api/themes/${id}`, { method: 'PUT', body: JSON.stringify(data) });
           alert('✅ Motyw zaktualizowany!');
         } else {
-          // Tworzenie
           await fetchWithAuth('/api/themes', { method: 'POST', body: JSON.stringify(data) });
           alert('✅ Motyw dodany!');
         }
 
-        // Reset i odświeżenie
         document.getElementById('themeId').value = '';
         themeForm.reset();
         loadThemes();
@@ -445,7 +430,6 @@ function setupEventListeners() {
     });
   }
 
-  // Przycisk "Podgląd na żywo" (bez zapisu) - opcjonalny dodatek
   const previewBtn = document.getElementById('previewThemeBtn');
   if (previewBtn) {
     previewBtn.addEventListener('click', () => {

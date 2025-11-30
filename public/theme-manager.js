@@ -3,7 +3,6 @@ import { fetchWithAuth } from './utils/api-client.js';
 
 export const ThemeManager = {
     async init() {
-        // 1. Inicjalizacja kolorów z bazy (dla zalogowanego)
         try {
             const res = await fetch('/api/user/theme');
             if (res.ok) {
@@ -11,10 +10,8 @@ export const ThemeManager = {
                 this.applyTheme(theme);
             }
         } catch (e) {
-            // Jeśli błąd (np. brak logowania), zostaje domyślny CSS
         }
 
-        // 2. Inicjalizacja panelu wyboru (tylko jeśli pobraliśmy motywy, czyli backend działa)
         await this.initSelector();
     },
 
@@ -46,18 +43,15 @@ export const ThemeManager = {
     },
 
     async initSelector() {
-        // Zabezpieczenie przed podwójnym dodaniem
         if (document.querySelector('.theme-selector-panel')) return;
 
         try {
-            // Pobieramy listę motywów, aby wygenerować kulki
             const response = await fetch('/api/themes');
             if (!response.ok) return;
 
             const themes = await response.json();
             if (!themes || themes.length === 0) return;
 
-            // Tworzymy kontener
             const container = document.createElement('div');
             container.className = 'theme-selector-panel';
             container.innerHTML = `
@@ -68,7 +62,6 @@ export const ThemeManager = {
 
             const buttonsContainer = container.querySelector('#themeButtons');
 
-            // Generujemy przyciski
             themes.forEach(theme => {
                 const btn = document.createElement('div');
                 btn.className = 'theme-btn-circle';
@@ -76,10 +69,7 @@ export const ThemeManager = {
                 btn.title = theme.name;
 
                 btn.onclick = async () => {
-                    // A. Zmień wygląd natychmiast (UX)
                     this.applyTheme(theme);
-
-                    // B. Zapisz w bazie (dla zalogowanego)
                     try {
                         await fetchWithAuth('/api/user/theme', {
                             method: 'PUT',
@@ -99,7 +89,6 @@ export const ThemeManager = {
     }
 };
 
-// Automatyczny start
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => ThemeManager.init());
 } else {

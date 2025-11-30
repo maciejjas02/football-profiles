@@ -5,8 +5,8 @@ import { fetchWithAuth } from './utils/api-client.js';
 let currentUser = null;
 let currentPage = 1;
 let selectedCategory = null;
-let currentParentId = null; // Śledzi, w której kategorii nadrzędnej jesteśmy
-let currentCategoryPath = [{ id: null, name: 'Główne' }]; // NOWY STAN ŚCIEŻKI
+let currentParentId = null;
+let currentCategoryPath = [{ id: null, name: 'Główne' }];
 const POSTS_PER_PAGE = 20;
 
 async function init() {
@@ -20,7 +20,7 @@ async function init() {
   }
 }
 
-// --- FUNKCJE AUTH/NOTIFICATIONS (pominięto, brak zmian CSRF) ---
+// --- FUNKCJE AUTH/NOTIFICATIONS ---
 
 async function setupAuth() {
   try {
@@ -119,8 +119,6 @@ function renderBreadcrumbs() {
     if (isLast) {
       pathHtml += `<strong style="color: #FFD700;">${cat.name}</strong>`;
     } else {
-      // W przypadku kategorii nadrzędnej (którą mamy w stanie ścieżki)
-      // Użyjemy handleCategoryClick, aby wrócić do widoku tej kategorii
       pathHtml += `
                 <span onclick="goBackToPath(${index})" style="cursor: pointer; color: inherit; text-decoration: none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
                     ${cat.name}
@@ -133,7 +131,6 @@ function renderBreadcrumbs() {
   breadcrumbEl.innerHTML = pathHtml;
 }
 
-// Funkcja ładująca kategorie
 async function loadCategories(parentId = null) {
   try {
     let categories = [];
@@ -149,12 +146,11 @@ async function loadCategories(parentId = null) {
       categories = await res.json();
     } else {
       const allCats = await res.json();
-      // Na start ładujemy tylko GŁÓWNE kategorie (bez rodzica)
       categories = allCats.filter(c => !c.parent_id);
     }
 
     renderCategoriesList(categories, parentId);
-    renderBreadcrumbs(); // RENDERUJEMY BREADCRUMBS
+    renderBreadcrumbs();
 
   } catch (error) { console.error(error); }
 }
@@ -165,10 +161,7 @@ function renderCategoriesList(categories, parentId) {
 
   let html = '';
 
-  // W tej wersji nie renderujemy już przycisku "Wróć", polegamy na breadcrumbs
   if (parentId && categories.length === 0) {
-    // Jeśli brak podkategorii w widoku zagnieżdżonym, po prostu wyświetlamy posty (na dole)
-    // i ukrywamy sekcję kategorii.
     document.getElementById('categoriesSection').style.display = 'none';
     return;
   }
@@ -186,38 +179,29 @@ function renderCategoriesList(categories, parentId) {
   categoriesList.innerHTML = html;
 }
 
-// Główna logika "wchodzenia" w kategorie
 window.handleCategoryClick = async (catId, catName, parentId) => {
-  // 1. Aktualizujemy ścieżkę
   const newPath = { id: catId, name: catName };
-
-  // Sprawdzamy, czy wchodzimy głębiej czy wracamy na wcześniejszą pozycję
   const existingIndex = currentCategoryPath.findIndex(c => c.id === catId);
   if (existingIndex !== -1) {
-    // Wracamy do istniejącego punktu w ścieżce (nie powinno się zdarzyć, gdy klikamy kafelki, ale dla bezpieczeństwa)
     currentCategoryPath.splice(existingIndex + 1);
   } else {
-    // Idziemy głębiej (usuwamy 'Główne' z początku, jeśli tam jest)
     if (currentCategoryPath.length === 1 && currentCategoryPath[0].name === 'Główne') {
       currentCategoryPath = [];
     }
     currentCategoryPath.push(newPath);
   }
 
-  currentParentId = catId; // Używane do ładowania podkategorii/postów
+  currentParentId = catId;
 
-  // 2. Ładujemy podkategorie/posty
   try {
     const res = await fetch(`/api/forum/categories/${catId}/subcategories`);
     const subcategories = await res.json();
 
     if (subcategories.length > 0) {
-      // SĄ podkategorie -> Wchodzimy głębiej (podmieniamy kafelki)
       renderCategoriesList(subcategories, catId);
       filterByCategory(catId);
     } else {
-      // BRAK podkategorii -> To jest kategoria końcowa, tylko filtrujemy posty
-      renderCategoriesList([], catId); // Czyścimy kafelki
+      renderCategoriesList([], catId);
       filterByCategory(catId);
     }
   } catch (e) {
@@ -225,12 +209,10 @@ window.handleCategoryClick = async (catId, catName, parentId) => {
     filterByCategory(catId);
   }
 
-  renderBreadcrumbs(); // Rerenderujemy breadcrumbs na podstawie nowej ścieżki
+  renderBreadcrumbs();
 };
 
-// Funkcja powrotu przez Breadcrumbs (kliknięcie elementu innego niż ostatni)
 window.goBackToPath = (index) => {
-  // Jeśli kliknięto 'Główne' (index 0)
   if (index === 0) {
     goBackToMain();
     return;
@@ -238,10 +220,8 @@ window.goBackToPath = (index) => {
 
   const targetCategory = currentCategoryPath[index];
 
-  // Ucinamy ścieżkę do miejsca kliknięcia
   currentCategoryPath.splice(index + 1);
 
-  // Ustawiamy bieżący parent ID i ładujemy dane
   currentParentId = targetCategory.id;
   loadCategories(targetCategory.id);
   filterByCategory(targetCategory.id);
@@ -264,13 +244,11 @@ window.filterByCategory = (categoryId) => {
   currentPage = 1;
   loadPosts();
 
-  // Przewiń do postów
   const postsSection = document.getElementById('postsSection');
   if (postsSection) postsSection.scrollIntoView({ behavior: 'smooth' });
 };
 
 async function loadPosts() {
-  // ... (logika ładowania postów pozostaje bez zmian) ...
   const postsList = document.getElementById('postsList');
   if (!postsList) return;
 

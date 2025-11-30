@@ -1,6 +1,5 @@
 // public/moderator-comments.js
 
-// DODANO: Importujemy fetchWithAuth do obsługi CSRF i innych operacji POST/PUT
 import { fetchWithAuth } from './utils/api-client.js';
 
 let currentUser = null;
@@ -10,7 +9,6 @@ async function init() {
   await loadPendingComments();
   document.getElementById('refreshBtn').addEventListener('click', loadPendingComments);
 
-  // Dodano: ładowanie powiadomień (jeśli user zalogowany)
   if (currentUser) {
     await loadNotifications();
   }
@@ -33,7 +31,6 @@ async function setupAuth() {
         if (ordersLink) ordersLink.style.display = 'block';
       }
 
-      // Logika odkrywania linków w menu dla Admina
       if (currentUser.role === 'admin') {
         const adminLink = document.getElementById('adminLink');
         if (adminLink) adminLink.style.display = 'block';
@@ -43,7 +40,6 @@ async function setupAuth() {
       }
 
       document.getElementById('logoutBtn').addEventListener('click', async () => {
-        // UŻYCIE: fetchWithAuth dla POST
         try {
           await fetchWithAuth('/api/auth/logout', { method: 'POST' });
         } catch (e) {
@@ -77,7 +73,6 @@ async function loadNotifications() {
       badge.style.display = 'none';
     }
 
-    // Pokaż dzwoneczek
     btn.style.display = 'block';
 
     if (notifications.length === 0) {
@@ -108,7 +103,6 @@ async function loadNotifications() {
     const markReadBtn = document.getElementById('markAllReadBtn');
     if (markReadBtn) {
       markReadBtn.onclick = async () => {
-        // UŻYCIE: fetchWithAuth dla POST
         await fetchWithAuth('/api/user/notifications/read-all', { method: 'POST' });
         loadNotifications();
       };
@@ -122,7 +116,6 @@ async function loadNotifications() {
 
 window.handleNotificationClick = async (id, link, isRead) => {
   if (isRead === 0) {
-    // UŻYCIE: fetchWithAuth dla POST
     await fetchWithAuth(`/api/user/notifications/${id}/read`, { method: 'POST' });
   }
   if (link && link !== '#') {
@@ -166,7 +159,6 @@ async function loadPendingComments() {
 window.approveComment = async (id) => {
   if (!confirm('Zatwierdzić?')) return;
   try {
-    // UŻYCIE: fetchWithAuth dla POST
     await fetchWithAuth(`/api/forum/comments/${id}/approve`, { method: 'POST' });
     loadPendingComments();
   } catch (e) { alert('Błąd zatwierdzania: ' + e.message); }
@@ -175,7 +167,6 @@ window.approveComment = async (id) => {
 window.rejectComment = async (id) => {
   if (!confirm('Odrzucić?')) return;
   try {
-    // UŻYCIE: fetchWithAuth dla POST
     await fetchWithAuth(`/api/forum/comments/${id}/reject`, { method: 'POST' });
     loadPendingComments();
   } catch (e) { alert('Błąd odrzucania: ' + e.message); }
@@ -187,15 +178,11 @@ window.editAndApprove = async (id, oldContent) => {
   if (newContent === oldContent) return approveComment(id);
 
   try {
-    // UŻYCIE: fetchWithAuth dla PUT
     const res = await fetchWithAuth(`/api/forum/comments/${id}`, {
       method: 'PUT',
       body: JSON.stringify({ content: newContent })
     });
 
-    // fetchWithAuth wyrzuci błąd, jeśli status != 200, więc wystarczy sprawdzić powodzenie
-
-    // UŻYCIE: fetchWithAuth dla POST
     await fetchWithAuth(`/api/forum/comments/${id}/approve`, { method: 'POST' });
 
     alert('✅ Edycja i zatwierdzenie udane!');

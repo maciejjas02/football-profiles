@@ -3,15 +3,16 @@ import { fetchWithAuth, getCurrentUser, handleLogout } from './utils/api-client.
 
 let currentUser = null;
 let editingPostId = null;
+let allowedCategoryIds = [];
 
 async function init() {
   await setupAuth();
-  await loadCategories();
+  await loadAllowedCategories();
   await loadPendingPosts();
   await loadMyPosts();
   initEditor();
   setupEventListeners();
-  // Ładowanie powiadomień
+
   if (currentUser) {
     await loadNotifications();
   }
@@ -149,12 +150,22 @@ function initEditor() {
   });
 }
 
-async function loadCategories() {
+async function loadAllowedCategories() {
   try {
-    const categories = await fetchWithAuth('/api/forum/categories');
-    document.getElementById('postCategory').innerHTML = '<option value="">Wybierz...</option>' +
-      categories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
-  } catch (error) { console.error('Błąd ładowania kategorii:', error); }
+    const categories = await fetchWithAuth('/api/forum/my-allowed-categories');
+    allowedCategoryIds = categories.map(c => c.id);
+
+    const select = document.getElementById('postCategory');
+    if (categories.length === 0) {
+      select.innerHTML = '<option value="">Brak przypisanych kategorii (skontaktuj się z Adminem)</option>';
+    } else {
+      select.innerHTML = '<option value="">Wybierz kategorię...</option>' +
+        categories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
+    }
+  } catch (error) {
+    console.error('Błąd ładowania kategorii:', error);
+    document.getElementById('postCategory').innerHTML = '<option>Błąd ładowania</option>';
+  }
 }
 
 async function loadPendingPosts() {
@@ -171,7 +182,7 @@ async function loadPendingPosts() {
 
     list.innerHTML = posts.map(p => `
       <div class="pending-item" style="background:rgba(255,255,255,0.05); padding:15px; border-radius:8px; margin-bottom:10px; border: 1px solid var(--border-color);">
-        <h3 style="margin-top:0; font-size:16px; color:#FFD700;">${p.title}</h3>
+        <h3 style="margin-top:0; font-size:16px; color:var(--primary-color);">${p.title}</h3>
         <div style="margin:5px 0; font-size:12px; color:#888;">Autor: ${p.author_username} | Kategoria: ${p.category_name}</div>
         
         <div style="background:rgba(0,0,0,0.3); padding:10px; margin:10px 0; border-radius:4px; max-height:150px; overflow:auto; font-size:13px;">
@@ -198,26 +209,47 @@ async function loadMyPosts() {
       return;
     }
 
-    list.innerHTML = allPosts.map(p => `
+    list.innerHTML = allPosts.map(p => {
+      const canManage = allowedCategoryIds.includes(p.category_id) || currentUser.role === 'admin';
+
+      let actionButtons = '';
+      if (canManage) {
+        actionButtons = `
+          <button onclick="startEdit(${p.id})" class="btn btn-primary btn-sm" style="flex:1;">✏️ Edytuj</button>
+          <button onclick="window.open('post.html?id=${p.id}', '_blank')" class="btn btn-secondary btn-sm" style="flex:1;">👁️</button>
+          <button onclick="deletePost(${p.id})" class="btn btn-danger btn-sm" style="width:30px;">🗑️</button>
+        `;
+      } else {
+        actionButtons = `
+          <span style="font-size:12px; color:#666; padding: 5px;">Brak uprawnień do edycji</span>
+          <button onclick="window.open('post.html?id=${p.id}', '_blank')" class="btn btn-secondary btn-sm" style="margin-left:auto;">👁️ Podgląd</button>
+        `;
+      }
+
+      return `
         <div class="my-post-item" style="background:rgba(255,255,255,0.05); border:1px solid var(--border-color); padding:15px; border-radius:8px; margin-bottom:10px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
               <h3 style="margin:0; font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width: 200px;">${p.title}</h3>
               <span style="color:#4ade80; font-size:11px; border:1px solid #4ade80; padding:2px 6px; border-radius:4px;">Opublikowany</span>
           </div>
           <div style="font-size:12px; color:#888; margin-bottom:10px;">Kat: ${p.category_name || '-'} | Autor: ${p.author_username}</div>
-          <div style="display:flex; gap:10px;">
-              <button onclick="startEdit(${p.id})" class="btn btn-primary btn-sm" style="flex:1;">✏️ Edytuj</button>
-              <button onclick="window.open('post.html?id=${p.id}', '_blank')" class="btn btn-secondary btn-sm" style="flex:1;">👁️</button>
-              <button onclick="deletePost(${p.id})" class="btn btn-danger btn-sm" style="width:30px;">🗑️</button>
+          <div style="display:flex; gap:10px; align-items: center;">
+              ${actionButtons}
           </div>
         </div>
-      `).join('');
+      `;
+    }).join('');
   } catch (error) { console.error('Błąd my posts:', error); }
 }
 
 window.startEdit = async (id) => {
   try {
     const post = await fetchWithAuth(`/api/forum/posts/${id}`);
+
+    if (!allowedCategoryIds.includes(post.category_id) && currentUser.role !== 'admin') {
+      alert("Nie masz uprawnień do edycji postów z tej kategorii.");
+      return;
+    }
 
     document.getElementById('postTitle').value = post.title;
     document.getElementById('postCategory').value = post.category_id;
@@ -267,7 +299,6 @@ function setupEventListeners() {
     formData.append('image', file);
 
     try {
-      // fetchWithAuth obsługuje FormData poprawnie (nie ustawia Content-Type, dodaje CSRF)
       const data = await fetchWithAuth('/api/forum/upload', { method: 'POST', body: formData });
 
       const imgHtml = `<img src="${data.location}" alt="Obrazek" style="max-width:100%; height:auto; border-radius:8px; margin:10px 0;" />`;
@@ -299,6 +330,10 @@ function setupEventListeners() {
     const content = document.getElementById('postContent').value;
 
     if (!title || !category_id || !content) return alert('Wypełnij wszystkie pola!');
+
+    if (!allowedCategoryIds.includes(parseInt(category_id)) && currentUser.role !== 'admin') {
+      return alert('Nie masz uprawnień do tworzenia postów w tej kategorii.');
+    }
 
     const isEdit = editingPostId !== null;
     const url = isEdit ? `/api/forum/posts/${editingPostId}` : '/api/forum/posts';

@@ -22,18 +22,15 @@ async function init() {
 
   const checkoutBtn = document.getElementById('checkoutBtn');
   if (checkoutBtn) {
-    // Usuwamy stare listenery (na wszelki wypadek) i dodajemy nowy
     const newBtn = checkoutBtn.cloneNode(true);
     checkoutBtn.parentNode.replaceChild(newBtn, checkoutBtn);
 
     newBtn.addEventListener('click', (e) => {
       e.preventDefault();
-      console.log("Kliknięto przycisk Checkout");
       checkout();
     });
   }
 
-  // Obsługa przycisku "Mój adres dostawy"
   const editAddressBtn = document.getElementById('editAddressBtn');
   if (editAddressBtn) {
     editAddressBtn.addEventListener('click', async () => {
@@ -60,7 +57,7 @@ async function init() {
   }
 }
 
-// --- LOGIKA ZAMÓWIENIA (CHECKOUT) ---
+// --- LOGIKA ZAMÓWIENIA ---
 async function checkout() {
   const btn = document.getElementById('checkoutBtn');
   console.log("Rozpoczynam procedurę checkout...");
@@ -71,25 +68,23 @@ async function checkout() {
     return;
   }
 
-  // 1. Sprawdzenie adresu (MIN)
   if (!user.address || !user.city || !user.postal_code) {
     console.log("Brak adresu, otwieram modal...");
     const wantToFill = await showConfirm("Brak adresu", "Aby zamówić, musisz uzupełnić adres dostawy. Czy chcesz to zrobić teraz?");
     if (!wantToFill) return;
 
     const addressData = await openAddressModal(user);
-    if (!addressData) return; // Anulowano
+    if (!addressData) return;
 
     try {
       await fetchWithAuth('/api/user/address', { method: 'PUT', body: JSON.stringify(addressData) });
-      user = await refreshUserData(); // Odśwież dane usera
+      user = await refreshUserData();
       showToast("Adres zapisany!", "success");
     } catch (e) {
       return showToast("Błąd zapisu adresu: " + e.message, "error");
     }
   }
 
-  // 2. Potwierdzenie
   const confirmed = await showConfirm("Potwierdzenie", "Czy na pewno chcesz złożyć zamówienie z obowiązkiem zapłaty?");
   if (!confirmed) {
     console.log("Anulowano checkout.");
@@ -106,18 +101,13 @@ async function checkout() {
 
     showToast("✅ Zamówienie złożone! Sprawdź e-mail.", 'success');
 
-    // Odśwież widok
     await loadCart();
     await loadPurchases();
 
-    // 4. Automatyczne przejście do płatności (Sandbox +1.0)
-    // Czekamy chwilę, żeby UI się odświeżyło
     setTimeout(async () => {
       if (await showConfirm("Płatność", "Czy chcesz opłacić zamówienie teraz (Sandbox BLIK)?")) {
-        // Znajdź najnowsze zamówienie
         const purchases = await fetchWithAuth('/api/user/purchases');
         if (purchases.length > 0) {
-          // Sortujemy, żeby wziąć najnowsze (po dacie)
           purchases.sort((a, b) => new Date(b.purchase_date) - new Date(a.purchase_date));
           const latestDate = purchases[0].purchase_date;
           await window.payForOrderGroup(latestDate);
@@ -134,7 +124,7 @@ async function checkout() {
   }
 }
 
-// --- MODALE (Pomocnicze) ---
+// --- MODALE ---
 function openAddressModal(currentData) {
   return new Promise((resolve) => {
     const modal = document.getElementById('addressModal');
@@ -151,7 +141,6 @@ function openAddressModal(currentData) {
     }
     modal.style.display = 'flex'; setTimeout(() => modal.style.opacity = '1', 10);
 
-    // Klonujemy przyciski, aby usunąć stare listenery
     const newConfirm = confirmBtn.cloneNode(true);
     const newCancel = cancelBtn.cloneNode(true);
     confirmBtn.parentNode.replaceChild(newConfirm, confirmBtn);
@@ -275,8 +264,6 @@ async function loadCart() {
     }).join('');
 
     amountEl.textContent = total;
-    // WAŻNE: Upewnij się, że przycisk jest widoczny, ale nie ma inline-style block, który nadpisuje
-    // Po prostu usuwamy display:none
     checkoutBtn.style.display = '';
     totalEl.style.display = 'block';
   } catch (e) { list.innerHTML = '<div class="error-state">Błąd koszyka</div>'; }
@@ -349,7 +336,7 @@ async function loadPurchases() {
   } catch (e) { list.innerHTML = 'Błąd historii.'; }
 }
 
-// --- NOTIFICATIONS (Skrócone, bo były w poprzednich krokach) ---
+// --- NOTIFICATIONS ---
 async function loadNotifications() {
   const btn = document.getElementById('notificationsBtn');
   const badge = document.getElementById('notificationBadge');

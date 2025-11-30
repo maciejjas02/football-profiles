@@ -26,7 +26,6 @@ async function initGalleryUpload() {
 
 async function setupAuth() {
     try {
-        // Używamy helpera z api-client
         currentUser = await getCurrentUser();
 
         if (!currentUser) {
@@ -42,7 +41,6 @@ async function setupAuth() {
             return;
         }
 
-        // Nawigacja dla admina/moderatora
         if (currentUser.role === 'admin') {
             const adminLink = document.getElementById('adminLink');
             if (adminLink) adminLink.style.display = 'block';
@@ -77,7 +75,7 @@ async function loadImages() {
     if (!imagesGrid) return;
 
     try {
-        // Używamy fetchWithAuth (GET też obsłuży poprawnie)
+
         const data = await fetchWithAuth('/api/gallery/images?t=' + Date.now());
         loadedImages = data;
 
@@ -86,7 +84,6 @@ async function loadImages() {
             return;
         }
 
-        // Generowanie widoku listy
         imagesGrid.innerHTML = loadedImages.map(img => {
             const fullDesc = img.description || '';
             const truncatedDesc = fullDesc.length > 100
@@ -211,7 +208,6 @@ if (submitBtn) {
             submitBtn.disabled = true;
 
             try {
-                // Używamy fetchWithAuth - doda CSRF i ustawi JSON Content-Type
                 await fetchWithAuth(`/api/gallery/images/${editingImageId}`, {
                     method: 'PUT',
                     body: JSON.stringify({ title, description })
@@ -240,8 +236,7 @@ if (submitBtn) {
         submitBtn.disabled = true;
 
         try {
-            // WAŻNE: fetchWithAuth wykryje FormData i NIE ustawi Content-Type: application/json
-            // oraz doda CSRF token.
+
             await fetchWithAuth('/api/gallery/upload', {
                 method: 'POST',
                 body: formData

@@ -1,6 +1,5 @@
 // public/utils/ui.js
 
-// Funkcja Toast (powiadomienie w rogu)
 export function showToast(message, type = 'info') {
     let container = document.getElementById('toast-container');
     if (!container) {
@@ -13,7 +12,6 @@ export function showToast(message, type = 'info') {
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
 
-    // Ikony dla typów
     let icon = 'ℹ️';
     if (type === 'success') icon = '✅';
     if (type === 'error') icon = '❌';
@@ -26,18 +24,16 @@ export function showToast(message, type = 'info') {
 
     container.appendChild(toast);
 
-    // Animacja wyjścia
     setTimeout(() => {
         toast.style.animation = 'slideOutRight 0.3s ease forwards';
         setTimeout(() => toast.remove(), 300);
     }, 3500);
 }
 
-// Funkcja Modal (Potwierdzenie Tak/Nie)
 export function showConfirm(title, message) {
     return new Promise((resolve) => {
         const overlay = document.createElement('div');
-        overlay.className = 'custom-modal-overlay'; // Musi pasować do CSS
+        overlay.className = 'custom-modal-overlay';
 
         overlay.innerHTML = `
             <div class="custom-modal">

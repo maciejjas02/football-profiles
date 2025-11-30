@@ -1,8 +1,7 @@
 // public/dashboard.js
 import { fetchWithAuth } from './utils/api-client.js';
-import './theme-manager.js'; // To wystarczy, by motywy działały!
+import './theme-manager.js';
 
-// Slider
 let currentSlide = 0;
 const slides = document.querySelectorAll('.slide');
 const sliderTrack = document.querySelector('.slider-track');
@@ -31,7 +30,6 @@ if (arrowLeft) arrowLeft.addEventListener('click', () => goToSlide(currentSlide 
 if (arrowRight) arrowRight.addEventListener('click', () => goToSlide(currentSlide + 1));
 setInterval(() => goToSlide(currentSlide + 1), 5000);
 
-// Dashboard Logic
 const playersSection = document.getElementById('players-section');
 const playersGrid = document.getElementById('players-grid');
 const sectionTitle = document.getElementById('section-title');

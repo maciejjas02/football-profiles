@@ -1,6 +1,5 @@
 // public/player.js
 import { showToast, showConfirm } from './utils/ui.js';
-// DODANO: Importujemy fetchWithAuth, który obsługuje tokeny CSRF
 import { fetchWithAuth } from './utils/api-client.js';
 
 const loading = document.getElementById('loading');
@@ -141,7 +140,6 @@ function showError() {
 
 function displayPlayer(p) {
     document.title = p.name;
-    // Poprawiony breadcrumb z linkiem
     document.getElementById('player-breadcrumb').innerHTML = p.name;
     document.getElementById('player-name').textContent = p.name;
     document.getElementById('player-team').textContent = p.team;
@@ -183,7 +181,6 @@ function displayPlayer(p) {
     playerContent.classList.remove('hidden');
 }
 
-// --- POPRAWIONA FUNKCJA KUPOWANIA (UŻYWA fetchWithAuth) ---
 async function buyJersey() {
     if (!currentUser) {
         showToast("Zaloguj się, aby dodać do koszyka!", 'error');
@@ -196,14 +193,11 @@ async function buyJersey() {
     btn.disabled = true;
 
     try {
-        // ZMIANA: Używamy fetchWithAuth zamiast zwykłego fetch
-        // fetchWithAuth automatycznie dodaje token CSRF i rzuca błąd, jeśli status != 200
         const data = await fetchWithAuth('/api/cart', {
             method: 'POST',
             body: JSON.stringify({ playerId: currentPlayer.id })
         });
 
-        // Jeśli kod dotarł tutaj, to znaczy że sukces (nie trzeba sprawdzać res.ok)
         showToast("Produkt pomyślnie dodany do koszyka!", 'success');
 
         btn.textContent = "✅ Dodano!";
@@ -225,7 +219,6 @@ async function buyJersey() {
         }
 
     } catch (e) {
-        // fetchWithAuth rzuca błędy, które łapiemy tutaj
         console.error(e);
         showToast("Błąd: " + (e.message || "Nie udało się dodać do koszyka"), 'error');
         btn.disabled = false;

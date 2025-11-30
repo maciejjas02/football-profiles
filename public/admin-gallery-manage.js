@@ -11,7 +11,6 @@ async function init() {
     await loadAvailableImages();
     setupEventListeners();
 
-    // Dodano: ładowanie powiadomień
     if (currentUser) {
         await loadNotifications();
     }
@@ -26,13 +25,11 @@ async function setupAuth() {
             return;
         }
 
-        // Sprawdzenie uprawnień
         if (currentUser.role !== 'admin' && currentUser.role !== 'moderator') {
             window.location.href = 'dashboard.html';
             return;
         }
 
-        // Logika odkrywania linków w menu
         if (currentUser.role === 'admin' || currentUser.role === 'moderator') {
             const ordersLink = document.getElementById('ordersLink');
             const modLink = document.getElementById('moderatorLink');
@@ -79,7 +76,6 @@ async function loadNotifications() {
             badge.style.display = 'none';
         }
 
-        // Pokaż dzwoneczek
         btn.style.display = 'block';
 
         if (notifications.length === 0) {
@@ -133,7 +129,6 @@ window.handleNotificationClick = async (id, link, isRead) => {
 };
 // --- KONIEC POWIADOMIEŃ ---
 
-// Ładowanie listy kolekcji
 async function loadCollections() {
     const list = document.getElementById('collectionsList');
     list.innerHTML = '<div class="loading">Ładowanie kolekcji...</div>';
@@ -160,7 +155,6 @@ async function loadCollections() {
     } catch (e) { list.innerHTML = '<div class="error-state">Błąd ładowania kolekcji.</div>'; }
 }
 
-// Ładowanie dostępnych obrazów do selektora
 async function loadAvailableImages() {
     const select = document.getElementById('availableImagesSelect');
     select.innerHTML = '<option value="">Ładowanie obrazów...</option>';
@@ -266,7 +260,6 @@ function setupEventListeners() {
         try {
             await fetchWithAuth('/api/gallery/collections', {
                 method: 'POST',
-                // fetchWithAuth automatycznie ustawi Content-Type: application/json
                 body: JSON.stringify({ name, description })
             });
             alert('✅ Kolekcja utworzona!');

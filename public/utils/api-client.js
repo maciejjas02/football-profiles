@@ -1,8 +1,5 @@
 // public/utils/api-client.js
-
-// Pominięto zaawansowany cache PlayerCache, by utrzymać minimalizm
 const apiClient = {
-    // Mock Cache - nieużywany, ale zachowany dla kompatybilności
     cache: {
         get: () => null,
         set: () => { },
@@ -21,7 +18,6 @@ const apiClient = {
             });
 
             if (!response.ok) {
-                // Rzuć błąd, aby obsłużyć 401, 403, 404, 500
                 const errorData = await response.json().catch(() => ({ error: response.statusText }));
                 throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
             }
@@ -47,7 +43,6 @@ const apiClient = {
             }
         });
 
-        // Wyczyść cache (mock)
         this.cache.clear();
         return result;
     }
@@ -59,13 +54,12 @@ export async function fetchWithAuth(endpoint, options = {}) {
         ...options.headers
     };
 
-    // WAŻNE: Tylko dodaj Content-Type: application/json, jeśli NIE jest to FormData.
-    // Dla FormData przeglądarka musi sama ustawić boundary.
+
     if (!(options.body instanceof FormData)) {
         headers['Content-Type'] = 'application/json';
     }
 
-    // Automatycznie dodaj CSRF token dla metod zmieniających stan (POST, PUT, DELETE)
+
     if (options.method !== 'GET' && options.method !== 'HEAD' && !headers['CSRF-Token']) {
         const token = await getCsrfToken();
         if (token) {

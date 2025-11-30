@@ -52,7 +52,6 @@ function restoreFormFields() {
     });
 }
 
-// Inicjalizacja nasłuchiwania zmian
 autoSaveFields.forEach(id => {
     const el = document.getElementById(id);
     if (el) {
@@ -62,7 +61,6 @@ autoSaveFields.forEach(id => {
     }
 });
 
-// Przywróć dane przy starcie
 restoreFormFields();
 
 function clearAutoSave() {
@@ -75,7 +73,7 @@ function setupPasswordToggle(btnId, inputId) {
     const input = document.getElementById(inputId);
     if (btn && input) {
         btn.addEventListener('click', (e) => {
-            e.preventDefault(); // Zapobiegaj wysłaniu formularza
+            e.preventDefault();
             const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
             input.setAttribute('type', type);
             btn.textContent = type === 'password' ? '👁️' : '🔒';
@@ -85,8 +83,8 @@ function setupPasswordToggle(btnId, inputId) {
 
 // Konfiguracja oczek
 setupPasswordToggle('togglePw', 'password');           // Logowanie
-setupPasswordToggle('toggleRegPw', 'reg_password');    // Rejestracja - hasło 1
-setupPasswordToggle('toggleRegPw2', 'reg_password2');  // Rejestracja - powtórz hasło
+setupPasswordToggle('toggleRegPw', 'reg_password');    // Rejestracja1
+setupPasswordToggle('toggleRegPw2', 'reg_password2');  // Rejestracja2
 
 // --- WSKAŹNIK SIŁY HASŁA ---
 function updateRequirement(id, valid) {
@@ -226,7 +224,7 @@ if (regForm) {
     });
 }
 
-// --- INICJALIZACJA: Sprawdzenie stanu logowania i opcjonalne przekierowanie ---
+// --- INICJALIZACJA---
 (async () => {
     try {
         const res = await fetch('/api/auth/me');

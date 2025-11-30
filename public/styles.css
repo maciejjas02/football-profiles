@@ -1,20 +1,17 @@
 ﻿/* ========================
-   Football Profiles - FIXED Layout & Theme
+   Football Profiles
    ======================== */
 
 :root {
-  /* --- GŁÓWNE KOLORY (HEX) --- */
+  /* --- GŁÓWNE KOLORY --- */
   --primary-color: var(--primary-color);
-  /* Złoty */
   --secondary-color: var(--secondary-color);
-  /* Ciemne złoto */
 
   --bg-gradient-start: var(--bg-gradient-start);
   --bg-gradient-end: var(--bg-gradient-end);
   --text-color: var(--text-color);
 
-  /* --- WAŻNE: KOLORY RGB (Dla przezroczystości/Glassmorphism) --- */
-  /* Bez tego tła kafelków będą niewidoczne! */
+  /* --- WAŻNE: KOLORY RGB --- */
   --primary-rgb: var(--primary-rgb);
   --secondary-rgb: var(--secondary-rgb);
 
@@ -351,14 +348,12 @@ body::before {
 .hero h1 {
   font-size: 40px;
   font-weight: 800;
-  /* ZMIANA: Użycie zmiennej tekstu */
   color: var(--text-color);
   margin-bottom: 10px;
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
 .hero h1 span {
-  /* ZMIANA: Gradient z kolorów motywu */
   background: linear-gradient(45deg, var(--secondary-color), var(--primary-color), var(--secondary-color));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -376,26 +371,21 @@ body::before {
 .bullets {
   list-style: disc;
   padding-left: 22px;
-  /* Opcjonalnie: zmiana na var(--text-color) jeśli tło jest ciemne */
   color: var(--text-color);
 }
 
 .card {
   width: 360px;
-  /* ZMIANA: Zmienna systemowa dla tła karty */
   background: var(--glass-bg);
-  /* ZMIANA: Ramka w kolorze Secondary RGB */
   border: 1px solid rgba(var(--secondary-rgb), 0.3);
   border-radius: 8px;
   padding: 24px 28px;
-  /* ZMIANA: Cień w kolorze Secondary RGB */
   box-shadow: 0 4px 20px rgba(var(--secondary-rgb), 0.2);
   backdrop-filter: blur(10px);
 }
 
 .card h2 {
   margin-bottom: 8px;
-  /* ZMIANA: Kolor Primary */
   color: var(--primary-color);
   text-shadow: 0 0 10px rgba(var(--secondary-rgb), 0.3);
 }
@@ -413,7 +403,6 @@ label {
   font-weight: 600;
   margin-top: 10px;
   margin-bottom: 4px;
-  /* ZMIANA: Kolor Primary */
   color: var(--primary-color);
 }
 
@@ -423,10 +412,8 @@ input[type="password"] {
   width: 100%;
   padding: 10px 12px;
   font-size: 15px;
-  /* ZMIANA: Ramka Secondary */
   border: 1px solid rgba(var(--secondary-rgb), 0.4);
   border-radius: 5px;
-  /* ZMIANA: Tło inputa */
   background: var(--input-bg);
   color: var(--text-color);
   transition: all 0.3s ease;
@@ -436,7 +423,6 @@ input[type="text"]:focus,
 input[type="email"]:focus,
 input[type="password"]:focus {
   outline: none;
-  /* ZMIANA: Aktywny kolor Primary */
   border-color: var(--primary-color);
   box-shadow: 0 0 15px rgba(var(--secondary-rgb), 0.3);
 }
@@ -458,7 +444,6 @@ input:focus {
 }
 
 .error {
-  /* ZMIANA: Użycie systemowej zmiennej danger */
   color: var(--danger-color, #dc3545);
   margin-top: 8px;
   min-height: 18px;
@@ -486,7 +471,6 @@ input:focus {
 }
 
 .link {
-  /* ZMIANA: Link w kolorze Primary zamiast sztywnego niebieskiego */
   color: var(--primary-color);
   font-size: 14px;
   text-decoration: none;
@@ -535,7 +519,6 @@ input:focus {
 
 /* ---------- FORUM STYLES ---------- */
 
-/* Topbar for Forum */
 .topbar {
   position: relative;
 }
@@ -631,7 +614,7 @@ input:focus {
 }
 
 /* =====================================================
-   PAGE HEADER & TITLE
+   PAGE HEADER & TUTUŁ
    ===================================================== */
 .page-header {
   margin-bottom: 40px;
@@ -688,7 +671,6 @@ input:focus {
   font-weight: 600;
 }
 
-/* Notifications */
 .icon-button {
   position: relative;
   background: transparent;
@@ -813,7 +795,6 @@ input:focus {
   opacity: 0.5;
 }
 
-/* Categories Grid */
 .forum-categories {
   margin-bottom: 40px;
 }
@@ -861,7 +842,6 @@ input:focus {
   opacity: 0.6;
 }
 
-/* Posts */
 .forum-posts {
   margin-top: 40px;
 }
@@ -966,7 +946,6 @@ input:focus {
   font-size: 16px;
 }
 
-/* Pagination */
 .pagination {
   display: flex;
   justify-content: center;
@@ -987,7 +966,6 @@ input:focus {
   opacity: 0.7;
 }
 
-/* Post Detail Page */
 .post-detail {
   background: var(--card-bg);
   border: 1px solid var(--glass-border);
@@ -1062,7 +1040,6 @@ input:focus {
   opacity: 0.5;
 }
 
-/* Comment Form */
 .comment-form-section {
   background: var(--card-bg);
   border: 1px solid var(--glass-border);
@@ -1107,7 +1084,6 @@ input:focus {
   margin: 0;
 }
 
-/* Comments */
 .comments-section {
   margin-bottom: 30px;
 }
@@ -1243,7 +1219,6 @@ input:focus {
   opacity: 0.5;
 }
 
-/* Discussion */
 .discussion-section {
   background: var(--card-bg);
   border: 1px solid var(--glass-border);
@@ -1311,7 +1286,6 @@ input:focus {
   text-align: center;
 }
 
-/* Admin/Moderator Panels */
 .admin-panel {
   background: var(--card-bg);
   border: 1px solid var(--glass-border);
@@ -1376,7 +1350,6 @@ input:focus {
   margin-bottom: 20px;
 }
 
-/* Pending Items */
 .pending-list {
   display: flex;
   flex-direction: column;
@@ -1433,7 +1406,6 @@ input:focus {
   flex-wrap: wrap;
 }
 
-/* My Posts */
 .my-posts-list {
   display: flex;
   flex-direction: column;
@@ -1497,7 +1469,6 @@ input:focus {
   margin-top: 10px;
 }
 
-/* Pending Comments */
 .pending-comments-list {
   display: flex;
   flex-direction: column;
@@ -1562,7 +1533,6 @@ input:focus {
   flex-wrap: wrap;
 }
 
-/* Categories Table */
 .data-table {
   width: 100%;
   border-collapse: collapse;
@@ -1595,7 +1565,6 @@ input:focus {
   color: var(--primary-color);
 }
 
-/* Moderators List */
 .moderators-list {
   display: flex;
   flex-direction: column;
@@ -1613,7 +1582,6 @@ input:focus {
   border: 1px solid var(--glass-border);
 }
 
-/* Button variants */
 .btn-sm {
   padding: 6px 12px;
   font-size: 13px;
@@ -1963,7 +1931,6 @@ input:focus {
   filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.8));
 }
 
-/* SEKCJA ZAWODNIKÓW */
 .players-section {
   background: var(--glass-bg);
   backdrop-filter: blur(15px);
@@ -2005,7 +1972,6 @@ input:focus {
   gap: 20px;
 }
 
-/* LEAGUES GRID */
 .leagues-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -2179,7 +2145,6 @@ input:focus {
   border: 1px solid var(--glass-border);
 }
 
-/* KOMPAKTOWA INFORMACJA O UŻYTKOWNIKU */
 .user-info-compact {
   position: fixed;
   bottom: 20px;
@@ -2205,7 +2170,6 @@ input:focus {
   height: 40px;
   border-radius: 50%;
   background: linear-gradient(135deg, #667eea, #764ba2);
-  /* Można zostawić unikalny gradient lub dać var */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2274,7 +2238,6 @@ input:focus {
   }
 }
 
-/* PLAYER PROFILE STYLES */
 .loading-state {
   display: flex;
   flex-direction: column;
@@ -2635,7 +2598,6 @@ input:focus {
   font-size: 16px;
 }
 
-/* RESPONSIVE PLAYER PROFILE */
 @media (max-width: 900px) {
   .profile-header {
     grid-template-columns: 1fr;
@@ -2689,7 +2651,6 @@ input:focus {
   }
 }
 
-/* Empty collection message */
 .empty-collection-message {
   color: var(--text-color);
   opacity: 0.7;
@@ -2699,10 +2660,8 @@ input:focus {
 
 /* ===== COMMENTS SECTION ===== */
 .comments-section {
-  /* ZMIANA: Tło karty */
   background: var(--card-bg);
   backdrop-filter: blur(15px);
-  /* ZMIANA: Ramka Secondary RGB */
   border: 1px solid rgba(var(--secondary-rgb), 0.3);
   border-radius: 20px;
   padding: 30px;
@@ -2710,12 +2669,10 @@ input:focus {
 }
 
 .comments-section h2 {
-  /* ZMIANA: Kolor Primary */
   color: var(--primary-color);
   font-size: 24px;
   font-weight: 700;
   margin-bottom: 24px;
-  /* ZMIANA: Cień Secondary RGB */
   text-shadow: 0 2px 8px rgba(var(--secondary-rgb), 0.5);
 }
 
@@ -2725,9 +2682,7 @@ input:focus {
 
 #comment-input {
   width: 100%;
-  /* ZMIANA: Tło inputa */
   background: var(--input-bg);
-  /* ZMIANA: Ramka Secondary RGB */
   border: 2px solid rgba(var(--secondary-rgb), 0.3);
   border-radius: 12px;
   padding: 16px;
@@ -2740,7 +2695,6 @@ input:focus {
 
 #comment-input:focus {
   outline: none;
-  /* ZMIANA: Ramka Primary */
   border-color: var(--primary-color);
   box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
 }
@@ -2770,9 +2724,7 @@ input:focus {
 }
 
 .comment-card {
-  /* ZMIANA: Tło karty (ciemniejsze/jaśniejsze zależnie od opacity) */
   background: rgba(0, 0, 0, 0.4);
-  /* Można użyć var(--card-bg) */
   border: 1px solid rgba(var(--secondary-rgb), 0.2);
   border-radius: 12px;
   padding: 20px;
@@ -2800,7 +2752,6 @@ input:focus {
 .comment-avatar {
   width: 32px;
   height: 32px;
-  /* ZMIANA: Gradient z kolorów motywu */
   background: linear-gradient(135deg, var(--secondary-color) 0%, var(--primary-color) 100%);
   border-radius: 50%;
   display: flex;
@@ -2847,7 +2798,6 @@ input:focus {
   font-size: 16px;
 }
 
-/* Player Rating Section */
 .player-rating-section {
   background: var(--card-bg);
   backdrop-filter: blur(10px);
@@ -2898,14 +2848,12 @@ input:focus {
 }
 
 .like-btn.active {
-  /* ZMIANA: Zmienna Success */
   color: var(--success-color);
   border-color: var(--success-color);
   background: rgba(40, 167, 69, 0.1);
 }
 
 .dislike-btn.active {
-  /* ZMIANA: Zmienna Danger */
   color: var(--danger-color);
   border-color: var(--danger-color);
   background: rgba(220, 53, 69, 0.1);
@@ -2921,7 +2869,6 @@ input:focus {
   width: 100%;
   height: 40px;
   background: rgba(220, 53, 69, 0.3);
-  /* Base red transparent */
   border-radius: 20px;
   overflow: hidden;
   box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
@@ -2932,7 +2879,6 @@ input:focus {
   left: 0;
   top: 0;
   height: 100%;
-  /* ZMIANA: Gradient zielony (success) */
   background: linear-gradient(90deg, var(--success-color) 0%, #16a34a 100%);
   transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   border-radius: 20px 0 0 20px;
@@ -2956,11 +2902,9 @@ input:focus {
 .positive-percent,
 .negative-percent {
   color: #fff;
-  /* Na pasku postępu tekst zazwyczaj biały dla kontrastu */
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
-/* Comment Actions */
 .comment-actions {
   display: flex;
   gap: 12px;
@@ -3010,7 +2954,6 @@ input:focus {
   height: 16px;
 }
 
-/* Reply Button */
 .comment-reply-btn {
   color: var(--secondary-color);
   font-size: 13px;
@@ -3022,7 +2965,6 @@ input:focus {
   background: rgba(var(--secondary-rgb), 0.1);
 }
 
-/* Reply Form */
 .reply-form {
   margin-top: 12px;
   padding-top: 12px;
@@ -3083,7 +3025,6 @@ input:focus {
 }
 
 .btn-reply-submit {
-  /* ZMIANA: Gradient motywu */
   background: linear-gradient(135deg, var(--secondary-color) 0%, var(--primary-color) 100%);
   border: none;
   color: #000;
@@ -3107,7 +3048,6 @@ input:focus {
   opacity: 1;
 }
 
-/* Replies List */
 .replies-list {
   margin-top: 16px;
   padding-left: 40px;
@@ -3230,7 +3170,7 @@ input:focus {
    ENHANCED LOGIN/REGISTER FORM
    ========================================= */
 
-/* Password Strength Meter */
+
 .password-strength {
   margin-top: 8px;
   height: 4px;
@@ -3261,7 +3201,6 @@ input:focus {
   background: linear-gradient(90deg, var(--success-color), #16a34a);
 }
 
-/* Password Requirements */
 .password-requirements {
   margin-top: 12px;
   padding: 12px;
@@ -3313,9 +3252,7 @@ input:focus {
 }
 
 .admin-panel {
-  /* ZMIANA: Tło karty */
   background: var(--card-bg);
-  /* ZMIANA: Ramka Secondary RGB */
   border: 1px solid rgba(var(--secondary-rgb), 0.3);
   border-radius: 12px;
   padding: 40px;
@@ -3325,14 +3262,12 @@ input:focus {
 .admin-panel h2 {
   font-size: 24px;
   font-weight: 600;
-  /* ZMIANA: Kolor Primary */
   color: var(--primary-color);
   margin-bottom: 25px;
   padding-bottom: 15px;
   border-bottom: 2px solid rgba(var(--secondary-rgb), 0.2);
 }
 
-/* Form Styles */
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -3359,7 +3294,6 @@ input:focus {
   width: 100%;
   padding: 14px 18px;
   font-size: 15px;
-  /* ZMIANA: Tło inputa */
   background: var(--input-bg);
   border: 2px solid rgba(var(--secondary-rgb), 0.2);
   border-radius: 8px;
@@ -3371,7 +3305,6 @@ input:focus {
 .form-textarea:focus,
 .form-select:focus {
   outline: none;
-  /* ZMIANA: Ramka Primary */
   border-color: var(--primary-color);
   background: rgba(0, 0, 0, 0.4);
   box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
@@ -3386,15 +3319,12 @@ input:focus {
 .form-select {
   cursor: pointer;
   appearance: none;
-  /* ZMIANA: Strzałka SVG (trzeba by dynamicznie zmieniać, ale na razie zostawiam #FFD700 jako fallback lub można usunąć i dać default) 
-     Alternatywnie: Użyj po prostu var(--primary-color) w JS albo zostaw biały */
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23FFD700' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 15px center;
   padding-right: 40px;
 }
 
-/* Categories Table */
 .categories-table {
   margin-top: 20px;
 }
@@ -3435,7 +3365,6 @@ input:focus {
   gap: 10px;
 }
 
-/* Assignments List */
 .assignments-list {
   margin-top: 25px;
 }
@@ -3461,7 +3390,6 @@ input:focus {
   color: var(--primary-color);
 }
 
-/* Loading State */
 .loading {
   text-align: center;
   padding: 40px;
@@ -3473,14 +3401,12 @@ input:focus {
 .admin-panel h1 {
   font-size: 32px;
   margin-bottom: 10px;
-  /* ZMIANA: Gradient tytułu */
   background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-/* Upload Zone */
 .upload-zone {
   border: 3px dashed rgba(var(--secondary-rgb), 0.5);
   border-radius: 12px;
@@ -3515,7 +3441,6 @@ input:focus {
   margin: 0;
 }
 
-/* Preview */
 .preview-container {
   margin: 20px 0;
   text-align: center;
@@ -3528,7 +3453,6 @@ input:focus {
   border: 2px solid rgba(var(--secondary-rgb), 0.3);
 }
 
-/* Form Actions */
 .form-actions {
   display: flex;
   gap: 15px;
@@ -3539,12 +3463,10 @@ input:focus {
   flex: 1;
 }
 
-/* Success Message */
 .success {
   padding: 10px 12px;
   border-radius: 6px;
   background: rgba(34, 197, 94, 0.1);
-  /* Zielony transparent */
   border-left: 3px solid var(--success-color);
   color: var(--success-color);
   margin-top: 10px;
@@ -3562,7 +3484,6 @@ input:focus {
 .uploaded-section h2 {
   font-size: 24px;
   margin-bottom: 20px;
-  /* ZMIANA: Kolor Primary */
   color: var(--primary-color);
 }
 
@@ -3574,7 +3495,6 @@ input:focus {
 }
 
 .image-card {
-  /* ZMIANA: Tło karty */
   background: var(--card-bg);
   border: 1px solid var(--glass-border);
   border-radius: 8px;
@@ -3602,7 +3522,6 @@ input:focus {
 .image-info h3 {
   font-size: 16px;
   margin: 0 0 8px 0;
-  /* ZMIANA: Kolor Primary */
   color: var(--primary-color);
 }
 
@@ -3656,7 +3575,6 @@ input:focus {
   font-size: 18px;
 }
 
-/* Collections Grid (for admin manage page) */
 .collections-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -3675,7 +3593,6 @@ input:focus {
 .collection-card.active {
   border-color: var(--success-color);
   box-shadow: 0 0 20px rgba(40, 167, 69, 0.3);
-  /* Zmieniono na zieleń success */
 }
 
 .collection-card:hover {
@@ -3708,7 +3625,6 @@ input:focus {
   min-width: 100px;
 }
 
-/* Slider Items (for manage page drag&drop) */
 .slider-items {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -3766,7 +3682,6 @@ input:focus {
   font-size: 12px;
 }
 
-/* Slider Navigation */
 .slider-nav {
   display: flex;
   justify-content: center;
@@ -3818,7 +3733,6 @@ input:focus {
 #gallery-title {
   font-size: 3rem;
   font-weight: 800;
-  /* ZMIANA: Gradient z motywu */
   background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -3835,7 +3749,6 @@ input:focus {
   margin-bottom: 30px;
 }
 
-/* VIEWPORT */
 .gallery-viewport {
   overflow: hidden;
   padding: 50px 5px;
@@ -3843,7 +3756,6 @@ input:focus {
   width: calc(100% - 120px);
 }
 
-/* TRACK (Szyna) */
 .gallery-track {
   display: flex;
   width: 100%;
@@ -3858,7 +3770,6 @@ input:focus {
   transform: none !important;
 }
 
-/* --- KARTA (Single Item) --- */
 .gallery-item {
   flex: 0 0 33.333%;
   max-width: 33.333%;
@@ -3892,7 +3803,6 @@ input:focus {
   transform: scale(1.05);
   opacity: 1;
   filter: grayscale(0%);
-  /* ZMIANA: Ramka Primary */
   border: 2px solid var(--primary-color);
   box-shadow: 0 20px 50px rgba(var(--secondary-rgb), 0.25);
   z-index: 10;
@@ -3985,10 +3895,9 @@ input:focus {
 }
 
 /* =========================================
-   MODAL CZATU (ZGŁOSZENIA) - NOWE STYLE
+   MODAL CZATU 
    ========================================= */
 
-/* Tło pod modalem (rozmycie) */
 .chat-modal-overlay {
   position: fixed;
   top: 0;
@@ -4005,7 +3914,6 @@ input:focus {
 }
 
 .chat-modal-box {
-  /* ZMIANA: Tło karty */
   background: var(--card-bg);
   width: 500px;
   max-width: 95%;
@@ -4021,7 +3929,6 @@ input:focus {
 
 .chat-header {
   padding: 20px;
-  /* ZMIANA: Gradient nagłówka */
   background: linear-gradient(180deg, rgba(var(--secondary-rgb), 0.2) 0%, rgba(var(--secondary-rgb), 0.1) 100%);
   border-bottom: 1px solid var(--glass-border);
   display: flex;
@@ -4031,7 +3938,6 @@ input:focus {
 
 .chat-header h3 {
   margin: 0;
-  /* ZMIANA: Kolor Primary */
   color: var(--primary-color);
   font-size: 18px;
   font-weight: 600;
@@ -4076,10 +3982,8 @@ input:focus {
 
 .chat-bubble.me {
   align-self: flex-end;
-  /* ZMIANA: Gradient dymka użytkownika */
   background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
   color: #000;
-  /* Tekst ciemny na jasnym tle */
   border-bottom-right-radius: 2px;
   box-shadow: 0 4px 15px rgba(var(--primary-rgb), 0.2);
   font-weight: 500;
@@ -4087,7 +3991,6 @@ input:focus {
 
 .chat-bubble.other {
   align-self: flex-start;
-  /* ZMIANA: Tło dymka rozmówcy */
   background: var(--input-bg);
   color: var(--text-color);
   border-bottom-left-radius: 2px;
@@ -4100,7 +4003,6 @@ input:focus {
   opacity: 0.7;
   font-weight: 600;
   color: inherit;
-  /* Dziedziczy kolor tekstu dymka */
 }
 
 .chat-footer {
@@ -4128,9 +4030,7 @@ input:focus {
   border-color: var(--primary-color);
 }
 
-/* Przycisk Wyślij */
 .chat-send-btn {
-  /* ZMIANA: Tło Primary */
   background: var(--primary-color);
   color: black;
   font-weight: bold;
@@ -4142,7 +4042,6 @@ input:focus {
 }
 
 .chat-send-btn:hover {
-  /* ZMIANA: Jaśniejszy odcień (można użyć filter) */
   filter: brightness(1.2);
   transform: translateY(-1px);
 }
@@ -4173,15 +4072,12 @@ input:focus {
 }
 
 
-/* --- THEME SWITCHER (Prawy dolny róg) --- */
 .theme-selector-panel {
   position: fixed;
   bottom: 20px;
   left: 20px;
-  /* Po lewej stronie, żeby nie zasłaniać czatu/info */
   background: var(--card-bg);
   backdrop-filter: blur(10px);
-  /* ZMIANA: Ramka Secondary */
   border: 1px solid var(--secondary-color);
   padding: 15px;
   border-radius: 12px;
@@ -4214,7 +4110,6 @@ input:focus {
   cursor: pointer;
   transition: transform 0.2s, box-shadow 0.2s;
   position: relative;
-  /* Ramka przycisku */
   border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
@@ -4226,7 +4121,6 @@ input:focus {
 
 .theme-btn-circle.active {
   border: 2px solid #fff;
-  /* ZMIANA: Cień w kolorze Primary */
   box-shadow: 0 0 10px var(--primary-color);
 }
 
@@ -4236,7 +4130,6 @@ input:focus {
    ========================================= */
 
 body.login-page {
-  /* Nadpisujemy zmienne tylko dla tej podstrony */
   --primary-color: #FFD700;
   --secondary-color: #DAA520;
   --bg-gradient-start: #0a0a0a;
@@ -4251,11 +4144,9 @@ body.login-page {
   --glass-border: rgba(218, 165, 32, 0.3);
   --input-bg: rgba(0, 0, 0, 0.5);
 
-  /* Wymuszamy tło, żeby nie było wątpliwości */
   background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2d1f0f 100%) !important;
 }
 
-/* Poprawki specyficzne dla elementów na stronie logowania */
 body.login-page .card {
   border: 1px solid var(--secondary-color);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
@@ -4276,25 +4167,18 @@ body.login-page .topbar {
 }
 
 /* ==============================================
-   POPRAWKA DLA WYBIERAKÓW KOLORÓW (Admin Panel)
+   WYBIERAKI KOLORÓW 
    ============================================== */
 
-/* Resetujemy style .form-input dla inputów typu color */
 input[type="color"].form-input {
   padding: 0 !important;
-  /* Usuwamy wewnętrzny odstęp, który zgniatał kolor */
   background: transparent !important;
-  /* Usuwamy ciemne tło */
   height: 50px !important;
-  /* Wymuszamy wysokość, żeby kolor był widoczny */
   cursor: pointer;
   border: 2px solid var(--secondary-color);
-  /* Ramka w kolorze motywu */
   overflow: hidden;
-  /* Żeby kolor nie wychodził poza zaokrąglenia */
 }
 
-/* Specyficzne dla Chrome/Edge/Opera/Safari - rozciągnięcie próbki koloru */
 input[type="color"]::-webkit-color-swatch-wrapper {
   padding: 0;
 }
@@ -4302,10 +4186,8 @@ input[type="color"]::-webkit-color-swatch-wrapper {
 input[type="color"]::-webkit-color-swatch {
   border: none;
   border-radius: 6px;
-  /* Dopasowanie zaokrąglenia */
 }
 
-/* Specyficzne dla Firefoxa */
 input[type="color"]::-moz-color-swatch {
   border: none;
   border-radius: 6px;
@@ -4315,12 +4197,9 @@ input[type="color"]::-moz-color-swatch {
    NOWOCZESNE STYLE KOMENTARZY 
    ========================================= */
 
-/* Kontener formularza */
 .comment-form-section {
-  /* Tło zgodne z motywem (przezroczyste) */
   background: var(--card-bg);
   backdrop-filter: blur(10px);
-  /* Ramka w kolorze drugorzędnym */
   border: 1px solid var(--glass-border);
   border-radius: 16px;
   padding: 25px;
@@ -4331,7 +4210,6 @@ input[type="color"]::-moz-color-swatch {
 .comment-form-section h3 {
   margin-top: 0;
   margin-bottom: 15px;
-  /* Kolor nagłówka zgodny z motywem */
   color: var(--primary-color);
   font-size: 20px;
   font-weight: 700;
@@ -4339,17 +4217,12 @@ input[type="color"]::-moz-color-swatch {
   letter-spacing: 0.5px;
 }
 
-/* Pole tekstowe */
 #commentContent {
   width: 100%;
   min-height: 120px;
   padding: 15px;
-
-  /* Tło pola tekstowego (ciemne półprzezroczyste) */
   background-color: var(--input-bg);
   color: var(--text-color);
-
-  /* Ramka */
   border: 1px solid var(--glass-border);
   border-radius: 12px;
   font-family: 'Inter', sans-serif;
@@ -4363,7 +4236,6 @@ input[type="color"]::-moz-color-swatch {
 
 #commentContent:focus {
   outline: none;
-  /* Aktywna ramka w kolorze głównym */
   border-color: var(--primary-color);
   background-color: rgba(0, 0, 0, 0.6);
   box-shadow: 0 0 15px rgba(var(--primary-rgb), 0.2);
@@ -4374,7 +4246,6 @@ input[type="color"]::-moz-color-swatch {
   opacity: 0.5;
 }
 
-/* Przycisk wysyłania */
 #submitCommentBtn {
   margin-top: 15px;
   width: 100%;
@@ -4384,7 +4255,6 @@ input[type="color"]::-moz-color-swatch {
   border-radius: 8px;
   transition: transform 0.2s, box-shadow 0.2s;
 
-  /* Upewniamy się, że przycisk ma gradient motywu */
   background: linear-gradient(135deg, var(--secondary-color) 0%, var(--primary-color) 100%);
   color: #000;
   border: none;
@@ -4395,8 +4265,6 @@ input[type="color"]::-moz-color-swatch {
   box-shadow: 0 5px 20px rgba(var(--secondary-rgb), 0.4);
 }
 
-/* --- LISTA KOMENTARZY --- */
-
 .comments-section h3 {
   color: var(--primary-color);
   font-size: 22px;
@@ -4406,7 +4274,6 @@ input[type="color"]::-moz-color-swatch {
 }
 
 .comment-card {
-  /* Tło pojedynczego komentarza */
   background: var(--card-bg);
   border: 1px solid var(--glass-border);
   border-radius: 12px;
@@ -4428,20 +4295,17 @@ input[type="color"]::-moz-color-swatch {
 }
 
 .comment-header strong {
-  /* Nazwa autora */
   color: var(--primary-color);
   font-size: 16px;
 }
 
 .comment-header span {
-  /* Data */
   color: var(--text-color);
   opacity: 0.6;
   font-size: 12px;
 }
 
 .comment-content {
-  /* Treść komentarza */
   color: var(--text-color);
   opacity: 0.9;
   line-height: 1.6;
@@ -4456,9 +4320,6 @@ input[type="color"]::-moz-color-swatch {
   font-style: italic;
 }
 
-/* =========================================
-   MODAL CZATU (ZGŁOSZENIA)
-   ========================================= */
 .chat-modal-overlay {
   position: fixed;
   top: 0;
@@ -4574,11 +4435,6 @@ input[type="color"]::-moz-color-swatch {
   cursor: pointer;
 }
 
-/* =========================================
-   POPRAWKI DLA MY-COLLECTION (KOSZYK)
-   ========================================= */
-
-/* Naprawa tła paneli */
 .admin-panel.cart-panel,
 .admin-panel.history-panel {
   background: var(--card-bg);
@@ -4587,16 +4443,13 @@ input[type="color"]::-moz-color-swatch {
   padding: 30px;
 }
 
-/* Naprawa nagłówków w panelach */
 .admin-panel h2 {
   color: var(--primary-color);
   font-size: 24px;
   font-weight: 700;
   border-bottom: none;
-  /* Usuń ewentualną starą linię */
 }
 
-/* Siatka kart */
 .collection-grid {
   display: flex;
   flex-wrap: wrap;
@@ -4605,11 +4458,9 @@ input[type="color"]::-moz-color-swatch {
   width: 100%;
 }
 
-/* Karta produktu w koszyku */
 .jersey-card-item {
   width: 300px;
   background: var(--input-bg);
-  /* Ciemniejsze tło karty */
   border: 1px solid var(--glass-border);
   border-radius: 12px;
   overflow: hidden;
@@ -4625,7 +4476,6 @@ input[type="color"]::-moz-color-swatch {
   box-shadow: 0 10px 30px rgba(var(--primary-rgb), 0.15);
 }
 
-/* Kontener zdjęcia */
 .jersey-img-container {
   height: 220px;
   background: radial-gradient(circle at center, rgba(255, 255, 255, 0.05) 0%, rgba(0, 0, 0, 0.2) 70%);
@@ -4643,7 +4493,6 @@ input[type="color"]::-moz-color-swatch {
   filter: drop-shadow(0 5px 10px rgba(0, 0, 0, 0.5));
 }
 
-/* Szczegóły produktu */
 .jersey-details {
   padding: 15px;
   background: rgba(0, 0, 0, 0.2);
@@ -4656,7 +4505,6 @@ input[type="color"]::-moz-color-swatch {
   font-size: 18px;
   font-weight: 700;
   color: var(--text-color);
-  /* Naprawa koloru tekstu! */
   margin-bottom: 5px;
 }
 
@@ -4683,7 +4531,6 @@ input[type="color"]::-moz-color-swatch {
   color: var(--primary-color);
 }
 
-/* Statusy (np. Oczekuje, Opłacone) */
 .status-badge {
   position: absolute;
   top: 10px;
@@ -4709,7 +4556,6 @@ input[type="color"]::-moz-color-swatch {
   border: 1px solid var(--success-color);
 }
 
-/* Przycisk Płatności */
 .pay-btn {
   width: 100%;
   margin-top: 15px;
@@ -4728,10 +4574,6 @@ input[type="color"]::-moz-color-swatch {
   box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
 }
 
-/* ========================
-   POPRAWIONE MODALE (Dialogi)
-   ======================== */
-
 .custom-modal-overlay {
   position: fixed;
   top: 0;
@@ -4739,11 +4581,8 @@ input[type="color"]::-moz-color-swatch {
   width: 100%;
   height: 100%;
   background: rgba(0, 0, 0, 0.8);
-  /* Ciemniejsze tło pod spodem */
   backdrop-filter: blur(8px);
-  /* Mocniejsze rozmycie tła */
   z-index: 10001;
-  /* WAŻNE: Wyżej niż panel motywów (9999) */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4752,10 +4591,8 @@ input[type="color"]::-moz-color-swatch {
 }
 
 .custom-modal {
-  /* Tło zgodne z motywem */
   background: var(--card-bg);
   border: 1px solid var(--glass-border);
-  /* Dodatkowy cień, żeby okno "wyskoczyło" */
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(var(--primary-rgb), 0.2);
   border-radius: 16px;
   padding: 30px;
@@ -4783,7 +4620,6 @@ input[type="color"]::-moz-color-swatch {
   opacity: 0.9;
 }
 
-/* Pola formularza w modalu */
 .custom-modal .form-group {
   margin-bottom: 15px;
   text-align: left;
@@ -4814,7 +4650,6 @@ input[type="color"]::-moz-color-swatch {
   box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
 }
 
-/* Przyciski w modalu */
 .modal-actions {
   display: flex;
   justify-content: center;
@@ -4851,4 +4686,26 @@ input[type="color"]::-moz-color-swatch {
 
 .modal-btn.cancel:hover {
   background: rgba(var(--text-color), 0.1);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }

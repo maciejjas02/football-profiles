@@ -10,7 +10,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js" referrerpolicy="origin"></script>
 
   <style>
-    /* Nadpisanie domyślnego kontenera */
     .dashboard-container {
       margin-top: 100px;
       max-width: 1400px;
@@ -20,11 +19,9 @@
       width: 100%;
     }
 
-    /* Układ Grid: Formularz po lewej, Lista po prawej */
     .moderator-grid {
       display: grid;
       grid-template-columns: 2fr 1fr;
-      /* Lewa kolumna 2x szersza */
       gap: 30px;
       align-items: start;
     }
@@ -32,7 +29,6 @@
     @media (max-width: 1000px) {
       .moderator-grid {
         grid-template-columns: 1fr;
-        /* Na mobilkach jeden pod drugim */
       }
     }
 
@@ -42,7 +38,6 @@
       padding-right: 5px;
     }
 
-    /* Styl scrollbara dla listy */
     .pending-list::-webkit-scrollbar {
       width: 6px;
     }

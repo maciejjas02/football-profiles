@@ -310,10 +310,9 @@ app.post('/api/cart/checkout', requireAuth, async (req, res) => {
 
     const total = cartItems.reduce((sum, item) => sum + (item.jersey_price * item.quantity), 0);
 
-    // Przenieś do zamówień
+
     checkoutCart(user.id);
 
-    // +0.5 Email (Ethereal - Sandbox)
     try {
       await transporter.sendMail({
         from: '"Football Profiles Shop" <shop@football-profiles.com>',
@@ -324,7 +323,6 @@ app.post('/api/cart/checkout', requireAuth, async (req, res) => {
       console.log(`📧 Email wysłany do ${user.email}`);
     } catch (mailError) {
       console.error("Błąd wysyłania maila:", mailError);
-      // Nie blokujemy checkoutu jeśli mail nie wyjdzie w sandboxie
     }
 
     res.json({ success: true, message: "Zamówienie złożone!" });
@@ -338,7 +336,6 @@ app.post('/api/purchases/:id/pay', requireAuth, async (req, res) => {
   res.json({ success: true });
 });
 
-// NOWY ENDPOINT: Opłacanie całego zamówienia (grupowe)
 app.post('/api/purchases/pay-order', requireAuth, async (req, res) => {
   const { purchaseDate } = req.body;
   if (!purchaseDate) return res.status(400).json({ error: "Brak daty zamówienia" });
@@ -346,7 +343,6 @@ app.post('/api/purchases/pay-order', requireAuth, async (req, res) => {
   try {
     payForOrderByDate(req.user.id, purchaseDate);
 
-    // Wyślij e-mail potwierdzający
     const user = getUserById(req.user.id);
     await sendEmail(user.email, 'Zamówienie opłacone!', `<h1>Twoje zamówienie z dnia ${new Date(purchaseDate).toLocaleString()} zostało opłacone!</h1>`);
 
@@ -375,11 +371,9 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
 
 app.put('/api/admin/users/:id/role', requireAdmin, async (req, res) => {
   const { role } = req.body;
-  // Walidacja roli
   if (!['user', 'moderator', 'admin'].includes(role)) {
     return res.status(400).json({ error: 'Nieprawidłowa rola' });
   }
-  // Zabezpieczenie: nie ruszaj głównego admina (opcjonalne, ale dobre)
   if (parseInt(req.params.id) === 1 && role !== 'admin') {
     return res.status(403).json({ error: 'Nie można zmienić roli głównego administratora.' });
   }
@@ -527,7 +521,6 @@ app.post('/api/user/notifications/read-all', requireAuth, (req, res) => { markAl
 app.post('/api/gallery/upload', requireAdmin, uploadGalleryImage.single('image'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
   const { default: sharp } = await import('sharp');
-  // Tworzymy miniaturkę w podfolderze thumbnails
   sharp(req.file.path).resize(400).toFile(path.join(galleryThumbDir, req.file.filename));
   createGalleryImage({ filename: req.file.filename, title: req.body.title, description: req.body.description, width: 0, height: 0 });
   res.json({ success: true });
