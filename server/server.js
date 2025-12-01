@@ -313,9 +313,15 @@ app.get('/api/players/category/:cat', (req, res) => res.json(getPlayersByCategor
 
 // --- CART & PURCHASES ---
 app.get('/api/cart', requireAuth, (req, res) => { res.json(getCartItems(getUserByIdFromReq(req))); });
-app.post('/api/cart', requireAuth, (req, res) => { addToCart(getUserByIdFromReq(req), req.body.playerId); res.json({ success: true, message: "Dodano do koszyka" }); });
+app.post('/api/cart', requireAuth, (req, res) => {
+  try {
+    addToCart(getUserByIdFromReq(req), req.body.playerId);
+    res.json({ success: true, message: "Dodano do koszyka" });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
 app.delete('/api/cart/:id', requireAuth, (req, res) => { removeFromCart(getUserByIdFromReq(req), req.params.id); res.json({ success: true }); });
-// W server/server.js
 app.post('/api/cart/checkout', requireAuth, async (req, res) => {
   try {
     const user = getUserById(req.user.id);

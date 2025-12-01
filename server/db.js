@@ -520,11 +520,10 @@ export function getCartItems(userId) { return db.prepare(`SELECT ci.*, p.name, p
 export function addToCart(userId, playerId) {
     const player = db.prepare('SELECT jersey_available FROM players WHERE id=?').get(playerId);
     if (!player) throw new Error("Błąd: Produkt niedostępny");
-
-    const soldStock = db.prepare("SELECT COUNT(*) AS sold FROM purchases WHERE player_id=? AND status NOT IN ('pending', 'cancelled')").get(playerId).sold || 0;
-    if (player.jersey_available - soldStock <= 0) throw new Error("Brak w magazynie");
-
-
+    const soldStock = db.prepare("SELECT COUNT(*) AS sold FROM purchases WHERE player_id=? AND status != 'cancelled'").get(playerId).sold || 0;
+    const inCarts = db.prepare("SELECT SUM(quantity) AS in_cart FROM cart_items WHERE player_id=?").get(playerId).in_cart || 0;
+    const currentStock = player.jersey_available - soldStock - inCarts;
+    if (currentStock <= 0) throw new Error("Brak w magazynie");
     return db.prepare(`
         INSERT INTO cart_items (user_id, player_id, quantity) 
         VALUES (?, ?, 1) 
