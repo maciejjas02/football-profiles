@@ -5,9 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node server/server.js",
-    "dev:postgres": "cross-env USE_POSTGRESQL=true node server/server.js",
     "start": "cross-env NODE_ENV=production node server/server.js",
-    "start:postgres": "cross-env NODE_ENV=production USE_POSTGRESQL=true node server/server.js",
     "test": "echo \"No tests yet\"",
     "clean": "echo \"Cleaning temporary files...\""
   },
@@ -29,7 +27,6 @@
     "passport": "^0.7.0",
     "passport-github2": "^0.1.12",
     "passport-google-oauth20": "^2.0.0",
-    "pg": "^8.16.3",
     "sharp": "^0.34.4"
   },
   "devDependencies": {

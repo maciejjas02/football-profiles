@@ -17,16 +17,12 @@ import './passport.js';
 import nodemailer from 'nodemailer';
 
 const isProd = process.env.NODE_ENV === 'production';
-const usePostgreSQL = process.env.USE_POSTGRESQL === 'true';
+
 
 let dbFunctions;
-if (usePostgreSQL) {
-  console.log('Using PostgreSQL database');
-  dbFunctions = await import('./db-postgres.js');
-} else {
-  console.log('Using SQLite database');
-  dbFunctions = await import('./db.js');
-}
+
+console.log('Using SQLite database');
+dbFunctions = await import('./db.js');
 
 const {
   ensureSchema, ensureSeedAdmin, ensureSeedClubs, ensureSeedPlayers, ensureSeedCategories,
