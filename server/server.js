@@ -13,10 +13,22 @@ import jwt from 'jsonwebtoken';
 import passport from 'passport';
 import multer from 'multer';
 import fs from 'fs';
-import './passport.js';
+import './config/passport.js';
 import nodemailer from 'nodemailer';
+import { createPageRouter } from './routes/pageRoutes.js';
+import sequelize from './config/database.js';
+import { upsertOAuthUser } from './services/oauthUserService.js';
+import { createAuthMiddleware } from './middleware/authMiddleware.js';
 
 const isProd = process.env.NODE_ENV === 'production';
+const sessionSecret = process.env.SESSION_SECRET || (isProd ? null : 'development-session-secret-change-me');
+const jwtSecret = process.env.JWT_SECRET || (isProd ? null : 'development-jwt-secret-change-me');
+
+if (!sessionSecret || !jwtSecret) {
+  throw new Error('SESSION_SECRET and JWT_SECRET must be set in production');
+}
+
+const { getUserByIdFromReq, requireAuth, requireModerator, requireAdmin, attachCurrentUser } = createAuthMiddleware(jwtSecret);
 
 
 let dbFunctions;
@@ -26,7 +38,7 @@ dbFunctions = await import('./db.js');
 
 const {
   ensureSchema, ensureSeedAdmin, ensureSeedClubs, ensureSeedPlayers, ensureSeedCategories,
-  findUserByLogin, getUserById, createOrUpdateUserFromProvider, existsUserByEmail, existsUserByUsername, createLocalUser,
+  findUserByLogin, getUserById, existsUserByEmail, existsUserByUsername, createLocalUser,
   getPlayerById, getPlayersByCategory, getAllClubs, getClubById,
   createPurchase, getUserPurchases, updatePurchaseStatus, getAllPurchases,
   // --- KOSZYK ---
@@ -51,6 +63,8 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 5173;
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, '..', 'views'));
 
 // KONFIGURACJA ŚCIEŻEK UPLOADU
 const postsUploadDir = path.join(__dirname, '..', 'public', 'uploads', 'posts');
@@ -95,7 +109,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(cookieParser());
 
 app.use(session({
-  secret: 'secret', resave: false, saveUninitialized: false, cookie: { httpOnly: true, sameSite: 'lax', secure: isProd }
+  secret: sessionSecret, resave: false, saveUninitialized: false, cookie: { httpOnly: true, sameSite: 'lax', secure: isProd }
 }));
 
 app.use(passport.initialize());
@@ -123,6 +137,8 @@ app.use((req, res, next) => {
 
 
 await ensureSchema();
+await sequelize.authenticate();
+await sequelize.sync();
 await ensureSeedAdmin();
 await ensureSeedClubs();
 await ensureSeedPlayers();
@@ -210,54 +226,29 @@ const sendEmail = async (to, subject, html) => {
 };
 
 // --- JWT & MIDDLEWARE ---
-const issueJwt = (user) => jwt.sign({ sub: user.id, role: user.role }, 'secret', { expiresIn: '1h' });
+const issueJwt = (user) => jwt.sign({ sub: user.id, role: user.role }, jwtSecret, { expiresIn: '1h' });
 const setAuthCookies = (res, token) => res.cookie('jwt', token, { httpOnly: true });
 
-function getUserByIdFromReq(req) {
-  if (req.session.userId) return req.session.userId;
-  const token = req.cookies.jwt;
-  if (token) { try { return jwt.verify(token, 'secret').sub; } catch (e) { return null; } }
-  return null;
-}
-
-function requireAuth(req, res, next) {
-  const id = getUserByIdFromReq(req);
-  if (!id) return res.status(401).json({ error: 'Wymagane logowanie' });
-  req.user = getUserById(id);
-  if (!req.user) return res.status(401).json({ error: 'Niepoprawny użytkownik' });
-  next();
-}
-
-function requireModerator(req, res, next) {
-  if (!req.user) return requireAuth(req, res, () => requireModerator(req, res, next));
-  if (req.user.role !== 'moderator' && req.user.role !== 'admin') return res.status(403).json({ error: 'Moderator lub Admin wymagany' });
-  next();
-}
-
-function requireAdmin(req, res, next) {
-  if (!req.user) return requireAuth(req, res, () => requireAdmin(req, res, next));
-  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin wymagany' });
-  next();
-}
+app.use(attachCurrentUser);
 
 // --- OAUTH ROUTES ---
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: '/' }), async (req, res) => {
   try {
-    const user = await createOrUpdateUserFromProvider('google', req.user);
+    const user = await upsertOAuthUser('google', req.user);
     req.session.userId = user.id;
     setAuthCookies(res, issueJwt(user));
-    res.redirect('/dashboard.html');
+    res.redirect('/dashboard');
   } catch (e) { console.error('Google Auth Error:', e); res.redirect('/?error=oauth_failed'); }
 });
 
 app.get('/auth/github', passport.authenticate('github', { scope: ['user:email'] }));
 app.get('/auth/github/callback', passport.authenticate('github', { failureRedirect: '/' }), async (req, res) => {
   try {
-    const user = await createOrUpdateUserFromProvider('github', req.user);
+    const user = await upsertOAuthUser('github', req.user);
     req.session.userId = user.id;
     setAuthCookies(res, issueJwt(user));
-    res.redirect('/dashboard.html');
+    res.redirect('/dashboard');
   } catch (e) { console.error('GitHub Auth Error:', e); res.redirect('/?error=oauth_failed'); }
 });
 
@@ -571,20 +562,8 @@ app.get('/api/gallery/active', (req, res) => {
   res.json({ items: getCollectionItems(c.id) });
 });
 
-// STATIC & FALLBACK
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'index.html')));
-app.get('/dashboard.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'dashboard.html')));
-app.get('/player.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'player.html')));
-app.get('/my-collection.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'my-collection.html')));
-app.get('/forum.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'forum.html')));
-app.get('/post.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'post.html')));
-app.get('/moderator-posts.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'moderator-posts.html')));
-app.get('/moderator-comments.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'moderator-comments.html')));
-app.get('/admin-categories.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'admin-categories.html')));
-app.get('/gallery.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'gallery.html')));
-app.get('/admin-gallery-upload.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'admin-gallery-upload.html')));
-app.get('/admin-gallery-manage.html', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'admin-gallery-manage.html')));
-app.get('/admin-orders.html', requireModerator, (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'admin-orders.html')));
+// Render application pages through EJS; the router also keeps legacy .html URLs.
+app.use(createPageRouter({ requireModerator }));
 
 app.use((err, req, res, next) => { console.error(err); res.status(500).json({ error: err.message }); });
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));

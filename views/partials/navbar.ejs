@@ -1,0 +1,15 @@
+<nav class="topbar-nav">
+  <a href="/dashboard" class="nav-tab <%= activePage === 'dashboard' ? 'active' : '' %>">Panel</a>
+  <a href="/gallery" class="nav-tab <%= activePage === 'gallery' ? 'active' : '' %>">Galeria</a>
+  <a href="/forum" class="nav-tab <%= activePage === 'forum' ? 'active' : '' %>">Forum</a>
+  <% if (user && ['moderator', 'admin'].includes(user.role)) { %>
+    <a href="/moderator-posts" class="nav-tab <%= activePage === 'moderator-posts' || activePage === 'moderator-comments' ? 'active' : '' %>" id="moderatorLink">Moderacja</a>
+  <% } %>
+  <% if (user && user.role === 'admin') { %>
+    <a href="/admin-categories" class="nav-tab <%= activePage === 'admin-categories' ? 'active' : '' %>" id="adminLink">Admin</a>
+    <a href="/admin-gallery-manage" class="nav-tab <%= activePage === 'admin-gallery-manage' ? 'active' : '' %>" id="galleryManageLink">Zarządzaj Galeriami</a>
+  <% } %>
+  <% if (user && ['moderator', 'admin'].includes(user.role)) { %>
+    <a href="/admin-orders" class="nav-tab <%= activePage === 'admin-orders' ? 'active' : '' %>" id="ordersLink">Zamówienia</a>
+  <% } %>
+</nav>

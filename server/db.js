@@ -396,7 +396,6 @@ export function findUserByLogin(l) { return db.prepare('SELECT * FROM users WHER
 export function getUserById(id) { return db.prepare('SELECT * FROM users WHERE id=?').get(id); }
 export function getUserByProvider(provider, providerId) { return db.prepare('SELECT * FROM users WHERE provider = ? AND provider_id = ?').get(provider, providerId); }
 export async function createLocalUser({ email, username, password, name }) { const hash = await bcrypt.hash(password, 10); const res = db.prepare('INSERT INTO users (email, username, password_hash, name, role, provider) VALUES (?,?,?,?,?,?)').run(email, username, hash, name, 'user', 'local'); return getUserById(res.lastInsertRowid); }
-export function createOrUpdateUserFromProvider(provider, userData) { /* ... */ }
 export function existsUserByEmail(e) { return !!db.prepare('SELECT 1 FROM users WHERE email=?').get(e); }
 export function existsUserByUsername(u) { return !!db.prepare('SELECT 1 FROM users WHERE username=?').get(u); }
 export function updateUserAddress(userId, address, city, postalCode) { return db.prepare('UPDATE users SET address = ?, city = ?, postal_code = ? WHERE id = ?').run(address, city, postalCode, userId); }
