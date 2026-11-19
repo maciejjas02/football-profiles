@@ -1,0 +1,17 @@
+services:
+  app:
+    build: .
+    container_name: football-profiles
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env 
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DB_PATH=/app/database/app.sqlite
+    volumes:
+      - ./database:/app/database
+      - ./public/uploads:/app/public/uploads
+      - ./public/gallery-img:/app/public/gallery-img
+    restart: unless-stopped

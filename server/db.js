@@ -6,7 +6,7 @@ import bcrypt from 'bcrypt';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export const db = new Database(path.join(__dirname, 'app.sqlite'));
+export const db = new Database(process.env.DB_PATH || path.join(__dirname, 'app.sqlite'));
 
 export function ensureSchema() {
     db.exec(`
