@@ -19,6 +19,9 @@ import { createPageRouter } from './routes/pageRoutes.js';
 import sequelize from './config/database.js';
 import { upsertOAuthUser } from './services/oauthUserService.js';
 import { createAuthMiddleware } from './middleware/authMiddleware.js';
+import playerRoutes from './routes/playerRoutes.js';
+import { createOrderRouter } from './routes/orderRoutes.js';
+import { createForumRouter } from './routes/forumRoutes.js';
 
 const isProd = process.env.NODE_ENV === 'production';
 const sessionSecret = process.env.SESSION_SECRET || (isProd ? null : 'development-session-secret-change-me');
@@ -39,7 +42,7 @@ dbFunctions = await import('./db.js');
 const {
   ensureSchema, ensureSeedAdmin, ensureSeedClubs, ensureSeedPlayers, ensureSeedCategories,
   findUserByLogin, getUserById, existsUserByEmail, existsUserByUsername, createLocalUser,
-  getPlayerById, getPlayersByCategory, getAllClubs, getClubById,
+  getAllClubs, getClubById,
   createPurchase, getUserPurchases, updatePurchaseStatus, getAllPurchases,
   // --- KOSZYK ---
   getCartItems, addToCart, removeFromCart, checkoutCart,
@@ -134,6 +137,10 @@ app.use((req, res, next) => {
   }
   next();
 });
+
+app.use(playerRoutes);
+app.use(createOrderRouter({ requireAuth, requireModerator }));
+app.use(createForumRouter({ requireModerator, db: dbFunctions }));
 
 
 await ensureSchema();
@@ -294,10 +301,6 @@ app.put('/api/user/address', requireAuth, (req, res) => {
   res.json({ success: true });
 });
 
-// --- PLAYERS & CLUBS ---
-app.get('/api/player/:id', (req, res) => { const p = getPlayerById(req.params.id); p ? res.json(p) : res.status(404).send(); });
-app.get('/api/players/category/:cat', (req, res) => res.json(getPlayersByCategory(req.params.cat)));
-
 // --- CART & PURCHASES ---
 app.get('/api/cart', requireAuth, (req, res) => { res.json(getCartItems(getUserByIdFromReq(req))); });
 app.post('/api/cart', requireAuth, (req, res) => {
@@ -337,7 +340,6 @@ app.post('/api/cart/checkout', requireAuth, async (req, res) => {
     res.json({ success: true, message: "Zamówienie złożone!" });
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
-app.get('/api/user/purchases', requireAuth, (req, res) => res.json(getUserPurchases(getUserByIdFromReq(req))));
 app.post('/api/purchases/:id/pay', requireAuth, async (req, res) => {
   updatePurchaseStatus(req.params.id, 'completed');
   const user = getUserById(req.user.id);
@@ -359,13 +361,6 @@ app.post('/api/purchases/pay-order', requireAuth, async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
-});
-
-// --- ADMIN ORDERS ---
-app.get('/api/admin/orders', requireModerator, (req, res) => { res.json(getAllPurchases()); });
-app.put('/api/admin/orders/:id/status', requireModerator, (req, res) => {
-  updatePurchaseStatus(req.params.id, req.body.status);
-  res.json({ success: true });
 });
 
 // --- ADMIN: USER ROLES ---
@@ -410,12 +405,6 @@ app.get('/api/forum/my-allowed-categories', requireAuth, requireModerator, async
   res.json(categories);
 });
 
-app.get('/api/forum/posts', (req, res) => {
-  const limit = parseInt(req.query.limit) || 20;
-  const offset = parseInt(req.query.offset) || 0;
-  if (req.query.category_id) res.json(getPostsByCategory(req.query.category_id, limit, offset));
-  else res.json(getAllPosts(limit, offset));
-});
 app.get('/api/forum/posts/pending/list', requireAuth, requireModerator, async (req, res) => {
   const posts = await getPendingPosts(req.user.id, req.user.role);
   res.json(posts);
@@ -424,58 +413,6 @@ app.get('/api/forum/posts/pending/list', requireAuth, requireModerator, async (r
 app.get('/api/auth/csrf-token', csrfProtection, (req, res) => {
   res.json({ csrfToken: req.csrfToken() });
 })
-app.get('/api/forum/posts/:id', (req, res) => { const p = getPostById(req.params.id); p ? res.json(p) : res.status(404).json({ error: 'Not found' }); });
-app.post('/api/forum/posts', requireModerator, async (req, res) => {
-  const id = req.user.id;
-  const role = req.user.role;
-  const categoryId = parseInt(req.body.category_id);
-
-
-  if (role !== 'admin') {
-    const isMod = await isModOfCategory(id, categoryId);
-    if (!isMod) {
-      return res.status(403).json({ error: 'Brak uprawnień do tworzenia postów w tej kategorii.' });
-    }
-  }
-
-
-  const status = 'approved';
-
-  try {
-    const result = await createPost(req.body.title, req.body.content || '', categoryId, id, status);
-    const newId = result.lastInsertRowid || result.id;
-    res.json({ success: true, id: newId });
-  } catch (e) {
-    res.status(500).json({ error: 'Błąd bazy danych' });
-  }
-});
-app.put('/api/forum/posts/:id', requireModerator, (req, res) => { updatePost(req.params.id, req.body.title, req.body.content, req.body.category_id); res.json({ success: true }); });
-app.delete('/api/forum/posts/:id', requireModerator, async (req, res) => {
-  const permitted = await checkModPermission(req.user.id, req.user.role, req.params.id);
-  if (!permitted) return res.status(403).json({ error: 'Brak uprawnień do tej kategorii' });
-
-  deletePost(req.params.id);
-  res.json({ success: true });
-});
-app.post('/api/forum/posts/:id/approve', requireModerator, async (req, res) => {
-  const permitted = await checkModPermission(req.user.id, req.user.role, req.params.id);
-  if (!permitted) return res.status(403).json({ error: 'Brak uprawnień do tej kategorii' });
-
-  const post = await getPostById(req.params.id);
-  approvePost(req.params.id);
-  if (post) createNotification(post.author_id, 'post_approved', 'Post zatwierdzony', `Twój post "${post.title}" został zatwierdzony.`, `/post.html?id=${post.id}`);
-  res.json({ success: true });
-});
-app.post('/api/forum/posts/:id/reject', requireModerator, async (req, res) => {
-  const permitted = await checkModPermission(req.user.id, req.user.role, req.params.id);
-  if (!permitted) return res.status(403).json({ error: 'Brak uprawnień do tej kategorii' });
-
-  const post = await getPostById(req.params.id);
-  rejectPost(req.params.id);
-  if (post) createNotification(post.author_id, 'post_rejected', 'Post odrzucony', `Twój post "${post.title}" został odrzucony.`, `/moderator-posts.html`);
-  res.json({ success: true });
-});
-
 app.get('/api/forum/posts/:id/comments', (req, res) => res.json(getPostComments(req.params.id, getUserByIdFromReq(req))));
 app.post('/api/forum/posts/:id/comments', requireAuth, (req, res) => { createComment(req.params.id, req.body.content, getUserByIdFromReq(req)); res.json({ success: true }); });
 app.post('/api/forum/comments/:id/rate', requireAuth, (req, res) => { rateComment(parseInt(req.params.id), req.user.id, parseInt(req.body.rating)); res.json({ success: true }); });

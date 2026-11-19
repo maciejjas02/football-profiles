@@ -60,6 +60,23 @@ const Player = sequelize.define('Player', {
   updated_at: DataTypes.STRING
 }, { tableName: 'players', timestamps: false });
 
+const PlayerStat = sequelize.define('PlayerStat', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  player_id: DataTypes.STRING,
+  goals: DataTypes.INTEGER,
+  assists: DataTypes.INTEGER,
+  matches: DataTypes.INTEGER,
+  trophies: DataTypes.INTEGER
+}, { tableName: 'player_stats', timestamps: false });
+
+const PlayerAchievement = sequelize.define('PlayerAchievement', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  player_id: DataTypes.STRING,
+  achievement: DataTypes.STRING,
+  year: DataTypes.INTEGER,
+  description: DataTypes.TEXT
+}, { tableName: 'player_achievements', timestamps: false });
+
 const Post = sequelize.define('Post', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   title: DataTypes.STRING,
@@ -70,6 +87,14 @@ const Post = sequelize.define('Post', {
   created_at: DataTypes.STRING
 }, { tableName: 'posts', timestamps: false });
 
+const Category = sequelize.define('Category', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  name: DataTypes.STRING,
+  slug: { type: DataTypes.STRING, unique: true },
+  description: DataTypes.TEXT,
+  parent_id: DataTypes.INTEGER
+}, { tableName: 'categories', timestamps: false });
+
 const Comment = sequelize.define('Comment', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   post_id: DataTypes.INTEGER,
@@ -78,6 +103,15 @@ const Comment = sequelize.define('Comment', {
   status: { type: DataTypes.STRING, defaultValue: 'pending' },
   created_at: DataTypes.STRING
 }, { tableName: 'post_comments', timestamps: false });
+
+const Purchase = sequelize.define('Purchase', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  user_id: DataTypes.INTEGER,
+  player_id: DataTypes.STRING,
+  jersey_price: DataTypes.INTEGER,
+  purchase_date: DataTypes.STRING,
+  status: { type: DataTypes.STRING, defaultValue: 'pending' }
+}, { tableName: 'purchases', timestamps: false });
 
 const GalleryImage = sequelize.define('GalleryImage', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
@@ -107,12 +141,20 @@ const GalleryItem = sequelize.define('GalleryItem', {
 
 User.hasMany(Post, { foreignKey: 'author_id', as: 'posts' });
 Post.belongsTo(User, { foreignKey: 'author_id', as: 'author' });
+Category.hasMany(Post, { foreignKey: 'category_id', as: 'posts' });
+Post.belongsTo(Category, { foreignKey: 'category_id', as: 'category' });
 Post.hasMany(Comment, { foreignKey: 'post_id', as: 'comments' });
 Comment.belongsTo(Post, { foreignKey: 'post_id', as: 'post' });
 User.hasMany(Comment, { foreignKey: 'author_id', as: 'comments' });
 Comment.belongsTo(User, { foreignKey: 'author_id', as: 'author' });
+User.hasMany(Purchase, { foreignKey: 'user_id', as: 'purchases' });
+Purchase.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+Player.hasMany(Purchase, { foreignKey: 'player_id', as: 'purchases' });
+Purchase.belongsTo(Player, { foreignKey: 'player_id', as: 'player' });
 Club.hasMany(Player, { foreignKey: 'club_id', as: 'players' });
 Player.belongsTo(Club, { foreignKey: 'club_id', as: 'club' });
+Player.hasOne(PlayerStat, { foreignKey: 'player_id', as: 'stats' });
+Player.hasMany(PlayerAchievement, { foreignKey: 'player_id', as: 'achievements' });
 GalleryCollection.belongsToMany(GalleryImage, {
   through: GalleryItem,
   foreignKey: 'collection_id',
@@ -126,4 +168,4 @@ GalleryImage.belongsToMany(GalleryCollection, {
   as: 'collections'
 });
 
-export { sequelize, User, Club, Player, Post, Comment, GalleryImage, GalleryCollection, GalleryItem };
+export { sequelize, User, Club, Player, PlayerStat, PlayerAchievement, Post, Category, Comment, Purchase, GalleryImage, GalleryCollection, GalleryItem };
